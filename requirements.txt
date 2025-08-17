@@ -1,0 +1,40 @@
+# Flask核心框架
+Flask>=2.3.0
+Flask-SQLAlchemy>=3.0.0
+Flask-Migrate>=4.0.0
+
+# 数据库
+SQLAlchemy>=2.0.0
+
+# 股票数据获取
+akshare
+
+# 图片处理
+Pillow
+
+# HTTP请求
+requests
+
+# 数据处理
+pandas
+numpy
+
+# 日期时间处理
+python-dateutil
+
+# JSON处理
+simplejson
+
+# 开发和测试依赖
+pytest
+pytest-flask
+pytest-cov
+selenium
+webdriver-manager
+
+# 代码格式化和检查
+black
+flake8
+
+# 环境变量管理
+python-dotenv

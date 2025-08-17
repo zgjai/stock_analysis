@@ -1,0 +1,38 @@
+{
+  "name": "stock-trading-journal",
+  "version": "1.0.0",
+  "description": "股票交易记录和复盘系统前端",
+  "main": "static/js/main.js",
+  "scripts": {
+    "dev": "python app.py",
+    "build": "echo 'Build process for production'",
+    "test": "echo 'Frontend tests'",
+    "lint": "echo 'Linting JavaScript files'",
+    "format": "echo 'Formatting code'",
+    "serve": "python -m http.server 8000 --directory static",
+    "watch": "echo 'Watching for file changes'"
+  },
+  "keywords": [
+    "stock",
+    "trading",
+    "journal",
+    "flask",
+    "bootstrap"
+  ],
+  "author": "Stock Trading Journal Team",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "prettier": "^2.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "bootstrap": "^5.3.0",
+    "chart.js": "^4.3.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}

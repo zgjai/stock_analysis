@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>精确JavaScript调试</title>
+</head>
+<body>
+    <h1>精确JavaScript调试</h1>
+    <div id="result"></div>
+    
+    <script>
+        // 捕获所有JavaScript错误
+        window.onerror = function(message, source, lineno, colno, error) {
+            document.getElementById('result').innerHTML += `
+                <div style="color: red; border: 1px solid red; padding: 10px; margin: 10px 0;">
+                    <h3>JavaScript错误</h3>
+                    <p><strong>错误信息:</strong> ${message}</p>
+                    <p><strong>文件:</strong> ${source}</p>
+                    <p><strong>行号:</strong> ${lineno}</p>
+                    <p><strong>列号:</strong> ${colno}</p>
+                    <p><strong>错误对象:</strong> ${error}</p>
+                </div>
+            `;
+            return true;
+        };
+        
+        // 测试可能有问题的代码段
+        try {
+            // 模拟handleTradeFormSubmit函数中的代码
+            const formData = {
+                price: "100.50",
+                quantity: "200", 
+                stop_loss_price: "95.00",
+                take_profit_ratio: "10",
+                sell_ratio: "50"
+            };
+            
+            // 处理数值字段 - 这是第985-996行的代码
+            formData.price = parseFloat(formData.price);
+            formData.quantity = parseInt(formData.quantity);
+            
+            if (formData.stop_loss_price) {
+                formData.stop_loss_price = parseFloat(formData.stop_loss_price);
+            }
+            if (formData.take_profit_ratio) {
+                formData.take_profit_ratio = parseFloat(formData.take_profit_ratio) / 100;
+            }
+            if (formData.sell_ratio) {
+                formData.sell_ratio = parseFloat(formData.sell_ratio) / 100;
+            }
+            
+            document.getElementById('result').innerHTML = `
+                <div style="color: green; border: 1px solid green; padding: 10px; margin: 10px 0;">
+                    <h3>✅ 代码段执行成功</h3>
+                    <p>处理后的数据:</p>
+                    <pre>${JSON.stringify(formData, null, 2)}</pre>
+                </div>
+            `;
+            
+        } catch (error) {
+            document.getElementById('result').innerHTML = `
+                <div style="color: red; border: 1px solid red; padding: 10px; margin: 10px 0;">
+                    <h3>❌ 代码段执行失败</h3>
+                    <p><strong>错误:</strong> ${error.message}</p>
+                    <p><strong>堆栈:</strong> ${error.stack}</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

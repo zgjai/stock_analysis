@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易记录修复验证</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>交易记录页面修复验证</h1>
+    
+    <div class="test-section">
+        <h2>1. API数据结构测试</h2>
+        <div id="api-test-result" class="test-result info">正在测试...</div>
+        <div id="api-details"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. 前端数据处理模拟</h2>
+        <div id="frontend-test-result" class="test-result info">等待API测试完成...</div>
+        <div id="frontend-details"></div>
+    </div>
+
+    <script>
+        let apiData = null;
+
+        async function testAPI() {
+            const resultDiv = document.getElementById('api-test-result');
+            const detailsDiv = document.getElementById('api-details');
+            
+            try {
+                const response = await axios.get('/api/trades');
+                apiData = response.data;
+                
+                resultDiv.className = 'test-result success';
+                resultDiv.textContent = '✓ API测试成功';
+                
+                let details = '<h3>API响应分析:</h3><ul>';
+                
+                if (apiData.success) {
+                    details += '<li>✓ success: true</li>';
+                } else {
+                    details += '<li>✗ success字段问题</li>';
+                }
+                
+                if (apiData.data && apiData.data.trades) {
+                    details += `<li>✓ data.trades: ${apiData.data.trades.length}条记录</li>`;
+                } else {
+                    details += '<li>✗ data.trades字段缺失</li>';
+                }
+                
+                if (apiData.data && apiData.data.total !== undefined) {
+                    details += `<li>✓ data.total: ${apiData.data.total}</li>`;
+                } else {
+                    details += '<li>✗ data.total字段缺失</li>';
+                }
+                
+                details += '</ul>';
+                details += '<h4>完整响应:</h4>';
+                details += `<pre>${JSON.stringify(apiData, null, 2)}</pre>`;
+                
+                detailsDiv.innerHTML = details;
+                
+                // 触发前端测试
+                testFrontendProcessing();
+                
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = '✗ API测试失败';
+                
+                detailsDiv.innerHTML = `
+                    <h3>错误信息:</h3>
+                    <p><strong>错误:</strong> ${error.message}</p>
+                    <p><strong>状态码:</strong> ${error.response?.status || 'N/A'}</p>
+                    <pre>${JSON.stringify(error.response?.data || error, null, 2)}</pre>
+                `;
+            }
+        }
+        
+        function testFrontendProcessing() {
+            const resultDiv = document.getElementById('frontend-test-result');
+            const detailsDiv = document.getElementById('frontend-details');
+            
+            if (!apiData) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = '✗ 无法进行前端测试，API数据不可用';
+                return;
+            }
+            
+            try {
+                // 模拟前端代码的数据处理
+                let details = '<h3>前端数据处理模拟:</h3>';
+                
+                // 修复前的代码（会失败）
+                const oldWay = apiData.data.items || [];
+                details += `<p><strong>修复前:</strong> response.data.items = ${oldWay.length > 0 ? oldWay.length + '条记录' : '未定义/空数组'}</p>`;
+                
+                // 修复后的代码（应该成功）
+                const newWay = apiData.data.trades || [];
+                details += `<p><strong>修复后:</strong> response.data.trades = ${newWay.length}条记录</p>`;
+                
+                // 分页数据处理
+                const paginationData = {
+                    total: apiData.data.total || 0,
+                    pages: apiData.data.pages || 1,
+                    current_page: apiData.data.current_page || 1,
+                    per_page: apiData.data.per_page || 20,
+                    has_next: apiData.data.has_next || false,
+                    has_prev: apiData.data.has_prev || false
+                };
+                
+                details += '<h4>分页数据处理:</h4>';
+                details += `<pre>${JSON.stringify(paginationData, null, 2)}</pre>`;
+                
+                // 模拟渲染表格
+                details += '<h4>模拟表格渲染:</h4>';
+                if (newWay.length > 0) {
+                    details += '<table border="1" style="border-collapse: collapse; width: 100%;">';
+                    details += '<tr><th>股票代码</th><th>股票名称</th><th>交易类型</th><th>价格</th><th>数量</th></tr>';
+                    
+                    newWay.slice(0, 3).forEach(trade => {
+                        details += `<tr>
+                            <td>${trade.stock_code}</td>
+                            <td>${trade.stock_name}</td>
+                            <td>${trade.trade_type === 'buy' ? '买入' : '卖出'}</td>
+                            <td>${trade.price}</td>
+                            <td>${trade.quantity}</td>
+                        </tr>`;
+                    });
+                    
+                    if (newWay.length > 3) {
+                        details += `<tr><td colspan="5">... 还有${newWay.length - 3}条记录</td></tr>`;
+                    }
+                    
+                    details += '</table>';
+                } else {
+                    details += '<p>暂无交易记录</p>';
+                }
+                
+                detailsDiv.innerHTML = details;
+                
+                if (newWay.length > 0) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.textContent = '✓ 前端数据处理测试成功';
+                } else {
+                    resultDiv.className = 'test-result info';
+                    resultDiv.textContent = '⚠ 前端处理正常，但无数据显示';
+                }
+                
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = '✗ 前端数据处理测试失败';
+                
+                detailsDiv.innerHTML = `
+                    <h3>处理错误:</h3>
+                    <p>${error.message}</p>
+                    <pre>${error.stack}</pre>
+                `;
+            }
+        }
+        
+        // 页面加载后开始测试
+        document.addEventListener('DOMContentLoaded', testAPI);
+    </script>
+</body>
+</html>

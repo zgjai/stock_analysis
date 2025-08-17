@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易记录修复测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #d1ecf1; color: #0c5460; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>交易记录API修复测试</h1>
+    
+    <div id="status" class="status loading">正在测试API...</div>
+    
+    <h2>API响应数据:</h2>
+    <div id="result"></div>
+    
+    <h2>数据结构分析:</h2>
+    <div id="analysis"></div>
+
+    <script>
+        async function testTradingRecordsAPI() {
+            const statusDiv = document.getElementById('status');
+            const resultDiv = document.getElementById('result');
+            const analysisDiv = document.getElementById('analysis');
+            
+            try {
+                statusDiv.textContent = '正在请求 /api/trades...';
+                
+                const response = await axios.get('/api/trades');
+                
+                statusDiv.className = 'status success';
+                statusDiv.textContent = 'API请求成功！';
+                
+                // 显示原始响应
+                resultDiv.innerHTML = `<pre>${JSON.stringify(response.data, null, 2)}</pre>`;
+                
+                // 分析数据结构
+                const data = response.data;
+                let analysis = '<ul>';
+                
+                if (data.success) {
+                    analysis += '<li>✓ success字段存在且为true</li>';
+                } else {
+                    analysis += '<li>✗ success字段不存在或为false</li>';
+                }
+                
+                if (data.data) {
+                    analysis += '<li>✓ data字段存在</li>';
+                    
+                    if (data.data.trades) {
+                        analysis += `<li>✓ data.trades字段存在，包含${data.data.trades.length}条记录</li>`;
+                    } else {
+                        analysis += '<li>✗ data.trades字段不存在</li>';
+                    }
+                    
+                    if (data.data.total !== undefined) {
+                        analysis += `<li>✓ data.total字段存在，值为${data.data.total}</li>`;
+                    } else {
+                        analysis += '<li>✗ data.total字段不存在</li>';
+                    }
+                } else {
+                    analysis += '<li>✗ data字段不存在</li>';
+                }
+                
+                analysis += '</ul>';
+                
+                // 前端代码期望的数据结构
+                analysis += '<h3>前端代码修复前后对比:</h3>';
+                analysis += '<p><strong>修复前:</strong> response.data.items (不存在)</p>';
+                analysis += '<p><strong>修复后:</strong> response.data.trades (存在)</p>';
+                
+                analysisDiv.innerHTML = analysis;
+                
+                console.log('API Response:', response.data);
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = 'API请求失败！';
+                
+                resultDiv.innerHTML = `
+                    <h3>错误信息:</h3>
+                    <p><strong>错误:</strong> ${error.message}</p>
+                    <p><strong>状态码:</strong> ${error.response?.status || 'N/A'}</p>
+                    <pre>${JSON.stringify(error.response?.data || error, null, 2)}</pre>
+                `;
+                
+                console.error('API Error:', error);
+            }
+        }
+        
+        // 页面加载后立即测试
+        document.addEventListener('DOMContentLoaded', testTradingRecordsAPI);
+    </script>
+</body>
+</html>

@@ -1,0 +1,727 @@
+{% extends "base.html" %}
+
+{% block title %}案例管理 - 股票交易记录系统{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">案例管理</li>
+{% endblock %}
+
+{% block page_title %}案例管理{% endblock %}
+
+{% block content %}
+<!-- 上传和搜索区域 -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">上传案例</h5>
+            </div>
+            <div class="card-body">
+                <form id="upload-form" enctype="multipart/form-data">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="case-file" class="form-label">选择图片 <span class="text-danger">*</span></label>
+                                <input type="file" class="form-control" id="case-file" accept="image/*" required>
+                                <div class="form-text">支持 JPG、PNG、GIF 格式，最大 10MB</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="case-stock-code" class="form-label">股票代码</label>
+                                <input type="text" class="form-control" id="case-stock-code" placeholder="如：000001">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="case-title" class="form-label">案例标题 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="case-title" placeholder="输入案例标题" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="case-tags" class="form-label">标签</label>
+                                <input type="text" class="form-control" id="case-tags" placeholder="用逗号分隔多个标签">
+                                <div class="form-text">如：突破形态,量价配合,强势股</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="case-notes" class="form-label">备注说明</label>
+                        <textarea class="form-control" id="case-notes" rows="3" placeholder="输入案例分析和备注"></textarea>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div id="upload-progress" class="progress" style="width: 60%; display: none;">
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="upload-btn">
+                            <i class="fas fa-upload me-2"></i>上传案例
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">搜索筛选</h5>
+            </div>
+            <div class="card-body">
+                <form id="search-form">
+                    <div class="mb-3">
+                        <label for="search-keyword" class="form-label">关键词</label>
+                        <input type="text" class="form-control" id="search-keyword" placeholder="搜索标题或备注">
+                    </div>
+                    <div class="mb-3">
+                        <label for="search-stock-code" class="form-label">股票代码</label>
+                        <input type="text" class="form-control" id="search-stock-code" placeholder="如：000001">
+                    </div>
+                    <div class="mb-3">
+                        <label for="search-tags" class="form-label">标签</label>
+                        <select class="form-select" id="search-tags" multiple>
+                            <!-- 动态加载标签选项 -->
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label for="search-start-date" class="form-label">开始日期</label>
+                                <input type="date" class="form-control" id="search-start-date">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label for="search-end-date" class="form-label">结束日期</label>
+                                <input type="date" class="form-control" id="search-end-date">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-search me-2"></i>搜索
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="clear-search">
+                            <i class="fas fa-times me-2"></i>清空
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 案例列表区域 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">案例库</h5>
+        <div class="d-flex align-items-center">
+            <span class="text-muted me-3" id="cases-count">共 0 个案例</span>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="grid-view" title="网格视图">
+                    <i class="fas fa-th"></i>
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm active" id="list-view" title="列表视图">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="cases-container">
+            <div class="text-center text-muted py-5" id="loading-indicator">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <div class="mt-2">加载中...</div>
+            </div>
+        </div>
+        
+        <!-- 分页 -->
+        <nav aria-label="案例分页" id="pagination-container" style="display: none;">
+            <ul class="pagination justify-content-center" id="pagination">
+                <!-- 动态生成分页 -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- 案例详情模态框 -->
+<div class="modal fade" id="case-detail-modal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">案例详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="case-detail-content">
+                    <!-- 动态加载案例详情 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" id="edit-case-btn">编辑</button>
+                <button type="button" class="btn btn-outline-danger" id="delete-case-btn">删除</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑案例模态框 -->
+<div class="modal fade" id="edit-case-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑案例</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-case-form">
+                    <input type="hidden" id="edit-case-id">
+                    <div class="mb-3">
+                        <label for="edit-case-title" class="form-label">案例标题</label>
+                        <input type="text" class="form-control" id="edit-case-title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-case-stock-code" class="form-label">股票代码</label>
+                        <input type="text" class="form-control" id="edit-case-stock-code">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-case-tags" class="form-label">标签</label>
+                        <input type="text" class="form-control" id="edit-case-tags">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-case-notes" class="form-label">备注说明</label>
+                        <textarea class="form-control" id="edit-case-notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="save-case-btn">保存</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+class CaseManager {
+    constructor() {
+        this.currentPage = 1;
+        this.perPage = 12;
+        this.viewMode = 'list'; // 'list' or 'grid'
+        this.searchParams = {};
+        this.currentCaseId = null;
+        
+        this.init();
+    }
+    
+    init() {
+        this.bindEvents();
+        this.loadTags();
+        this.loadCases();
+    }
+    
+    bindEvents() {
+        // 上传表单
+        document.getElementById('upload-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.uploadCase();
+        });
+        
+        // 搜索表单
+        document.getElementById('search-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.searchCases();
+        });
+        
+        // 清空搜索
+        document.getElementById('clear-search').addEventListener('click', () => {
+            this.clearSearch();
+        });
+        
+        // 视图切换
+        document.getElementById('grid-view').addEventListener('click', () => {
+            this.switchView('grid');
+        });
+        
+        document.getElementById('list-view').addEventListener('click', () => {
+            this.switchView('list');
+        });
+        
+        // 编辑和删除按钮
+        document.getElementById('edit-case-btn').addEventListener('click', () => {
+            this.showEditModal();
+        });
+        
+        document.getElementById('delete-case-btn').addEventListener('click', () => {
+            this.deleteCase();
+        });
+        
+        document.getElementById('save-case-btn').addEventListener('click', () => {
+            this.saveCase();
+        });
+        
+        // 上传进度监听
+        document.addEventListener('uploadProgress', (e) => {
+            this.updateUploadProgress(e.detail.percent);
+        });
+    }
+    
+    async loadTags() {
+        try {
+            const response = await apiClient.request('GET', '/cases/tags');
+            if (response.success) {
+                this.renderTagOptions(response.data);
+            }
+        } catch (error) {
+            console.error('加载标签失败:', error);
+        }
+    }
+    
+    renderTagOptions(tags) {
+        const select = document.getElementById('search-tags');
+        select.innerHTML = '';
+        
+        tags.forEach(tag => {
+            const option = document.createElement('option');
+            option.value = tag;
+            option.textContent = tag;
+            select.appendChild(option);
+        });
+    }
+    
+    async uploadCase() {
+        const form = document.getElementById('upload-form');
+        const fileInput = document.getElementById('case-file');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            showMessage('请选择要上传的图片', 'error');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('stock_code', document.getElementById('case-stock-code').value);
+        formData.append('title', document.getElementById('case-title').value);
+        formData.append('notes', document.getElementById('case-notes').value);
+        
+        // 处理标签
+        const tagsInput = document.getElementById('case-tags').value;
+        const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+        formData.append('tags', JSON.stringify(tags));
+        
+        try {
+            const uploadBtn = document.getElementById('upload-btn');
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>上传中...';
+            
+            this.showUploadProgress();
+            
+            const response = await apiClient.createCase(formData);
+            
+            if (response.success) {
+                showMessage('案例上传成功', 'success');
+                form.reset();
+                this.hideUploadProgress();
+                this.loadCases(); // 重新加载案例列表
+            }
+        } catch (error) {
+            showMessage(error.message || '上传失败', 'error');
+        } finally {
+            const uploadBtn = document.getElementById('upload-btn');
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>上传案例';
+            this.hideUploadProgress();
+        }
+    }
+    
+    showUploadProgress() {
+        document.getElementById('upload-progress').style.display = 'block';
+    }
+    
+    hideUploadProgress() {
+        document.getElementById('upload-progress').style.display = 'none';
+        const progressBar = document.querySelector('#upload-progress .progress-bar');
+        progressBar.style.width = '0%';
+    }
+    
+    updateUploadProgress(percent) {
+        const progressBar = document.querySelector('#upload-progress .progress-bar');
+        progressBar.style.width = `${percent}%`;
+        progressBar.textContent = `${percent}%`;
+    }
+    
+    async searchCases() {
+        this.searchParams = {
+            keyword: document.getElementById('search-keyword').value,
+            stock_code: document.getElementById('search-stock-code').value,
+            tags: Array.from(document.getElementById('search-tags').selectedOptions).map(option => option.value),
+            start_date: document.getElementById('search-start-date').value,
+            end_date: document.getElementById('search-end-date').value
+        };
+        
+        this.currentPage = 1;
+        await this.loadCases();
+    }
+    
+    clearSearch() {
+        document.getElementById('search-form').reset();
+        this.searchParams = {};
+        this.currentPage = 1;
+        this.loadCases();
+    }
+    
+    switchView(mode) {
+        this.viewMode = mode;
+        
+        // 更新按钮状态
+        document.getElementById('grid-view').classList.toggle('active', mode === 'grid');
+        document.getElementById('list-view').classList.toggle('active', mode === 'list');
+        
+        // 重新渲染案例列表
+        this.renderCases(this.currentCases);
+    }
+    
+    async loadCases() {
+        try {
+            document.getElementById('loading-indicator').style.display = 'block';
+            document.getElementById('cases-container').innerHTML = document.getElementById('loading-indicator').outerHTML;
+            
+            const params = {
+                ...this.searchParams,
+                page: this.currentPage,
+                per_page: this.perPage
+            };
+            
+            const response = await apiClient.getCases(params);
+            
+            if (response.success) {
+                this.currentCases = response.data.cases || [];
+                this.totalPages = response.data.total_pages || 1;
+                this.totalCount = response.data.total || 0;
+                
+                this.renderCases(this.currentCases);
+                this.renderPagination();
+                this.updateCasesCount();
+            }
+        } catch (error) {
+            document.getElementById('cases-container').innerHTML = `
+                <div class="text-center text-danger py-5">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                    <div>加载案例失败: ${error.message}</div>
+                    <button class="btn btn-outline-primary mt-3" onclick="caseManager.loadCases()">重试</button>
+                </div>
+            `;
+        }
+    }
+    
+    renderCases(cases) {
+        const container = document.getElementById('cases-container');
+        
+        if (!cases || cases.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-image fa-3x mb-3"></i>
+                    <div>暂无案例数据</div>
+                </div>
+            `;
+            return;
+        }
+        
+        if (this.viewMode === 'grid') {
+            this.renderGridView(cases);
+        } else {
+            this.renderListView(cases);
+        }
+    }
+    
+    renderGridView(cases) {
+        const container = document.getElementById('cases-container');
+        const html = `
+            <div class="row">
+                ${cases.map(case_ => `
+                    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                        <div class="card case-card" data-case-id="${case_.id}">
+                            <div class="card-img-top-container" style="height: 200px; overflow: hidden;">
+                                <img src="/api/cases/${case_.id}/image" class="card-img-top" style="width: 100%; height: 100%; object-fit: cover;" alt="${case_.title}">
+                            </div>
+                            <div class="card-body">
+                                <h6 class="card-title">${case_.title}</h6>
+                                <p class="card-text text-muted small">
+                                    ${case_.stock_code ? `<span class="badge bg-primary me-1">${case_.stock_code}</span>` : ''}
+                                    <small>${formatDate(case_.created_at)}</small>
+                                </p>
+                                ${case_.tags && case_.tags.length > 0 ? `
+                                    <div class="mb-2">
+                                        ${case_.tags.map(tag => `<span class="badge bg-secondary me-1">${tag}</span>`).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        container.innerHTML = html;
+        this.bindCaseEvents();
+    }
+    
+    renderListView(cases) {
+        const container = document.getElementById('cases-container');
+        const html = `
+            <div class="list-group">
+                ${cases.map(case_ => `
+                    <div class="list-group-item case-item" data-case-id="${case_.id}">
+                        <div class="row align-items-center">
+                            <div class="col-md-2">
+                                <img src="/api/cases/${case_.id}/image" class="img-thumbnail" style="width: 80px; height: 60px; object-fit: cover;" alt="${case_.title}">
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mb-1">${case_.title}</h6>
+                                <p class="mb-1 text-muted small">${case_.notes || '无备注'}</p>
+                                <small class="text-muted">${formatDate(case_.created_at)}</small>
+                            </div>
+                            <div class="col-md-2">
+                                ${case_.stock_code ? `<span class="badge bg-primary">${case_.stock_code}</span>` : '<span class="text-muted">-</span>'}
+                            </div>
+                            <div class="col-md-2">
+                                ${case_.tags && case_.tags.length > 0 ? 
+                                    case_.tags.map(tag => `<span class="badge bg-secondary me-1">${tag}</span>`).join('') : 
+                                    '<span class="text-muted">无标签</span>'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        container.innerHTML = html;
+        this.bindCaseEvents();
+    }
+    
+    bindCaseEvents() {
+        // 绑定案例点击事件
+        document.querySelectorAll('.case-card, .case-item').forEach(element => {
+            element.addEventListener('click', (e) => {
+                const caseId = parseInt(element.dataset.caseId);
+                this.showCaseDetail(caseId);
+            });
+        });
+    }
+    
+    async showCaseDetail(caseId) {
+        try {
+            const response = await apiClient.request('GET', `/cases/${caseId}`);
+            if (response.success) {
+                this.currentCaseId = caseId;
+                this.renderCaseDetail(response.data);
+                
+                const modal = new bootstrap.Modal(document.getElementById('case-detail-modal'));
+                modal.show();
+            }
+        } catch (error) {
+            showMessage('获取案例详情失败', 'error');
+        }
+    }
+    
+    renderCaseDetail(case_) {
+        const content = document.getElementById('case-detail-content');
+        content.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <img src="/api/cases/${case_.id}/image" class="img-fluid rounded" alt="${case_.title}">
+                </div>
+                <div class="col-md-6">
+                    <h5>${case_.title}</h5>
+                    <div class="mb-3">
+                        <strong>股票代码:</strong> ${case_.stock_code || '未指定'}
+                    </div>
+                    <div class="mb-3">
+                        <strong>创建时间:</strong> ${formatDateTime(case_.created_at)}
+                    </div>
+                    ${case_.tags && case_.tags.length > 0 ? `
+                        <div class="mb-3">
+                            <strong>标签:</strong><br>
+                            ${case_.tags.map(tag => `<span class="badge bg-secondary me-1">${tag}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    ${case_.notes ? `
+                        <div class="mb-3">
+                            <strong>备注说明:</strong><br>
+                            <div class="border rounded p-2 bg-light">${case_.notes}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    showEditModal() {
+        if (!this.currentCaseId) return;
+        
+        // 从详情中获取数据填充编辑表单
+        const case_ = this.currentCases.find(c => c.id === this.currentCaseId);
+        if (case_) {
+            document.getElementById('edit-case-id').value = case_.id;
+            document.getElementById('edit-case-title').value = case_.title;
+            document.getElementById('edit-case-stock-code').value = case_.stock_code || '';
+            document.getElementById('edit-case-tags').value = case_.tags ? case_.tags.join(', ') : '';
+            document.getElementById('edit-case-notes').value = case_.notes || '';
+            
+            const editModal = new bootstrap.Modal(document.getElementById('edit-case-modal'));
+            editModal.show();
+        }
+    }
+    
+    async saveCase() {
+        const caseId = parseInt(document.getElementById('edit-case-id').value);
+        const data = {
+            title: document.getElementById('edit-case-title').value,
+            stock_code: document.getElementById('edit-case-stock-code').value,
+            notes: document.getElementById('edit-case-notes').value
+        };
+        
+        // 处理标签
+        const tagsInput = document.getElementById('edit-case-tags').value;
+        data.tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+        
+        try {
+            const response = await apiClient.updateCase(caseId, data);
+            if (response.success) {
+                showMessage('案例更新成功', 'success');
+                
+                // 关闭模态框
+                const editModal = bootstrap.Modal.getInstance(document.getElementById('edit-case-modal'));
+                editModal.hide();
+                
+                const detailModal = bootstrap.Modal.getInstance(document.getElementById('case-detail-modal'));
+                detailModal.hide();
+                
+                // 重新加载案例列表
+                this.loadCases();
+            }
+        } catch (error) {
+            showMessage(error.message || '更新失败', 'error');
+        }
+    }
+    
+    async deleteCase() {
+        if (!this.currentCaseId) return;
+        
+        if (!confirm('确定要删除这个案例吗？此操作不可恢复。')) {
+            return;
+        }
+        
+        try {
+            const response = await apiClient.deleteCase(this.currentCaseId);
+            if (response.success) {
+                showMessage('案例删除成功', 'success');
+                
+                // 关闭模态框
+                const detailModal = bootstrap.Modal.getInstance(document.getElementById('case-detail-modal'));
+                detailModal.hide();
+                
+                // 重新加载案例列表
+                this.loadCases();
+            }
+        } catch (error) {
+            showMessage(error.message || '删除失败', 'error');
+        }
+    }
+    
+    renderPagination() {
+        const container = document.getElementById('pagination-container');
+        const pagination = document.getElementById('pagination');
+        
+        if (this.totalPages <= 1) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.style.display = 'block';
+        
+        let html = '';
+        
+        // 上一页
+        html += `
+            <li class="page-item ${this.currentPage === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="${this.currentPage - 1}">上一页</a>
+            </li>
+        `;
+        
+        // 页码
+        const startPage = Math.max(1, this.currentPage - 2);
+        const endPage = Math.min(this.totalPages, this.currentPage + 2);
+        
+        if (startPage > 1) {
+            html += `<li class="page-item"><a class="page-link" href="#" data-page="1">1</a></li>`;
+            if (startPage > 2) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            html += `
+                <li class="page-item ${i === this.currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" data-page="${i}">${i}</a>
+                </li>
+            `;
+        }
+        
+        if (endPage < this.totalPages) {
+            if (endPage < this.totalPages - 1) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+            html += `<li class="page-item"><a class="page-link" href="#" data-page="${this.totalPages}">${this.totalPages}</a></li>`;
+        }
+        
+        // 下一页
+        html += `
+            <li class="page-item ${this.currentPage === this.totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="${this.currentPage + 1}">下一页</a>
+            </li>
+        `;
+        
+        pagination.innerHTML = html;
+        
+        // 绑定分页事件
+        pagination.querySelectorAll('a.page-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = parseInt(link.dataset.page);
+                if (page && page !== this.currentPage && page >= 1 && page <= this.totalPages) {
+                    this.currentPage = page;
+                    this.loadCases();
+                }
+            });
+        });
+    }
+    
+    updateCasesCount() {
+        document.getElementById('cases-count').textContent = `共 ${this.totalCount} 个案例`;
+    }
+}
+
+// 初始化案例管理器
+let caseManager;
+
+function initCases() {
+    caseManager = new CaseManager();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.pathname.includes('cases')) {
+        initCases();
+    }
+});
+</script>
+{% endblock %}

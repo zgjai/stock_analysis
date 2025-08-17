@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易记录页面测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 交易记录页面功能测试</h1>
+    
+    <div class="test-container">
+        <h2>📋 测试控制面板</h2>
+        <button onclick="testServerConnection()">测试服务器连接</button>
+        <button onclick="testAPIEndpoints()">测试API端点</button>
+        <button onclick="testPageLoad()">测试页面加载</button>
+        <button onclick="testJavaScriptFunctions()">测试JavaScript功能</button>
+        <button onclick="runAllTests()">运行全部测试</button>
+        <button onclick="clearResults()">清空结果</button>
+    </div>
+
+    <div class="test-container">
+        <h2>📊 测试结果</h2>
+        <div id="test-results"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>🌐 交易记录页面预览</h2>
+        <iframe id="trading-page" src="http://localhost:5001/trading-records"></iframe>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:5001';
+        let testResults = [];
+
+        function addResult(type, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            testResults.push({type, message, timestamp});
+            updateResultsDisplay();
+        }
+
+        function updateResultsDisplay() {
+            const container = document.getElementById('test-results');
+            container.innerHTML = testResults.map(result => 
+                `<div class="test-result ${result.type}">
+                    <strong>[${result.timestamp}]</strong> ${result.message}
+                </div>`
+            ).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearResults() {
+            testResults = [];
+            updateResultsDisplay();
+        }
+
+        async function testServerConnection() {
+            addResult('info', '🔄 测试服务器连接...');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/health`);
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('success', `✅ 服务器连接成功: ${data.message}`);
+                    return true;
+                } else {
+                    addResult('error', `❌ 服务器响应错误: ${response.status}`);
+                    return false;
+                }
+            } catch (error) {
+                addResult('error', `❌ 服务器连接失败: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function testAPIEndpoints() {
+            addResult('info', '🔄 测试API端点...');
+            
+            const endpoints = [
+                {url: '/api/trades', name: '交易记录列表'},
+                {url: '/api/trades/config', name: '交易配置'},
+                {url: '/api/trades/stats', name: '交易统计'},
+                {url: '/api/trades/config/buy-reasons', name: '买入原因'},
+                {url: '/api/trades/config/sell-reasons', name: '卖出原因'}
+            ];
+
+            let successCount = 0;
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(`${BASE_URL}${endpoint.url}`);
+                    if (response.ok) {
+                        addResult('success', `✅ ${endpoint.name}: 正常`);
+                        successCount++;
+                    } else {
+                        addResult('error', `❌ ${endpoint.name}: ${response.status}`);
+                    }
+                } catch (error) {
+                    addResult('error', `❌ ${endpoint.name}: ${error.message}`);
+                }
+            }
+            
+            const successRate = (successCount / endpoints.length * 100).toFixed(1);
+            addResult('info', `📊 API端点测试完成: ${successCount}/${endpoints.length} (${successRate}%)`);
+            
+            return successCount === endpoints.length;
+        }
+
+        async function testPageLoad() {
+            addResult('info', '🔄 测试页面加载...');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/trading-records`);
+                if (response.ok) {
+                    const html = await response.text();
+                    
+                    // 检查关键元素
+                    const checks = [
+                        {pattern: /TradingRecordsManager/g, name: 'JavaScript类'},
+                        {pattern: /id="trades-table-body"/g, name: '交易表格'},
+                        {pattern: /id="addTradeModal"/g, name: '添加交易模态框'},
+                        {pattern: /id="trade-form"/g, name: '交易表单'},
+                        {pattern: /function.*filterTrades/g, name: '筛选功能'},
+                        {pattern: /function.*refreshTrades/g, name: '刷新功能'}
+                    ];
+                    
+                    let foundCount = 0;
+                    for (const check of checks) {
+                        if (check.pattern.test(html)) {
+                            addResult('success', `✅ 找到${check.name}`);
+                            foundCount++;
+                        } else {
+                            addResult('warning', `⚠️ 未找到${check.name}`);
+                        }
+                    }
+                    
+                    const successRate = (foundCount / checks.length * 100).toFixed(1);
+                    addResult('info', `📊 页面元素检查: ${foundCount}/${checks.length} (${successRate}%)`);
+                    
+                    // 重新加载iframe
+                    document.getElementById('trading-page').src = `${BASE_URL}/trading-records?t=${Date.now()}`;
+                    
+                    return foundCount >= checks.length * 0.8; // 80%通过率
+                } else {
+                    addResult('error', `❌ 页面加载失败: ${response.status}`);
+                    return false;
+                }
+            } catch (error) {
+                addResult('error', `❌ 页面加载异常: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function testJavaScriptFunctions() {
+            addResult('info', '🔄 测试JavaScript功能...');
+            
+            // 通过iframe测试JavaScript功能
+            const iframe = document.getElementById('trading-page');
+            
+            try {
+                // 等待iframe加载
+                await new Promise(resolve => {
+                    if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
+                        resolve();
+                    } else {
+                        iframe.onload = resolve;
+                    }
+                });
+                
+                const iframeWindow = iframe.contentWindow;
+                const iframeDocument = iframe.contentDocument;
+                
+                // 检查JavaScript对象和函数
+                const jsChecks = [
+                    {obj: 'tradingManager', name: '交易管理器实例'},
+                    {func: 'filterTrades', name: '筛选交易函数'},
+                    {func: 'refreshTrades', name: '刷新交易函数'},
+                    {func: 'initTradingRecords', name: '初始化函数'}
+                ];
+                
+                let jsFoundCount = 0;
+                for (const check of jsChecks) {
+                    try {
+                        if (check.obj && iframeWindow[check.obj]) {
+                            addResult('success', `✅ ${check.name}已加载`);
+                            jsFoundCount++;
+                        } else if (check.func && typeof iframeWindow[check.func] === 'function') {
+                            addResult('success', `✅ ${check.name}已定义`);
+                            jsFoundCount++;
+                        } else {
+                            addResult('warning', `⚠️ ${check.name}未找到`);
+                        }
+                    } catch (e) {
+                        addResult('warning', `⚠️ ${check.name}检查失败: ${e.message}`);
+                    }
+                }
+                
+                // 检查DOM元素
+                const domChecks = [
+                    'trades-table-body',
+                    'addTradeModal',
+                    'trade-form',
+                    'stock-code-filter',
+                    'trade-type-filter'
+                ];
+                
+                let domFoundCount = 0;
+                for (const elementId of domChecks) {
+                    if (iframeDocument.getElementById(elementId)) {
+                        addResult('success', `✅ DOM元素 ${elementId} 存在`);
+                        domFoundCount++;
+                    } else {
+                        addResult('warning', `⚠️ DOM元素 ${elementId} 不存在`);
+                    }
+                }
+                
+                const totalChecks = jsChecks.length + domChecks.length;
+                const totalFound = jsFoundCount + domFoundCount;
+                const successRate = (totalFound / totalChecks * 100).toFixed(1);
+                
+                addResult('info', `📊 JavaScript功能检查: ${totalFound}/${totalChecks} (${successRate}%)`);
+                
+                return totalFound >= totalChecks * 0.7; // 70%通过率
+                
+            } catch (error) {
+                addResult('error', `❌ JavaScript功能测试失败: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function runAllTests() {
+            addResult('info', '🚀 开始运行全部测试...');
+            clearResults();
+            
+            const tests = [
+                {name: '服务器连接', func: testServerConnection},
+                {name: 'API端点', func: testAPIEndpoints},
+                {name: '页面加载', func: testPageLoad},
+                {name: 'JavaScript功能', func: testJavaScriptFunctions}
+            ];
+            
+            let passedTests = 0;
+            
+            for (const test of tests) {
+                addResult('info', `🔄 正在执行: ${test.name}测试`);
+                try {
+                    const result = await test.func();
+                    if (result) {
+                        passedTests++;
+                        addResult('success', `✅ ${test.name}测试通过`);
+                    } else {
+                        addResult('error', `❌ ${test.name}测试失败`);
+                    }
+                } catch (error) {
+                    addResult('error', `❌ ${test.name}测试异常: ${error.message}`);
+                }
+                
+                // 添加延迟，避免请求过快
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            const successRate = (passedTests / tests.length * 100).toFixed(1);
+            addResult('info', `🎯 测试完成: ${passedTests}/${tests.length} (${successRate}%)`);
+            
+            if (successRate >= 80) {
+                addResult('success', '🎉 系统功能基本正常！');
+            } else {
+                addResult('warning', '⚠️ 系统存在一些问题，请检查');
+            }
+        }
+
+        // 页面加载完成后自动测试服务器连接
+        window.addEventListener('load', () => {
+            addResult('info', '📋 测试页面已加载，点击按钮开始测试');
+            testServerConnection();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易记录问题调试</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .log { background: #f8f9fa; padding: 10px; margin: 5px 0; border-left: 3px solid #007bff; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        .success { border-left-color: #28a745; background: #d4edda; }
+        .warning { border-left-color: #ffc107; background: #fff3cd; }
+        pre { font-size: 12px; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>交易记录页面问题调试</h1>
+    
+    <div>
+        <button onclick="testAPI()">测试API</button>
+        <button onclick="testFrontendCode()">测试前端代码</button>
+        <button onclick="simulatePageLoad()">模拟页面加载</button>
+        <button onclick="clearLogs()">清除日志</button>
+    </div>
+    
+    <div id="logs"></div>
+
+    <script>
+        let requestCount = 0;
+        
+        function log(message, type = 'log') {
+            const logsDiv = document.getElementById('logs');
+            const logDiv = document.createElement('div');
+            logDiv.className = `log ${type}`;
+            logDiv.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            logsDiv.appendChild(logDiv);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            requestCount = 0;
+        }
+        
+        async function testAPI() {
+            log('开始测试API...', 'log');
+            
+            try {
+                requestCount++;
+                log(`发起第${requestCount}次API请求`, 'log');
+                
+                const startTime = Date.now();
+                const response = await axios.get('http://localhost:5001/api/trades');
+                const endTime = Date.now();
+                
+                log(`API请求成功，耗时: ${endTime - startTime}ms`, 'success');
+                log(`响应数据: success=${response.data.success}, trades数量=${response.data.data?.trades?.length || 0}`, 'success');
+                
+                return response.data;
+            } catch (error) {
+                log(`API请求失败: ${error.message}`, 'error');
+                if (error.response) {
+                    log(`状态码: ${error.response.status}`, 'error');
+                }
+                throw error;
+            }
+        }
+        
+        function testFrontendCode() {
+            log('测试前端数据处理代码...', 'log');
+            
+            // 模拟API响应数据
+            const mockResponse = {
+                success: true,
+                data: {
+                    trades: [
+                        { id: 1, stock_code: '000001', stock_name: '平安银行', trade_type: 'buy', price: 12.5, quantity: 1000 },
+                        { id: 2, stock_code: '000002', stock_name: '万科A', trade_type: 'sell', price: 18.8, quantity: 500 }
+                    ],
+                    total: 2
+                }
+            };
+            
+            try {
+                // 测试修复后的代码
+                const trades = mockResponse.data.trades || [];
+                log(`成功提取trades数据: ${trades.length}条记录`, 'success');
+                
+                const paginationData = {
+                    total: mockResponse.data.total || 0,
+                    pages: mockResponse.data.pages || 1,
+                    current_page: mockResponse.data.current_page || 1,
+                    per_page: mockResponse.data.per_page || 20,
+                    has_next: mockResponse.data.has_next || false,
+                    has_prev: mockResponse.data.has_prev || false
+                };
+                log(`分页数据处理成功: ${JSON.stringify(paginationData)}`, 'success');
+                
+                // 测试修复前的代码（应该失败）
+                const oldWay = mockResponse.data.items || [];
+                log(`修复前的代码结果: ${oldWay.length}条记录 (应该为0)`, oldWay.length === 0 ? 'success' : 'error');
+                
+            } catch (error) {
+                log(`前端代码测试失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function simulatePageLoad() {
+            log('模拟页面加载过程...', 'log');
+            
+            try {
+                // 模拟TradingRecordsManager初始化
+                log('1. 创建TradingRecordsManager实例', 'log');
+                
+                // 模拟loadTradeConfig
+                log('2. 加载交易配置...', 'log');
+                const configStart = Date.now();
+                
+                try {
+                    const [buyReasons, sellReasons] = await Promise.all([
+                        axios.get('http://localhost:5001/api/trades/config/buy-reasons'),
+                        axios.get('http://localhost:5001/api/trades/config/sell-reasons')
+                    ]);
+                    log(`配置加载成功，耗时: ${Date.now() - configStart}ms`, 'success');
+                } catch (error) {
+                    log(`配置加载失败: ${error.message}`, 'error');
+                }
+                
+                // 模拟loadTrades
+                log('3. 加载交易记录...', 'log');
+                const tradesStart = Date.now();
+                
+                const params = {
+                    page: 1,
+                    per_page: 20,
+                    sort_by: 'trade_date',
+                    sort_order: 'desc'
+                };
+                
+                // 设置3秒超时（和实际代码一样）
+                const timeout = 3000;
+                const response = await Promise.race([
+                    axios.get('http://localhost:5001/api/trades', { params }),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('请求超时')), timeout))
+                ]);
+                
+                log(`交易记录加载成功，耗时: ${Date.now() - tradesStart}ms`, 'success');
+                
+                if (response.data.success) {
+                    const trades = response.data.data.trades || [];
+                    log(`成功渲染${trades.length}条交易记录`, 'success');
+                    
+                    // 模拟分页处理
+                    const paginationData = {
+                        total: response.data.data.total || 0,
+                        pages: response.data.data.pages || 1,
+                        current_page: response.data.data.current_page || 1,
+                        per_page: response.data.data.per_page || 20,
+                        has_next: response.data.data.has_next || false,
+                        has_prev: response.data.data.has_prev || false
+                    };
+                    log(`分页数据: ${JSON.stringify(paginationData)}`, 'success');
+                } else {
+                    log(`API返回失败: ${response.data.message}`, 'error');
+                }
+                
+                log('页面加载模拟完成！', 'success');
+                
+            } catch (error) {
+                if (error.message === '请求超时') {
+                    log('请求超时，这可能是导致页面一直加载的原因', 'warning');
+                } else {
+                    log(`页面加载模拟失败: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        // 监听所有axios请求
+        axios.interceptors.request.use(
+            (config) => {
+                log(`发起请求: ${config.method?.toUpperCase()} ${config.url}`, 'log');
+                return config;
+            },
+            (error) => {
+                log(`请求拦截器错误: ${error.message}`, 'error');
+                return Promise.reject(error);
+            }
+        );
+        
+        axios.interceptors.response.use(
+            (response) => {
+                log(`请求成功: ${response.config.url} (${response.status})`, 'success');
+                return response;
+            },
+            (error) => {
+                log(`请求失败: ${error.config?.url} - ${error.message}`, 'error');
+                return Promise.reject(error);
+            }
+        );
+        
+        log('调试页面已加载，请点击按钮进行测试', 'log');
+    </script>
+</body>
+</html>

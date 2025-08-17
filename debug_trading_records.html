@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易记录调试页面</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>交易记录API调试</h1>
+    <div id="status">正在测试...</div>
+    <div id="result"></div>
+
+    <script>
+        async function testAPI() {
+            const statusDiv = document.getElementById('status');
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                statusDiv.textContent = '正在请求API...';
+                
+                // 测试API请求
+                const response = await axios.get('/api/trades');
+                
+                statusDiv.textContent = 'API请求成功！';
+                resultDiv.innerHTML = `
+                    <h3>API响应:</h3>
+                    <pre>${JSON.stringify(response.data, null, 2)}</pre>
+                `;
+                
+                console.log('API Response:', response.data);
+                
+            } catch (error) {
+                statusDiv.textContent = 'API请求失败！';
+                resultDiv.innerHTML = `
+                    <h3>错误信息:</h3>
+                    <p>错误: ${error.message}</p>
+                    <p>状态码: ${error.response?.status || 'N/A'}</p>
+                    <pre>${JSON.stringify(error.response?.data || error, null, 2)}</pre>
+                `;
+                
+                console.error('API Error:', error);
+            }
+        }
+        
+        // 页面加载后立即测试
+        document.addEventListener('DOMContentLoaded', testAPI);
+    </script>
+</body>
+</html>
