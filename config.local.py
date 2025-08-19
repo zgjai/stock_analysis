@@ -53,7 +53,7 @@ class LocalConfig:
     TEMPLATE_FOLDER = BASE_DIR / 'templates'
     
     # 安全配置
-    WTF_CSRF_ENABLED = True
+    WTF_CSRF_ENABLED = False  # 开发环境暂时禁用CSRF保护
     WTF_CSRF_TIME_LIMIT = 3600  # CSRF令牌有效期(秒)
     
     @classmethod

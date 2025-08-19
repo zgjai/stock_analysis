@@ -153,6 +153,20 @@ class FormValidator {
     }
     
     validateField(field) {
+        // 如果传入的是字符串，尝试查找对应的字段
+        if (typeof field === 'string') {
+            const fieldElement = this.form.querySelector(`[name="${field}"]`);
+            if (!fieldElement) {
+                console.warn(`Field with name "${field}" not found`);
+                return true; // 字段不存在时返回true，避免阻塞
+            }
+            return this.validateField(fieldElement);
+        }
+        
+        if (!field || !field.name) {
+            return true;
+        }
+        
         const fieldName = field.name;
         const value = field.value;
         const rules = this.rules[fieldName] || [];
@@ -209,11 +223,20 @@ class FormValidator {
     }
     
     showFieldError(field, message) {
+        if (!field || !field.classList) {
+            return;
+        }
+        
         field.classList.add('is-invalid');
         field.classList.remove('is-valid');
         
+        const container = this.getFieldFeedbackContainer(field);
+        if (!container) {
+            return;
+        }
+        
         // 移除现有的反馈
-        const existingFeedback = this.getFieldFeedbackContainer(field).querySelector('.invalid-feedback');
+        const existingFeedback = container.querySelector('.invalid-feedback');
         if (existingFeedback) {
             existingFeedback.remove();
         }
@@ -223,7 +246,7 @@ class FormValidator {
         feedback.className = 'invalid-feedback';
         feedback.textContent = message;
         
-        this.getFieldFeedbackContainer(field).appendChild(feedback);
+        container.appendChild(feedback);
         
         // 高亮错误字段
         if (this.options.highlightErrors) {
@@ -232,11 +255,20 @@ class FormValidator {
     }
     
     showFieldSuccess(field, message = '') {
+        if (!field || !field.classList) {
+            return;
+        }
+        
         field.classList.add('is-valid');
         field.classList.remove('is-invalid');
         
+        const container = this.getFieldFeedbackContainer(field);
+        if (!container) {
+            return;
+        }
+        
         // 移除现有的反馈
-        const existingFeedback = this.getFieldFeedbackContainer(field).querySelector('.valid-feedback');
+        const existingFeedback = container.querySelector('.valid-feedback');
         if (existingFeedback) {
             existingFeedback.remove();
         }
@@ -247,22 +279,33 @@ class FormValidator {
             feedback.className = 'valid-feedback';
             feedback.textContent = message;
             
-            this.getFieldFeedbackContainer(field).appendChild(feedback);
+            container.appendChild(feedback);
         }
     }
     
     clearFieldValidation(field) {
+        if (!field || !field.classList) {
+            return;
+        }
+        
         field.classList.remove('is-invalid', 'is-valid');
         
         const container = this.getFieldFeedbackContainer(field);
-        container.querySelectorAll('.invalid-feedback, .valid-feedback').forEach(feedback => {
-            feedback.remove();
-        });
+        if (container && container.querySelectorAll) {
+            container.querySelectorAll('.invalid-feedback, .valid-feedback').forEach(feedback => {
+                feedback.remove();
+            });
+        }
     }
     
     getFieldFeedbackContainer(field) {
+        // 检查字段是否存在且有父节点
+        if (!field || !field.parentNode) {
+            return null;
+        }
+        
         // 如果字段在input-group中，返回input-group的父容器
-        if (field.parentNode.classList.contains('input-group')) {
+        if (field.parentNode.classList && field.parentNode.classList.contains('input-group')) {
             return field.parentNode.parentNode;
         }
         return field.parentNode;

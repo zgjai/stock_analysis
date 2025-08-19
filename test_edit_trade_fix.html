@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试编辑交易记录修复</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>测试编辑交易记录修复</h2>
+        
+        <div class="alert alert-info">
+            <h5>问题描述:</h5>
+            <p>编辑已有交易记录时报错: <code>TypeError: Cannot set properties of undefined (setting 'originalContent')</code></p>
+            
+            <h5>问题原因:</h5>
+            <p><code>UXUtils.showLoading(true, '加载交易记录...')</code> 传入了 <code>true</code> 而不是DOM元素</p>
+            
+            <h5>修复方案:</h5>
+            <ul>
+                <li>添加了全局加载状态管理函数 <code>showGlobalLoading</code> 和 <code>hideGlobalLoading</code></li>
+                <li>修改 <code>editTrade</code> 函数使用正确的加载机制</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5>测试按钮</h5>
+            </div>
+            <div class="card-body">
+                <button type="button" class="btn btn-primary" onclick="testGlobalLoading()">
+                    测试全局加载状态
+                </button>
+                <button type="button" class="btn btn-success" onclick="testElementLoading()">
+                    测试元素加载状态
+                </button>
+                <button type="button" class="btn btn-warning" onclick="simulateEditTrade()">
+                    模拟编辑交易记录
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <h5>测试结果:</h5>
+            <div id="test-results" class="alert alert-secondary">
+                点击上面的按钮进行测试...
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    
+    <script>
+        function testGlobalLoading() {
+            const results = document.getElementById('test-results');
+            results.innerHTML = '测试全局加载状态...';
+            
+            try {
+                UXUtils.showGlobalLoading('测试全局加载...');
+                
+                setTimeout(() => {
+                    UXUtils.hideGlobalLoading();
+                    results.innerHTML = '<span class="text-success">✓ 全局加载状态测试成功</span>';
+                }, 2000);
+                
+            } catch (error) {
+                results.innerHTML = `<span class="text-danger">✗ 全局加载状态测试失败: ${error.message}</span>`;
+            }
+        }
+
+        function testElementLoading() {
+            const results = document.getElementById('test-results');
+            const button = event.target;
+            
+            try {
+                UXUtils.showLoading(button, '测试中...');
+                
+                setTimeout(() => {
+                    UXUtils.hideLoading(button);
+                    results.innerHTML = '<span class="text-success">✓ 元素加载状态测试成功</span>';
+                }, 2000);
+                
+            } catch (error) {
+                results.innerHTML = `<span class="text-danger">✗ 元素加载状态测试失败: ${error.message}</span>`;
+            }
+        }
+
+        function simulateEditTrade() {
+            const results = document.getElementById('test-results');
+            results.innerHTML = '模拟编辑交易记录...';
+            
+            // 模拟修复后的editTrade函数逻辑
+            async function mockEditTrade(tradeId) {
+                try {
+                    UXUtils.showGlobalLoading('加载交易记录...');
+                    
+                    // 模拟API调用
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    
+                    results.innerHTML = '<span class="text-success">✓ 编辑交易记录功能测试成功 - 不再报错</span>';
+                    
+                } catch (error) {
+                    results.innerHTML = `<span class="text-danger">✗ 编辑交易记录测试失败: ${error.message}</span>`;
+                } finally {
+                    UXUtils.hideGlobalLoading();
+                }
+            }
+            
+            mockEditTrade(123);
+        }
+    </script>
+</body>
+</html>

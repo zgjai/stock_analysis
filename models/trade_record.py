@@ -32,6 +32,9 @@ class TradeRecord(BaseModel):
     expected_loss_ratio = db.Column(db.Numeric(5, 4))
     expected_profit_ratio = db.Column(db.Numeric(5, 4))
     
+    # 分批止盈相关字段
+    use_batch_profit_taking = db.Column(db.Boolean, default=False)
+    
     # 订正相关字段
     is_corrected = db.Column(db.Boolean, default=False)
     original_record_id = db.Column(db.Integer, db.ForeignKey('trade_records.id'))
@@ -90,10 +93,18 @@ class TradeRecord(BaseModel):
     def _calculate_risk_reward(self):
         """计算风险收益比"""
         if self.stop_loss_price and self.price:
-            self.expected_loss_ratio = (self.price - self.stop_loss_price) / self.price
+            price_float = float(self.price)
+            stop_loss_float = float(self.stop_loss_price)
+            self.expected_loss_ratio = (price_float - stop_loss_float) / price_float
         
-        if self.take_profit_ratio and self.sell_ratio:
-            self.expected_profit_ratio = self.take_profit_ratio * self.sell_ratio
+        if self.use_batch_profit_taking:
+            # 使用分批止盈时，从止盈目标计算总预期收益
+            self.expected_profit_ratio = self.calculate_total_expected_profit()
+        elif self.take_profit_ratio and self.sell_ratio:
+            # 传统单一止盈计算
+            take_profit_float = float(self.take_profit_ratio)
+            sell_ratio_float = float(self.sell_ratio)
+            self.expected_profit_ratio = take_profit_float * sell_ratio_float
     
     @classmethod
     def get_by_stock_code(cls, stock_code):
@@ -113,6 +124,45 @@ class TradeRecord(BaseModel):
         """获取未被订正的记录"""
         return cls.query.filter_by(is_corrected=False).all()
     
+    def calculate_total_expected_profit(self):
+        """计算所有止盈目标的总预期收益率"""
+        if not self.use_batch_profit_taking:
+            return float(self.expected_profit_ratio or 0)
+        
+        if not hasattr(self, 'profit_targets') or not self.profit_targets:
+            return 0.0
+        
+        total_expected_profit = 0.0
+        for target in self.profit_targets:
+            # 确保每个目标都有计算过的预期收益率
+            if not target.expected_profit_ratio and target.profit_ratio and target.sell_ratio:
+                target._calculate_expected_profit()
+            
+            if target.expected_profit_ratio:
+                total_expected_profit += float(target.expected_profit_ratio)
+        
+        return total_expected_profit
+    
+    def validate_profit_targets(self):
+        """验证止盈目标设置的合理性"""
+        if not self.use_batch_profit_taking:
+            return True
+        
+        if not hasattr(self, 'profit_targets') or not self.profit_targets:
+            raise ValidationError("使用分批止盈时必须设置至少一个止盈目标", "profit_targets")
+        
+        # 验证每个止盈目标
+        total_sell_ratio = 0
+        for target in self.profit_targets:
+            target.validate_against_buy_price(self.price)
+            total_sell_ratio += float(target.sell_ratio)
+        
+        # 验证总卖出比例
+        if total_sell_ratio > 1.0:
+            raise ValidationError("所有止盈目标的卖出比例总和不能超过100%", "total_sell_ratio")
+        
+        return True
+    
     def to_dict(self):
         """转换为字典，包含特殊字段处理"""
         result = super().to_dict()
@@ -121,6 +171,22 @@ class TradeRecord(BaseModel):
                      'expected_loss_ratio', 'expected_profit_ratio']:
             if result.get(field) is not None:
                 result[field] = float(result[field])
+        
+        # 确保 use_batch_profit_taking 字段有默认值
+        if result.get('use_batch_profit_taking') is None:
+            result['use_batch_profit_taking'] = False
+        
+        # 如果使用分批止盈，包含止盈目标数据
+        if self.use_batch_profit_taking and hasattr(self, 'profit_targets'):
+            result['profit_targets'] = [target.to_dict() for target in self.profit_targets]
+            result['total_expected_profit_ratio'] = float(self.calculate_total_expected_profit())
+            result['total_sell_ratio'] = sum(float(target.sell_ratio) for target in self.profit_targets)
+        else:
+            # 为单一止盈模式确保传统字段存在
+            result.setdefault('take_profit_ratio', None)
+            result.setdefault('sell_ratio', None)
+            result.setdefault('expected_profit_ratio', None)
+        
         return result
     
     def __repr__(self):

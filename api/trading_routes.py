@@ -6,6 +6,8 @@ from datetime import datetime
 from . import api_bp
 from extensions import db
 from services.trading_service import TradingService, TradingConfigService
+from services.profit_taking_service import ProfitTakingService
+from utils.batch_profit_compatibility import BatchProfitCompatibilityHandler
 from error_handlers import create_success_response, ValidationError, NotFoundError
 
 
@@ -94,11 +96,17 @@ def create_trade():
             except ValueError:
                 raise ValidationError("交易日期格式不正确")
         
-        # 创建交易记录
+        # 创建交易记录（支持分批止盈）
         trade = TradingService.create_trade(data)
         
+        # 如果使用分批止盈，返回包含止盈目标的详细信息
+        if trade.use_batch_profit_taking:
+            trade_data = TradingService.get_trade_with_profit_targets(trade.id)
+        else:
+            trade_data = trade.to_dict()
+        
         return create_success_response(
-            data=trade.to_dict(),
+            data=trade_data,
             message='交易记录创建成功'
         ), 201
     
@@ -110,10 +118,11 @@ def create_trade():
 def get_trade(trade_id):
     """获取单个交易记录详情"""
     try:
-        trade = TradingService.get_trade_by_id(trade_id)
+        # 获取交易记录及其止盈目标详情
+        trade_data = TradingService.get_trade_with_profit_targets(trade_id)
         
         return create_success_response(
-            data=trade.to_dict(),
+            data=trade_data,
             message='获取交易记录成功'
         )
     
@@ -130,6 +139,47 @@ def update_trade(trade_id):
         if not data:
             raise ValidationError("请求数据不能为空")
         
+        # 改进的字段验证逻辑
+        def validate_numeric_field(field_name, field_type='float'):
+            """验证数值字段"""
+            if field_name not in data:
+                return  # 字段不存在，跳过验证（更新时允许部分字段）
+            
+            value = data[field_name]
+            
+            # 处理None值
+            if value is None:
+                raise ValidationError(f"{field_name}不能为空")
+            
+            # 处理空字符串
+            if isinstance(value, str):
+                value = value.strip()
+                if value == '':
+                    raise ValidationError(f"{field_name}不能为空")
+                
+                # 尝试转换为数字
+                try:
+                    if field_type == 'int':
+                        value = int(value)
+                    else:
+                        value = float(value)
+                    data[field_name] = value  # 更新原数据
+                except (ValueError, TypeError):
+                    raise ValidationError(f"{field_name}格式无效，必须是数字")
+            
+            # 验证数值范围
+            if isinstance(value, (int, float)):
+                if value <= 0:
+                    raise ValidationError(f"{field_name}必须大于0")
+                
+                # 数量字段的特殊验证
+                if field_name == 'quantity' and int(value) % 100 != 0:
+                    raise ValidationError("数量必须是100的倍数")
+        
+        # 验证价格和数量字段
+        validate_numeric_field('price', 'float')
+        validate_numeric_field('quantity', 'int')
+        
         # 处理交易日期
         if 'trade_date' in data and isinstance(data['trade_date'], str):
             try:
@@ -137,11 +187,17 @@ def update_trade(trade_id):
             except ValueError:
                 raise ValidationError("交易日期格式不正确")
         
-        # 更新交易记录
+        # 更新交易记录（支持分批止盈）
         trade = TradingService.update_trade(trade_id, data)
         
+        # 如果使用分批止盈，返回包含止盈目标的详细信息
+        if trade.use_batch_profit_taking:
+            trade_data = TradingService.get_trade_with_profit_targets(trade.id)
+        else:
+            trade_data = trade.to_dict()
+        
         return create_success_response(
-            data=trade.to_dict(),
+            data=trade_data,
             message='交易记录更新成功'
         )
     
@@ -179,12 +235,14 @@ def calculate_risk_reward():
         stop_loss_price = data.get('stop_loss_price')
         take_profit_ratio = data.get('take_profit_ratio')
         sell_ratio = data.get('sell_ratio')
+        profit_targets = data.get('profit_targets')
         
         result = TradingService.calculate_risk_reward(
             buy_price=float(buy_price),
             stop_loss_price=float(stop_loss_price) if stop_loss_price else None,
             take_profit_ratio=float(take_profit_ratio) if take_profit_ratio else None,
-            sell_ratio=float(sell_ratio) if sell_ratio else None
+            sell_ratio=float(sell_ratio) if sell_ratio else None,
+            profit_targets=profit_targets
         )
         
         return create_success_response(
@@ -338,6 +396,172 @@ def set_sell_reasons():
         raise e
 
 
+@api_bp.route('/trades/<int:trade_id>/profit-targets', methods=['GET'])
+def get_profit_targets(trade_id):
+    """获取交易记录的止盈目标"""
+    try:
+        # 获取止盈目标汇总信息
+        summary = ProfitTakingService.get_targets_summary(trade_id)
+        
+        return create_success_response(
+            data=summary,
+            message='获取止盈目标成功'
+        )
+    
+    except Exception as e:
+        raise e
+
+
+@api_bp.route('/trades/<int:trade_id>/profit-targets', methods=['PUT'])
+def set_profit_targets(trade_id):
+    """设置/更新交易记录的止盈目标"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            raise ValidationError("请求数据不能为空", "request_body")
+        
+        profit_targets = data.get('profit_targets', [])
+        
+        if not profit_targets:
+            raise ValidationError("止盈目标列表不能为空", "profit_targets")
+        
+        # 验证止盈目标数据格式
+        for i, target in enumerate(profit_targets):
+            if not isinstance(target, dict):
+                raise ValidationError(f"第{i+1}个止盈目标数据格式无效", f"profit_targets[{i}]")
+        
+        # 更新止盈目标
+        updated_targets = TradingService.update_trade_profit_targets(trade_id, profit_targets)
+        
+        # 获取更新后的汇总信息
+        summary = ProfitTakingService.get_targets_summary(trade_id)
+        
+        return create_success_response(
+            data=summary,
+            message='设置止盈目标成功'
+        )
+    
+    except ValidationError as e:
+        # 如果是详细的验证错误，保持原有的错误结构
+        raise e
+    except Exception as e:
+        raise e
+
+
+@api_bp.route('/trades/validate-profit-targets', methods=['POST'])
+def validate_profit_targets():
+    """验证止盈目标数据（不保存）"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            raise ValidationError("请求数据不能为空", "request_body")
+        
+        buy_price = data.get('buy_price')
+        if not buy_price:
+            raise ValidationError("买入价格不能为空", "buy_price")
+        
+        # 验证买入价格格式
+        try:
+            buy_price_float = float(buy_price)
+            if buy_price_float <= 0:
+                raise ValidationError("买入价格必须大于0", "buy_price")
+        except (ValueError, TypeError):
+            raise ValidationError("买入价格格式无效", "buy_price")
+        
+        profit_targets = data.get('profit_targets', [])
+        if not profit_targets:
+            raise ValidationError("止盈目标列表不能为空", "profit_targets")
+        
+        # 验证止盈目标数据格式
+        for i, target in enumerate(profit_targets):
+            if not isinstance(target, dict):
+                raise ValidationError(f"第{i+1}个止盈目标数据格式无效", f"profit_targets[{i}]")
+        
+        # 执行完整验证
+        ProfitTakingService.validate_targets_total_ratio(profit_targets)
+        ProfitTakingService.validate_targets_against_buy_price(buy_price_float, profit_targets)
+        
+        # 计算预期收益信息
+        result = ProfitTakingService.calculate_targets_expected_profit(
+            buy_price=buy_price_float,
+            targets=profit_targets
+        )
+        
+        return create_success_response(
+            data={
+                'is_valid': True,
+                'validation_result': result
+            },
+            message='止盈目标验证通过'
+        )
+    
+    except ValidationError as e:
+        # 返回验证失败的详细信息
+        return create_success_response(
+            data={
+                'is_valid': False,
+                'validation_errors': e.details if hasattr(e, 'details') else {'general': e.message}
+            },
+            message='止盈目标验证失败'
+        )
+    except Exception as e:
+        raise e
+
+
+@api_bp.route('/trades/calculate-batch-profit', methods=['POST'])
+def calculate_batch_profit():
+    """计算分批止盈预期收益"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            raise ValidationError("请求数据不能为空", "request_body")
+        
+        buy_price = data.get('buy_price')
+        if not buy_price:
+            raise ValidationError("买入价格不能为空", "buy_price")
+        
+        # 验证买入价格格式
+        try:
+            buy_price_float = float(buy_price)
+            if buy_price_float <= 0:
+                raise ValidationError("买入价格必须大于0", "buy_price")
+        except (ValueError, TypeError):
+            raise ValidationError("买入价格格式无效", "buy_price")
+        
+        profit_targets = data.get('profit_targets', [])
+        if not profit_targets:
+            raise ValidationError("止盈目标列表不能为空", "profit_targets")
+        
+        # 验证止盈目标数据格式
+        for i, target in enumerate(profit_targets):
+            if not isinstance(target, dict):
+                raise ValidationError(f"第{i+1}个止盈目标数据格式无效", f"profit_targets[{i}]")
+        
+        # 先进行基本验证
+        ProfitTakingService.validate_targets_total_ratio(profit_targets)
+        ProfitTakingService.validate_targets_against_buy_price(buy_price_float, profit_targets)
+        
+        # 计算分批止盈预期收益
+        result = ProfitTakingService.calculate_targets_expected_profit(
+            buy_price=buy_price_float,
+            targets=profit_targets
+        )
+        
+        return create_success_response(
+            data=result,
+            message='计算分批止盈预期收益成功'
+        )
+    
+    except ValidationError as e:
+        # 如果是详细的验证错误，保持原有的错误结构
+        raise e
+    except Exception as e:
+        raise e
+
+
 @api_bp.route('/trades/stats', methods=['GET'])
 def get_trade_stats():
     """获取交易统计信息"""
@@ -389,5 +613,74 @@ def get_trade_stats():
             message='获取交易统计成功'
         )
     
+    except Exception as e:
+        raise e
+
+@api_bp.route('/trades/compatibility-status', methods=['GET'])
+def get_compatibility_status():
+    """获取分批止盈功能兼容性状态"""
+    try:
+        status = BatchProfitCompatibilityHandler.get_compatibility_status()
+        
+        return create_success_response(
+            data=status,
+            message='获取兼容性状态成功'
+        )
+    
+    except Exception as e:
+        raise e
+
+
+@api_bp.route('/trades/ensure-compatibility', methods=['POST'])
+def ensure_compatibility():
+    """确保数据兼容性"""
+    try:
+        result = BatchProfitCompatibilityHandler.ensure_compatibility()
+        
+        return create_success_response(
+            data=result,
+            message='兼容性处理完成'
+        )
+    
+    except Exception as e:
+        raise e
+
+
+@api_bp.route('/trades/<int:trade_id>/migrate-to-batch', methods=['POST'])
+def migrate_to_batch_profit(trade_id):
+    """将单一止盈迁移为分批止盈"""
+    try:
+        result = BatchProfitCompatibilityHandler.migrate_single_to_batch_profit(trade_id)
+        
+        if result['success']:
+            return create_success_response(
+                data=result,
+                message=result['message']
+            )
+        else:
+            raise ValidationError(result['message'], 'migration')
+    
+    except ValidationError as e:
+        raise e
+    except Exception as e:
+        raise e
+
+
+@api_bp.route('/trades/<int:trade_id>/migrate-to-single', methods=['POST'])
+def migrate_to_single_profit(trade_id):
+    """将分批止盈迁移为单一止盈"""
+    try:
+        result = BatchProfitCompatibilityHandler.migrate_batch_to_single_profit(trade_id)
+        
+        if result['success']:
+            return create_success_response(
+                data=result,
+                message=result['message']
+            )
+        else:
+            raise ValidationError(result['message'], 'migration')
+    
+    except ValidationError as e:
+        raise e
     except Exception as e:
         raise e

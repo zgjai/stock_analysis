@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试分批止盈管理器修复</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>测试分批止盈管理器修复</h2>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>组件测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="profit-manager-container" style="min-height: 300px; border: 1px dashed #ccc; padding: 1rem;">
+                            <!-- 组件将在这里渲染 -->
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-primary" onclick="initManager()">初始化组件</button>
+                            <button class="btn btn-success" onclick="loadTestData()">加载测试数据</button>
+                            <button class="btn btn-warning" onclick="clearManager()">清空数据</button>
+                            <button class="btn btn-danger" onclick="destroyManager()">销毁组件</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results" style="font-family: monospace; font-size: 0.875rem; background-color: #f8f9fa; padding: 1rem; border-radius: 0.375rem; max-height: 400px; overflow-y: auto;">
+                            等待测试...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/utils.js"></script>
+    <script src="static/js/profit-targets-manager.js"></script>
+    
+    <script>
+        let manager = null;
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.textContent += `[${timestamp}] ${message}\n`;
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function initManager() {
+            log('开始初始化分批止盈管理器...');
+            
+            try {
+                // 检查类是否可用
+                if (typeof ProfitTargetsManager === 'undefined') {
+                    log('❌ ProfitTargetsManager 类未定义');
+                    return;
+                }
+                
+                log('✅ ProfitTargetsManager 类已加载');
+                
+                const container = document.getElementById('profit-manager-container');
+                manager = new ProfitTargetsManager(container, {
+                    maxTargets: 5,
+                    minTargets: 1,
+                    buyPrice: 20.00,
+                    onTargetsChange: function(targets, isValid) {
+                        log(`目标变化: ${targets.length}个目标, 有效性: ${isValid}`);
+                    },
+                    onValidationChange: function(isValid, errors) {
+                        log(`验证变化: 有效性: ${isValid}, 错误数: ${Object.keys(errors).length}`);
+                    }
+                });
+                
+                log('✅ 组件初始化成功');
+                
+                // 测试基本方法
+                setTimeout(() => {
+                    testBasicMethods();
+                }, 500);
+                
+            } catch (error) {
+                log(`❌ 初始化失败: ${error.message}`);
+                console.error('Init error:', error);
+            }
+        }
+        
+        function testBasicMethods() {
+            if (!manager) {
+                log('❌ 管理器未初始化');
+                return;
+            }
+            
+            try {
+                // 测试 setBuyPrice
+                manager.setBuyPrice(20.00);
+                log('✅ setBuyPrice 方法测试通过');
+                
+                // 测试 getTargets
+                const targets = manager.getTargets();
+                log(`✅ getTargets 方法测试通过: ${targets.length}个目标`);
+                
+                // 测试 addTarget
+                manager.addTarget({
+                    targetPrice: 22.00,
+                    sellRatio: 50.00
+                });
+                log('✅ addTarget 方法测试通过');
+                
+                // 再次获取目标
+                const newTargets = manager.getTargets();
+                log(`✅ 添加后目标数量: ${newTargets.length}`);
+                
+            } catch (error) {
+                log(`❌ 基本方法测试失败: ${error.message}`);
+                console.error('Basic methods test error:', error);
+            }
+        }
+        
+        function loadTestData() {
+            if (!manager) {
+                log('❌ 管理器未初始化');
+                return;
+            }
+            
+            try {
+                log('开始加载测试数据...');
+                
+                manager.clear();
+                
+                const testTargets = [
+                    {
+                        targetPrice: 22.00,
+                        sellRatio: 30.00
+                    },
+                    {
+                        targetPrice: 24.00,
+                        sellRatio: 40.00
+                    },
+                    {
+                        targetPrice: 26.00,
+                        sellRatio: 30.00
+                    }
+                ];
+                
+                manager.setTargets(testTargets);
+                log('✅ 测试数据加载成功');
+                
+                const targets = manager.getTargets();
+                log(`目标数量: ${targets.length}`);
+                
+                targets.forEach((target, index) => {
+                    log(`目标${index + 1}: 价格=${target.targetPrice}, 比例=${target.sellRatio}%`);
+                });
+                
+            } catch (error) {
+                log(`❌ 加载测试数据失败: ${error.message}`);
+                console.error('Load test data error:', error);
+            }
+        }
+        
+        function clearManager() {
+            if (!manager) {
+                log('❌ 管理器未初始化');
+                return;
+            }
+            
+            try {
+                manager.clear();
+                log('✅ 数据清空成功');
+                
+                const targets = manager.getTargets();
+                log(`清空后目标数量: ${targets.length}`);
+                
+            } catch (error) {
+                log(`❌ 清空数据失败: ${error.message}`);
+                console.error('Clear error:', error);
+            }
+        }
+        
+        function destroyManager() {
+            if (!manager) {
+                log('❌ 管理器未初始化');
+                return;
+            }
+            
+            try {
+                manager.destroy();
+                manager = null;
+                log('✅ 组件销毁成功');
+                
+            } catch (error) {
+                log(`❌ 销毁组件失败: ${error.message}`);
+                console.error('Destroy error:', error);
+            }
+        }
+        
+        // 页面加载完成后自动检查
+        document.addEventListener('DOMContentLoaded', function() {
+            log('页面加载完成');
+            
+            // 检查依赖
+            if (typeof UXUtils !== 'undefined') {
+                log('✅ UXUtils 已加载');
+            } else {
+                log('❌ UXUtils 未加载');
+            }
+            
+            if (typeof ProfitTargetsManager !== 'undefined') {
+                log('✅ ProfitTargetsManager 已加载');
+            } else {
+                log('❌ ProfitTargetsManager 未加载');
+            }
+            
+            log('点击"初始化组件"开始测试');
+        });
+    </script>
+</body>
+</html>

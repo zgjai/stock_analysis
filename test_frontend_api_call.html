@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试前端API调用</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>测试前端API调用</h1>
+    
+    <div>
+        <h2>测试更新交易记录</h2>
+        <button onclick="testUpdateTrade()">测试更新交易记录</button>
+        <button onclick="testCreateTrade()">测试创建交易记录</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // 设置axios默认配置
+        axios.defaults.timeout = 10000;
+        axios.defaults.headers.common['Content-Type'] = 'application/json';
+
+        // 添加响应拦截器来捕获错误
+        axios.interceptors.response.use(
+            (response) => {
+                console.log('API请求成功:', response);
+                return response;
+            },
+            (error) => {
+                console.error('API请求失败:', error);
+                console.error('错误详情:', {
+                    status: error.response?.status,
+                    statusText: error.response?.statusText,
+                    data: error.response?.data,
+                    config: error.config
+                });
+                return Promise.reject(error);
+            }
+        );
+
+        async function testUpdateTrade() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>测试中...</p>';
+            
+            try {
+                // 测试更新交易记录ID为9的记录
+                const updateData = {
+                    price: 15.50,
+                    quantity: 1200,
+                    notes: '前端API测试更新'
+                };
+                
+                console.log('发送更新请求:', updateData);
+                
+                const response = await axios.put('/api/trades/9', updateData);
+                
+                resultDiv.innerHTML = `
+                    <h3>更新成功</h3>
+                    <pre>${JSON.stringify(response.data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('更新失败:', error);
+                
+                let errorMessage = '未知错误';
+                let errorDetails = '';
+                
+                if (error.response) {
+                    errorMessage = `HTTP ${error.response.status}: ${error.response.statusText}`;
+                    errorDetails = JSON.stringify(error.response.data, null, 2);
+                } else if (error.request) {
+                    errorMessage = '网络请求失败';
+                    errorDetails = error.message;
+                } else {
+                    errorMessage = error.message;
+                }
+                
+                resultDiv.innerHTML = `
+                    <h3>更新失败</h3>
+                    <p><strong>错误:</strong> ${errorMessage}</p>
+                    <pre>${errorDetails}</pre>
+                `;
+            }
+        }
+
+        async function testCreateTrade() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>测试中...</p>';
+            
+            try {
+                // 测试创建交易记录
+                const createData = {
+                    stock_code: '000002',
+                    stock_name: '万科A',
+                    trade_type: 'buy',
+                    price: 12.50,
+                    quantity: 1000,
+                    reason: '技术分析',
+                    notes: '前端API测试创建'
+                };
+                
+                console.log('发送创建请求:', createData);
+                
+                const response = await axios.post('/api/trades', createData);
+                
+                resultDiv.innerHTML = `
+                    <h3>创建成功</h3>
+                    <pre>${JSON.stringify(response.data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('创建失败:', error);
+                
+                let errorMessage = '未知错误';
+                let errorDetails = '';
+                
+                if (error.response) {
+                    errorMessage = `HTTP ${error.response.status}: ${error.response.statusText}`;
+                    errorDetails = JSON.stringify(error.response.data, null, 2);
+                } else if (error.request) {
+                    errorMessage = '网络请求失败';
+                    errorDetails = error.message;
+                } else {
+                    errorMessage = error.message;
+                }
+                
+                resultDiv.innerHTML = `
+                    <h3>创建失败</h3>
+                    <p><strong>错误:</strong> ${errorMessage}</p>
+                    <pre>${errorDetails}</pre>
+                `;
+            }
+        }
+
+        // 页面加载时测试基本连接
+        window.onload = function() {
+            console.log('页面加载完成，测试基本连接...');
+            
+            // 测试GET请求
+            axios.get('/api/trades?page=1&per_page=5')
+                .then(response => {
+                    console.log('GET请求成功:', response.data);
+                })
+                .catch(error => {
+                    console.error('GET请求失败:', error);
+                });
+        };
+    </script>
+</body>
+</html>

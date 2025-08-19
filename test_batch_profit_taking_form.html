@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分批止盈表单测试</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="static/css/main.css" rel="stylesheet">
+    <link href="static/css/components.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">分批止盈表单测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="test-form">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="stock-code" class="form-label">股票代码</label>
+                                        <input type="text" class="form-control" id="stock-code" value="000001">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="stock-name" class="form-label">股票名称</label>
+                                        <input type="text" class="form-control" id="stock-name" value="平安银行">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="trade-type" class="form-label">交易类型</label>
+                                        <select class="form-select" id="trade-type">
+                                            <option value="">请选择交易类型</option>
+                                            <option value="buy" selected>买入</option>
+                                            <option value="sell">卖出</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="price" class="form-label">价格</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control" id="price" value="20.00" step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 买入时的止损止盈设置 -->
+                            <div id="buy-settings">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="mb-0">止损止盈设置</h6>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="use-batch-profit-taking">
+                                        <label class="form-check-label" for="use-batch-profit-taking">
+                                            分批止盈
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- 止损设置 -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="stop-loss-price" class="form-label">止损价格</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">¥</span>
+                                                <input type="number" class="form-control" id="stop-loss-price" step="0.01" placeholder="0.00">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 单一止盈设置 -->
+                                <div id="single-profit-settings">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="take-profit-ratio" class="form-label">止盈比例</label>
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control" id="take-profit-ratio" step="0.01" placeholder="20.00">
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="sell-ratio" class="form-label">卖出比例</label>
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control" id="sell-ratio" step="0.01" placeholder="50.00">
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 分批止盈设置 -->
+                                <div id="batch-profit-settings" style="display: none;">
+                                    <div id="profit-targets-container">
+                                        <!-- ProfitTargetsManager 组件将在这里渲染 -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <button type="button" class="btn btn-primary" id="test-btn">测试保存</button>
+                                <button type="button" class="btn btn-secondary" id="toggle-btn">切换模式</button>
+                                <button type="button" class="btn btn-info" id="get-data-btn">获取数据</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="static/js/profit-targets-manager.js"></script>
+    
+    <script>
+        class TestManager {
+            constructor() {
+                this.profitTargetsManager = null;
+                this.useBatchProfitTaking = false;
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                console.log('Test manager initialized');
+            }
+
+            setupEventListeners() {
+                // 分批止盈开关事件
+                document.getElementById('use-batch-profit-taking').addEventListener('change', (e) => {
+                    this.toggleProfitTakingMode(e.target.checked);
+                });
+
+                // 买入价格变化事件
+                document.getElementById('price').addEventListener('input', (e) => {
+                    const buyPrice = parseFloat(e.target.value) || 0;
+                    if (this.profitTargetsManager) {
+                        this.profitTargetsManager.setBuyPrice(buyPrice);
+                    }
+                });
+
+                // 测试按钮
+                document.getElementById('test-btn').addEventListener('click', () => {
+                    this.testSave();
+                });
+
+                document.getElementById('toggle-btn').addEventListener('click', () => {
+                    const checkbox = document.getElementById('use-batch-profit-taking');
+                    checkbox.checked = !checkbox.checked;
+                    this.toggleProfitTakingMode(checkbox.checked);
+                });
+
+                document.getElementById('get-data-btn').addEventListener('click', () => {
+                    this.getData();
+                });
+            }
+
+            toggleProfitTakingMode(useBatchMode) {
+                this.useBatchProfitTaking = useBatchMode;
+                
+                const singleProfitSettings = document.getElementById('single-profit-settings');
+                const batchProfitSettings = document.getElementById('batch-profit-settings');
+                
+                if (useBatchMode) {
+                    // 切换到分批止盈模式
+                    singleProfitSettings.style.display = 'none';
+                    batchProfitSettings.style.display = 'block';
+                    
+                    // 初始化分批止盈组件
+                    this.initializeProfitTargetsManager();
+                    
+                    console.log('切换到分批止盈模式');
+                } else {
+                    // 切换到单一止盈模式
+                    singleProfitSettings.style.display = 'block';
+                    batchProfitSettings.style.display = 'none';
+                    
+                    // 销毁分批止盈组件
+                    if (this.profitTargetsManager) {
+                        this.profitTargetsManager.destroy();
+                        this.profitTargetsManager = null;
+                    }
+                    
+                    console.log('切换到单一止盈模式');
+                }
+            }
+
+            initializeProfitTargetsManager() {
+                if (this.profitTargetsManager) {
+                    return; // 已经初始化过了
+                }
+                
+                const container = document.getElementById('profit-targets-container');
+                if (!container) {
+                    console.error('Profit targets container not found');
+                    return;
+                }
+                
+                const buyPrice = parseFloat(document.getElementById('price').value) || 0;
+                
+                this.profitTargetsManager = new ProfitTargetsManager(container, {
+                    maxTargets: 10,
+                    minTargets: 1,
+                    buyPrice: buyPrice,
+                    onTargetsChange: (targets, isValid) => {
+                        console.log('Profit targets changed:', targets, 'Valid:', isValid);
+                    },
+                    onValidationChange: (isValid, errors) => {
+                        console.log('Profit targets validation changed:', isValid, errors);
+                    }
+                });
+                
+                console.log('ProfitTargetsManager initialized');
+            }
+
+            testSave() {
+                const formData = {
+                    stock_code: document.getElementById('stock-code').value,
+                    stock_name: document.getElementById('stock-name').value,
+                    trade_type: document.getElementById('trade-type').value,
+                    price: parseFloat(document.getElementById('price').value),
+                    use_batch_profit_taking: this.useBatchProfitTaking
+                };
+
+                if (this.useBatchProfitTaking && this.profitTargetsManager) {
+                    if (!this.profitTargetsManager.isValidTargets()) {
+                        console.error('分批止盈数据验证失败');
+                        return;
+                    }
+                    formData.profit_targets = this.profitTargetsManager.getTargets();
+                } else {
+                    formData.take_profit_ratio = parseFloat(document.getElementById('take-profit-ratio').value) || null;
+                    formData.sell_ratio = parseFloat(document.getElementById('sell-ratio').value) || null;
+                }
+
+                console.log('表单数据:', formData);
+                alert('数据已输出到控制台，请查看');
+            }
+
+            getData() {
+                if (this.useBatchProfitTaking && this.profitTargetsManager) {
+                    const targets = this.profitTargetsManager.getTargets();
+                    const isValid = this.profitTargetsManager.isValidTargets();
+                    const errors = this.profitTargetsManager.getValidationErrors();
+                    
+                    console.log('分批止盈数据:', {
+                        targets: targets,
+                        isValid: isValid,
+                        errors: errors
+                    });
+                } else {
+                    console.log('单一止盈数据:', {
+                        take_profit_ratio: document.getElementById('take-profit-ratio').value,
+                        sell_ratio: document.getElementById('sell-ratio').value
+                    });
+                }
+            }
+        }
+
+        // 初始化测试管理器
+        document.addEventListener('DOMContentLoaded', () => {
+            window.testManager = new TestManager();
+        });
+    </script>
+</body>
+</html>

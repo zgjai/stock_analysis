@@ -121,6 +121,26 @@ class ApiClient {
         return this.request('PUT', '/trades/config/sell-reasons', { sell_reasons: reasons });
     }
 
+    // 分批止盈相关API
+    async getProfitTargets(tradeId) {
+        return this.request('GET', `/trades/${tradeId}/profit-targets`);
+    }
+
+    async setProfitTargets(tradeId, profitTargets) {
+        return this.request('PUT', `/trades/${tradeId}/profit-targets`, { profit_targets: profitTargets });
+    }
+
+    async calculateBatchProfit(buyPrice, profitTargets) {
+        return this.request('POST', '/trades/calculate-batch-profit', {
+            buy_price: buyPrice,
+            profit_targets: profitTargets
+        });
+    }
+
+    async getTradeWithProfitTargets(tradeId) {
+        return this.request('GET', `/trades/${tradeId}`);
+    }
+
     // 复盘记录相关API
     async getReviews(params = {}) {
         return this.request('GET', '/reviews', params);

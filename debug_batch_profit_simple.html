@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分批止盈功能简单调试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .debug-section {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .console-output {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 0.75rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>分批止盈功能简单调试</h2>
+        
+        <!-- 步骤1: 检查文件加载 -->
+        <div class="debug-section">
+            <h5>步骤1: 检查文件加载状态</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div id="file-status" class="console-output">
+                        检查中...
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <button class="btn btn-primary" onclick="checkFileLoading()">重新检查文件</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 步骤2: 测试组件初始化 -->
+        <div class="debug-section">
+            <h5>步骤2: 测试组件初始化</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div id="component-container" style="min-height: 200px; border: 1px dashed #ccc; padding: 1rem;">
+                        <!-- 组件将在这里渲染 -->
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <button class="btn btn-success" onclick="initComponent()">初始化组件</button>
+                    <button class="btn btn-warning" onclick="destroyComponent()">销毁组件</button>
+                    <div id="component-status" class="console-output mt-2">
+                        等待初始化...
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 步骤3: 测试API连接 -->
+        <div class="debug-section">
+            <h5>步骤3: 测试API连接</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-2">
+                        <input type="number" class="form-control" id="test-trade-id" placeholder="交易记录ID" value="1">
+                    </div>
+                    <button class="btn btn-info" onclick="testApiConnection()">测试API连接</button>
+                    <button class="btn btn-secondary" onclick="testCreateTrade()">测试创建交易</button>
+                </div>
+                <div class="col-md-6">
+                    <div id="api-status" class="console-output">
+                        等待测试...
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 步骤4: 测试完整流程 -->
+        <div class="debug-section">
+            <h5>步骤4: 测试完整流程</h5>
+            <div class="row">
+                <div class="col-md-12">
+                    <button class="btn btn-primary" onclick="testCompleteFlow()">测试完整流程</button>
+                    <button class="btn btn-danger" onclick="clearAllLogs()">清空日志</button>
+                </div>
+            </div>
+            <div class="mt-2">
+                <div id="complete-flow-status" class="console-output">
+                    等待测试完整流程...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载必要的脚本 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let profitManager = null;
+        let logs = {
+            file: '',
+            component: '',
+            api: '',
+            flow: ''
+        };
+        
+        // 日志函数
+        function log(section, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logs[section] += `[${timestamp}] ${message}\n`;
+            document.getElementById(`${section}-status`).textContent = logs[section];
+        }
+        
+        // 检查文件加载状态
+        function checkFileLoading() {
+            log('file', '开始检查文件加载状态...');
+            
+            // 检查Bootstrap
+            if (typeof bootstrap !== 'undefined') {
+                log('file', '✅ Bootstrap 加载成功');
+            } else {
+                log('file', '❌ Bootstrap 加载失败');
+            }
+            
+            // 检查工具函数
+            const utilsScript = document.createElement('script');
+            utilsScript.src = 'static/js/utils.js';
+            utilsScript.onload = function() {
+                log('file', '✅ utils.js 加载成功');
+                checkUXUtils();
+            };
+            utilsScript.onerror = function() {
+                log('file', '❌ utils.js 加载失败');
+                createMockUXUtils();
+            };
+            document.head.appendChild(utilsScript);
+        }
+        
+        function checkUXUtils() {
+            if (typeof UXUtils !== 'undefined') {
+                log('file', '✅ UXUtils 可用');
+            } else {
+                log('file', '❌ UXUtils 不可用，创建模拟版本');
+                createMockUXUtils();
+            }
+            loadProfitTargetsManager();
+        }
+        
+        function createMockUXUtils() {
+            window.UXUtils = {
+                showSuccess: function(msg) { console.log('Success:', msg); },
+                showError: function(msg) { console.error('Error:', msg); },
+                showWarning: function(msg) { console.warn('Warning:', msg); },
+                showInfo: function(msg) { console.info('Info:', msg); }
+            };
+            log('file', '✅ 模拟 UXUtils 创建成功');
+        }
+        
+        function loadProfitTargetsManager() {
+            const managerScript = document.createElement('script');
+            managerScript.src = 'static/js/profit-targets-manager.js';
+            managerScript.onload = function() {
+                log('file', '✅ profit-targets-manager.js 加载成功');
+                if (typeof ProfitTargetsManager !== 'undefined') {
+                    log('file', '✅ ProfitTargetsManager 类可用');
+                } else {
+                    log('file', '❌ ProfitTargetsManager 类不可用');
+                }
+            };
+            managerScript.onerror = function() {
+                log('file', '❌ profit-targets-manager.js 加载失败');
+            };
+            document.head.appendChild(managerScript);
+        }
+        
+        // 初始化组件
+        function initComponent() {
+            log('component', '开始初始化组件...');
+            
+            if (typeof ProfitTargetsManager === 'undefined') {
+                log('component', '❌ ProfitTargetsManager 类不可用');
+                return;
+            }
+            
+            try {
+                const container = document.getElementById('component-container');
+                profitManager = new ProfitTargetsManager(container, {
+                    maxTargets: 5,
+                    minTargets: 1,
+                    buyPrice: 20.00,
+                    onTargetsChange: function(targets, isValid) {
+                        log('component', `目标变化: ${targets.length}个目标, 有效: ${isValid}`);
+                    },
+                    onValidationChange: function(isValid, errors) {
+                        log('component', `验证变化: 有效: ${isValid}, 错误: ${Object.keys(errors).length}`);
+                    }
+                });
+                
+                log('component', '✅ 组件初始化成功');
+                
+                // 测试基本功能
+                setTimeout(() => {
+                    testBasicFunctions();
+                }, 500);
+                
+            } catch (error) {
+                log('component', `❌ 组件初始化失败: ${error.message}`);
+                console.error('Component init error:', error);
+            }
+        }
+        
+        function testBasicFunctions() {
+            if (!profitManager) {
+                log('component', '❌ 组件未初始化');
+                return;
+            }
+            
+            try {
+                // 测试添加目标
+                profitManager.addTarget({
+                    targetPrice: 22.00,
+                    sellRatio: 50.00
+                });
+                log('component', '✅ 添加目标测试成功');
+                
+                // 测试设置买入价格
+                profitManager.setBuyPrice(20.00);
+                log('component', '✅ 设置买入价格测试成功');
+                
+                // 测试获取目标
+                const targets = profitManager.getTargets();
+                log('component', `✅ 获取目标测试成功: ${targets.length}个目标`);
+                
+            } catch (error) {
+                log('component', `❌ 基本功能测试失败: ${error.message}`);
+            }
+        }
+        
+        function destroyComponent() {
+            if (profitManager) {
+                try {
+                    profitManager.destroy();
+                    profitManager = null;
+                    document.getElementById('component-container').innerHTML = '';
+                    log('component', '✅ 组件销毁成功');
+                } catch (error) {
+                    log('component', `❌ 组件销毁失败: ${error.message}`);
+                }
+            } else {
+                log('component', '⚠️ 没有组件需要销毁');
+            }
+        }
+        
+        // 测试API连接
+        function testApiConnection() {
+            log('api', '开始测试API连接...');
+            
+            // 测试健康检查
+            fetch('/api/health')
+                .then(response => {
+                    log('api', `健康检查响应: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    log('api', `健康检查数据: ${JSON.stringify(data)}`);
+                })
+                .catch(error => {
+                    log('api', `❌ 健康检查失败: ${error.message}`);
+                });
+            
+            // 测试获取交易记录
+            const tradeId = document.getElementById('test-trade-id').value;
+            if (tradeId) {
+                fetch(`/api/trades/${tradeId}`)
+                    .then(response => {
+                        log('api', `获取交易记录响应: ${response.status}`);
+                        if (response.ok) {
+                            return response.json();
+                        } else {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                    })
+                    .then(data => {
+                        log('api', `✅ 获取交易记录成功: ID ${data.id}`);
+                    })
+                    .catch(error => {
+                        log('api', `❌ 获取交易记录失败: ${error.message}`);
+                    });
+            }
+        }
+        
+        function testCreateTrade() {
+            log('api', '开始测试创建交易...');
+            
+            const testTradeData = {
+                stock_code: 'TEST001',
+                stock_name: '测试股票',
+                trade_type: 'buy',
+                quantity: 100,
+                price: 20.00,
+                use_batch_profit_taking: true,
+                profit_targets: [
+                    {
+                        target_price: 22.00,
+                        sell_ratio: 50.00,
+                        sequence_order: 1
+                    },
+                    {
+                        target_price: 24.00,
+                        sell_ratio: 50.00,
+                        sequence_order: 2
+                    }
+                ]
+            };
+            
+            fetch('/api/trades', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(testTradeData)
+            })
+            .then(response => {
+                log('api', `创建交易响应: ${response.status}`);
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            })
+            .then(data => {
+                log('api', `✅ 创建交易成功: ID ${data.id}`);
+                document.getElementById('test-trade-id').value = data.id;
+            })
+            .catch(error => {
+                log('api', `❌ 创建交易失败: ${error.message}`);
+            });
+        }
+        
+        // 测试完整流程
+        function testCompleteFlow() {
+            log('flow', '开始测试完整流程...');
+            
+            // 步骤1: 初始化组件
+            if (!profitManager) {
+                log('flow', '步骤1: 初始化组件');
+                initComponent();
+                
+                setTimeout(() => {
+                    continueCompleteFlow();
+                }, 1000);
+            } else {
+                continueCompleteFlow();
+            }
+        }
+        
+        function continueCompleteFlow() {
+            if (!profitManager) {
+                log('flow', '❌ 组件初始化失败，无法继续');
+                return;
+            }
+            
+            // 步骤2: 设置测试数据
+            log('flow', '步骤2: 设置测试数据');
+            try {
+                profitManager.setBuyPrice(20.00);
+                profitManager.clear();
+                
+                profitManager.addTarget({
+                    targetPrice: 22.00,
+                    sellRatio: 30.00
+                });
+                
+                profitManager.addTarget({
+                    targetPrice: 24.00,
+                    sellRatio: 40.00
+                });
+                
+                profitManager.addTarget({
+                    targetPrice: 26.00,
+                    sellRatio: 30.00
+                });
+                
+                log('flow', '✅ 测试数据设置成功');
+                
+                // 步骤3: 验证数据
+                const targets = profitManager.getTargets();
+                const isValid = profitManager.isValid();
+                
+                log('flow', `步骤3: 数据验证 - 目标数量: ${targets.length}, 有效: ${isValid}`);
+                
+                if (isValid) {
+                    log('flow', '✅ 完整流程测试成功');
+                } else {
+                    log('flow', '⚠️ 数据验证未通过');
+                }
+                
+            } catch (error) {
+                log('flow', `❌ 完整流程测试失败: ${error.message}`);
+            }
+        }
+        
+        function clearAllLogs() {
+            logs = {
+                file: '',
+                component: '',
+                api: '',
+                flow: ''
+            };
+            
+            document.getElementById('file-status').textContent = '日志已清空';
+            document.getElementById('component-status').textContent = '日志已清空';
+            document.getElementById('api-status').textContent = '日志已清空';
+            document.getElementById('complete-flow-status').textContent = '日志已清空';
+        }
+        
+        // 页面加载完成后自动开始检查
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(checkFileLoading, 500);
+        });
+    </script>
+</body>
+</html>

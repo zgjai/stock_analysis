@@ -2,6 +2,72 @@
 
 {% block title %}交易记录 - 股票交易记录系统{% endblock %}
 
+{% block extra_head %}
+<script>
+// 立即执行的清理脚本 - 在页面加载的最早阶段就开始清理
+(function() {
+    console.log('立即清理脚本开始执行...');
+    
+    // 定义清理函数
+    function immediateCleanup() {
+        console.log('执行立即清理...');
+        
+        // 清理所有可能的加载遮罩
+        const overlays = document.querySelectorAll('#global-loading-overlay, .loading-overlay, [id*="loading"], [class*="loading"]');
+        overlays.forEach(overlay => {
+            if (overlay && overlay.style) {
+                overlay.style.display = 'none';
+                try {
+                    if (overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                } catch (e) {
+                    console.warn('清理遮罩失败:', e);
+                }
+            }
+        });
+        
+        // 清理Bootstrap背景
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => {
+            try {
+                backdrop.remove();
+            } catch (e) {
+                console.warn('清理背景失败:', e);
+            }
+        });
+        
+        // 重置body样式
+        if (document.body) {
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        }
+        
+        console.log('立即清理完成');
+    }
+    
+    // 立即执行一次
+    immediateCleanup();
+    
+    // 每100ms执行一次，持续5秒
+    let cleanupCount = 0;
+    const cleanupInterval = setInterval(() => {
+        immediateCleanup();
+        cleanupCount++;
+        
+        if (cleanupCount >= 50) { // 5秒后停止
+            clearInterval(cleanupInterval);
+            console.log('立即清理脚本结束');
+        }
+    }, 100);
+    
+    // 全局暴露清理函数
+    window.emergencyCleanup = immediateCleanup;
+})();
+</script>
+{% endblock %}
+
 {% block breadcrumb_items %}
 <li class="breadcrumb-item active">交易记录</li>
 {% endblock %}
@@ -218,8 +284,18 @@
 
                     <!-- 买入时的止损止盈设置 -->
                     <div id="buy-settings" style="display: none;">
-                        <h6 class="mb-3">止损止盈设置</h6>
-                        <div class="row">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">止损止盈设置</h6>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="use-batch-profit-taking" name="use_batch_profit_taking">
+                                <label class="form-check-label" for="use-batch-profit-taking">
+                                    分批止盈
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 止损设置 -->
+                        <div class="row mb-3">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="stop-loss-price" class="form-label">止损价格</label>
@@ -232,35 +308,48 @@
                                             id="expected-loss-ratio">-</span></small>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="take-profit-ratio" class="form-label">止盈比例</label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="take-profit-ratio"
-                                            name="take_profit_ratio" step="0.01" min="0" max="10" placeholder="0.20">
-                                        <span class="input-group-text">%</span>
+                        </div>
+
+                        <!-- 单一止盈设置 -->
+                        <div id="single-profit-settings">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="take-profit-ratio" class="form-label">止盈比例</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="take-profit-ratio"
+                                                name="take_profit_ratio" step="0.01" min="0" max="10" placeholder="0.20">
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="sell-ratio" class="form-label">卖出比例</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="sell-ratio" name="sell_ratio"
+                                                step="0.01" min="0" max="1" placeholder="0.50">
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">预计收益率</label>
+                                        <div class="form-control-plaintext">
+                                            <span id="expected-profit-ratio" class="fw-bold">-</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="sell-ratio" class="form-label">卖出比例</label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="sell-ratio" name="sell_ratio"
-                                            step="0.01" min="0" max="1" placeholder="0.50">
-                                        <span class="input-group-text">%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">预计收益率</label>
-                                    <div class="form-control-plaintext">
-                                        <span id="expected-profit-ratio" class="fw-bold">-</span>
-                                    </div>
-                                </div>
+
+                        <!-- 分批止盈设置 -->
+                        <div id="batch-profit-settings" style="display: none;">
+                            <div id="profit-targets-container">
+                                <!-- ProfitTargetsManager 组件将在这里渲染 -->
                             </div>
                         </div>
                     </div>
@@ -382,6 +471,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/emergency-cleanup.js') }}"></script>
+<script src="{{ url_for('static', filename='js/profit-targets-manager.js') }}"></script>
 <script>
     // 立即隐藏加载状态，防止卡住
     (function () {
@@ -433,6 +524,9 @@
             this.correctingTradeId = null;
             this.formValidator = null;
             this.correctionValidator = null;
+            this.profitTargetsManager = null;
+            this.useBatchProfitTaking = false;
+            this.previewCalculationTimer = null;
 
             this.init();
         }
@@ -510,8 +604,22 @@
                 this.toggleBuySettings(e.target.value === 'buy');
             });
 
+            // 分批止盈开关事件
+            document.getElementById('use-batch-profit-taking').addEventListener('change', (e) => {
+                this.toggleProfitTakingMode(e.target.checked);
+            });
+
+            // 买入价格变化事件（用于更新分批止盈组件的买入价格）
+            document.getElementById('price').addEventListener('input', (e) => {
+                const buyPrice = parseFloat(e.target.value) || 0;
+                if (this.profitTargetsManager) {
+                    this.profitTargetsManager.setBuyPrice(buyPrice);
+                }
+                this.calculateRiskReward();
+            });
+
             // 止损止盈实时计算
-            ['price', 'stop-loss-price', 'take-profit-ratio', 'sell-ratio'].forEach(id => {
+            ['stop-loss-price', 'take-profit-ratio', 'sell-ratio'].forEach(id => {
                 const element = document.getElementById(id);
                 if (element) {
                     element.addEventListener('input', () => this.calculateRiskReward());
@@ -569,6 +677,55 @@
             this.formValidator.addRule('price', {
                 validator: Validators.price,
                 message: '请输入有效的价格'
+            });
+
+            // 添加分批止盈验证规则
+            this.formValidator.addCustomValidator(() => {
+                const tradeType = document.getElementById('trade-type').value;
+                if (tradeType !== 'buy') {
+                    return { isValid: true };
+                }
+
+                if (this.useBatchProfitTaking) {
+                    // 验证分批止盈设置
+                    if (!this.profitTargetsManager) {
+                        return {
+                            isValid: false,
+                            message: '分批止盈组件未初始化'
+                        };
+                    }
+
+                    if (!this.profitTargetsManager.isValidTargets()) {
+                        const errors = this.profitTargetsManager.getValidationErrors();
+                        return {
+                            isValid: false,
+                            message: '请检查分批止盈设置中的错误',
+                            errors: errors
+                        };
+                    }
+                } else {
+                    // 验证单一止盈设置（可选）
+                    const takeProfitRatio = document.getElementById('take-profit-ratio').value;
+                    const sellRatio = document.getElementById('sell-ratio').value;
+
+                    if (takeProfitRatio && !sellRatio) {
+                        return {
+                            isValid: false,
+                            message: '设置了止盈比例时，卖出比例不能为空',
+                            field: 'sell_ratio'
+                        };
+                    }
+
+                    if (sellRatio && !takeProfitRatio) {
+                        return {
+                            isValid: false,
+                            message: '设置了卖出比例时，止盈比例不能为空',
+                            field: 'take_profit_ratio'
+                        };
+                    }
+                }
+
+                return { isValid: true };
             });
 
             // 监听表单提交事件
@@ -629,12 +786,227 @@
             const buySettings = document.getElementById('buy-settings');
             buySettings.style.display = show ? 'block' : 'none';
 
-            if (!show) {
+            if (show) {
+                // 初始化分批止盈组件
+                this.initializeProfitTargetsManager();
+            } else {
                 // 清空买入设置字段
                 ['stop-loss-price', 'take-profit-ratio', 'sell-ratio'].forEach(id => {
                     document.getElementById(id).value = '';
                 });
+                // 重置分批止盈开关
+                document.getElementById('use-batch-profit-taking').checked = false;
+                this.toggleProfitTakingMode(false);
                 this.updateRiskRewardDisplay();
+            }
+        }
+
+        toggleProfitTakingMode(useBatchMode) {
+            this.useBatchProfitTaking = useBatchMode;
+            
+            const singleProfitSettings = document.getElementById('single-profit-settings');
+            const batchProfitSettings = document.getElementById('batch-profit-settings');
+            
+            if (useBatchMode) {
+                // 切换到分批止盈模式
+                singleProfitSettings.style.display = 'none';
+                batchProfitSettings.style.display = 'block';
+                
+                // 初始化分批止盈组件
+                this.initializeProfitTargetsManager();
+                
+                // 清空单一止盈字段
+                ['take-profit-ratio', 'sell-ratio'].forEach(id => {
+                    document.getElementById(id).value = '';
+                });
+                
+                // 清空单一止盈的预期收益率显示
+                document.getElementById('expected-profit-ratio').textContent = '-';
+                document.getElementById('expected-profit-ratio').className = 'fw-bold';
+                
+            } else {
+                // 切换到单一止盈模式
+                singleProfitSettings.style.display = 'block';
+                batchProfitSettings.style.display = 'none';
+                
+                // 销毁分批止盈组件
+                if (this.profitTargetsManager) {
+                    this.profitTargetsManager.destroy();
+                    this.profitTargetsManager = null;
+                }
+            }
+        }
+
+        initializeProfitTargetsManager() {
+            if (this.profitTargetsManager) {
+                return; // 已经初始化过了
+            }
+            
+            const container = document.getElementById('profit-targets-container');
+            if (!container) {
+                console.error('Profit targets container not found');
+                return;
+            }
+            
+            const buyPrice = parseFloat(document.getElementById('price').value) || 0;
+            
+            this.profitTargetsManager = new ProfitTargetsManager(container, {
+                maxTargets: 10,
+                minTargets: 1,
+                buyPrice: buyPrice,
+                onTargetsChange: (targets, isValid) => {
+                    this.onProfitTargetsChange(targets, isValid);
+                },
+                onValidationChange: (isValid, errors) => {
+                    this.onProfitTargetsValidationChange(isValid, errors);
+                }
+            });
+        }
+
+        onProfitTargetsChange(targets, isValid) {
+            // 分批止盈目标变化时的回调
+            console.log('Profit targets changed:', targets, 'Valid:', isValid);
+            
+            // 实时计算和显示预期收益预览
+            this.debouncePreviewCalculation();
+            
+            // 触发表单验证更新
+            if (this.formValidator) {
+                this.formValidator.validateField('profit_targets');
+            }
+        }
+
+        onProfitTargetsValidationChange(isValid, errors) {
+            // 分批止盈验证状态变化时的回调
+            console.log('Profit targets validation changed:', isValid, errors);
+            
+            // 显示验证反馈
+            this.showProfitTargetsValidationFeedback(isValid, errors);
+            
+            // 更新保存按钮状态
+            const saveBtn = document.getElementById('save-trade-btn');
+            if (saveBtn && this.useBatchProfitTaking) {
+                saveBtn.disabled = !isValid;
+                
+                // 更新按钮样式和提示
+                if (isValid) {
+                    saveBtn.classList.remove('btn-outline-primary');
+                    saveBtn.classList.add('btn-primary');
+                    saveBtn.title = '';
+                } else {
+                    saveBtn.classList.remove('btn-primary');
+                    saveBtn.classList.add('btn-outline-primary');
+                    saveBtn.title = '请先修正分批止盈设置中的错误';
+                }
+            }
+        }
+
+        // 防抖处理预览计算
+        debouncePreviewCalculation() {
+            if (this.previewCalculationTimer) {
+                clearTimeout(this.previewCalculationTimer);
+            }
+            
+            this.previewCalculationTimer = setTimeout(() => {
+                this.validateAndPreviewBatchProfit();
+            }, 500); // 500ms 防抖
+        }
+
+        // 处理数据同步错误
+        handleDataSyncError(error, operation) {
+            console.error(`Data sync error during ${operation}:`, error);
+            
+            let message = `${operation}失败`;
+            let showRetry = false;
+            
+            if (error.response) {
+                const status = error.response.status;
+                const data = error.response.data;
+                
+                switch (status) {
+                    case 400:
+                        message = data.message || '请求数据格式错误';
+                        break;
+                    case 422:
+                        message = '数据验证失败，请检查输入';
+                        if (data.errors) {
+                            this.showBatchProfitErrors(data.errors);
+                        }
+                        break;
+                    case 404:
+                        message = '交易记录不存在';
+                        break;
+                    case 500:
+                        message = '服务器错误，请稍后重试';
+                        showRetry = true;
+                        break;
+                    default:
+                        message = data.message || `${operation}失败 (${status})`;
+                        showRetry = true;
+                }
+            } else if (error.code === 'NETWORK_ERROR') {
+                message = '网络连接失败，请检查网络';
+                showRetry = true;
+            } else {
+                message = error.message || `${operation}失败`;
+                showRetry = true;
+            }
+            
+            if (showRetry) {
+                UXUtils.showError(message, {
+                    action: {
+                        text: '重试',
+                        callback: () => {
+                            // 可以在这里添加重试逻辑
+                            console.log('User requested retry for:', operation);
+                        }
+                    }
+                });
+            } else {
+                UXUtils.showError(message);
+            }
+        }
+
+        // 验证前后端数据一致性
+        async validateDataConsistency(tradeId) {
+            if (!tradeId || !this.useBatchProfitTaking) {
+                return true;
+            }
+            
+            try {
+                // 获取后端数据
+                const response = await apiClient.getProfitTargets(tradeId);
+                
+                if (!response.success) {
+                    console.warn('Failed to fetch profit targets for consistency check');
+                    return false;
+                }
+                
+                const backendTargets = response.data.profit_targets || [];
+                const frontendTargets = this.profitTargetsManager ? this.profitTargetsManager.getTargets() : [];
+                
+                // 简单的数据一致性检查
+                if (backendTargets.length !== frontendTargets.length) {
+                    console.warn('Data inconsistency: target count mismatch');
+                    return false;
+                }
+                
+                // 检查关键字段是否一致
+                for (let i = 0; i < backendTargets.length; i++) {
+                    const backend = backendTargets[i];
+                    const frontend = frontendTargets[i];
+                    
+                    if (Math.abs(backend.target_price - frontend.targetPrice) > 0.01 ||
+                        Math.abs(backend.sell_ratio - frontend.sellRatio) > 0.01) {
+                        console.warn('Data inconsistency: target values mismatch');
+                        return false;
+                    }
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Failed to validate data consistency:', error);
+                return false;
             }
         }
 
@@ -922,30 +1294,163 @@
 
         async handleTradeFormSubmit(formData) {
             try {
+                console.log('[DEBUG] handleTradeFormSubmit 接收到的 formData:', formData);
+                console.log('[DEBUG] formData.price:', formData.price, '(type:', typeof formData.price, ')');
+                console.log('[DEBUG] formData.quantity:', formData.quantity, '(type:', typeof formData.quantity, ')');
+                
                 const saveBtn = document.getElementById('save-trade-btn');
                 UXUtils.showLoading(saveBtn, '保存中...');
 
-                // 处理数值字段
-                formData.price = parseFloat(formData.price);
-                formData.quantity = parseInt(formData.quantity);
+                // 改进的数值字段验证 - 使用箭头函数保持this上下文
+                const validateNumericField = (fieldName, fieldValue, isRequired = true) => {
+                    console.log(`[DEBUG] 验证字段 "${fieldName}":`, fieldValue, '(type:', typeof fieldValue, ')');
+                    
+                    // 如果是编辑模式且字段不存在，允许跳过
+                    if (!isRequired && this.editingTradeId && (fieldValue === undefined || fieldValue === null)) {
+                        console.log(`[DEBUG] 跳过验证 "${fieldName}" - 编辑模式且字段为空`);
+                        return null;
+                    }
+                    
+                    // 检查必填字段 - 更严格的空值检查，但允许0作为有效值
+                    if (isRequired && (fieldValue === undefined || fieldValue === null || fieldValue === '')) {
+                        console.error(`[DEBUG] 验证失败 "${fieldName}" - 字段为空:`, fieldValue);
+                        throw new Error(`${fieldName}不能为空`);
+                    }
+                    
+                    // 处理字符串类型
+                    if (typeof fieldValue === 'string') {
+                        fieldValue = fieldValue.trim();
+                        if (fieldValue === '') {
+                            if (isRequired) {
+                                console.error(`[DEBUG] 验证失败 "${fieldName}" - 字符串为空`);
+                                throw new Error(`${fieldName}不能为空`);
+                            }
+                            return null;
+                        }
+                    }
+                    
+                    console.log(`[DEBUG] 验证通过 "${fieldName}":`, fieldValue);
+                    return fieldValue;
+                };
 
-                if (formData.stop_loss_price) {
+                // 验证价格字段 - 添加备用获取方式
+                let priceFieldValue = formData.price;
+                
+                // 如果formData中没有price，直接从DOM元素获取
+                if (priceFieldValue === undefined || priceFieldValue === null || priceFieldValue === '') {
+                    const priceElement = document.getElementById('price');
+                    if (priceElement) {
+                        priceFieldValue = priceElement.value;
+                        console.log('[DEBUG] 从DOM元素获取价格:', priceFieldValue);
+                    }
+                }
+                
+                const priceValue = validateNumericField('价格', priceFieldValue, !this.editingTradeId);
+                if (priceValue !== null) {
+                    formData.price = priceValue;
+                }
+
+                // 验证数量字段 - 添加备用获取方式
+                let quantityFieldValue = formData.quantity;
+                
+                // 如果formData中没有quantity，直接从DOM元素获取
+                if (quantityFieldValue === undefined || quantityFieldValue === null || quantityFieldValue === '') {
+                    const quantityElement = document.getElementById('quantity');
+                    if (quantityElement) {
+                        quantityFieldValue = quantityElement.value;
+                        console.log('[DEBUG] 从DOM元素获取数量:', quantityFieldValue);
+                    }
+                }
+                
+                const quantityValue = validateNumericField('数量', quantityFieldValue, !this.editingTradeId);
+                if (quantityValue !== null) {
+                    formData.quantity = quantityValue;
+                }
+
+                // 处理数值字段转换和验证
+                if ('price' in formData && formData.price !== null && formData.price !== undefined && formData.price !== '') {
+                    const price = parseFloat(formData.price);
+                    if (isNaN(price)) {
+                        UXUtils.showError('价格格式无效，请输入有效数字');
+                        return;
+                    }
+                    if (price <= 0) {
+                        UXUtils.showError('价格必须大于0');
+                        return;
+                    }
+                    formData.price = price;
+                }
+
+                if ('quantity' in formData && formData.quantity !== null && formData.quantity !== undefined && formData.quantity !== '') {
+                    const quantity = parseInt(formData.quantity);
+                    if (isNaN(quantity)) {
+                        UXUtils.showError('数量格式无效，请输入有效整数');
+                        return;
+                    }
+                    if (quantity <= 0) {
+                        UXUtils.showError('数量必须大于0');
+                        return;
+                    }
+                    if (quantity % 100 !== 0) {
+                        UXUtils.showError('数量必须是100的倍数');
+                        return;
+                    }
+                    formData.quantity = quantity;
+                }
+
+                if (formData.stop_loss_price && formData.stop_loss_price.trim() !== '') {
                     formData.stop_loss_price = parseFloat(formData.stop_loss_price);
+                } else {
+                    // 如果止损价格为空，删除该字段
+                    delete formData.stop_loss_price;
                 }
-                if (formData.take_profit_ratio) {
-                    formData.take_profit_ratio = parseFloat(formData.take_profit_ratio) / 100;
-                }
-                if (formData.sell_ratio) {
-                    formData.sell_ratio = parseFloat(formData.sell_ratio) / 100;
+
+                // 处理分批止盈数据
+                formData.use_batch_profit_taking = this.useBatchProfitTaking;
+
+                if (this.useBatchProfitTaking && this.profitTargetsManager) {
+                    // 验证分批止盈数据
+                    if (!this.profitTargetsManager.isValidTargets()) {
+                        const errors = this.profitTargetsManager.getValidationErrors();
+                        this.showBatchProfitErrors(errors);
+                        UXUtils.showError('请检查分批止盈设置中的错误');
+                        return;
+                    }
+
+                    // 获取分批止盈目标数据
+                    const profitTargets = this.profitTargetsManager.getTargets();
+                    
+                    // 验证止盈目标数据完整性
+                    if (!this.validateProfitTargetsData(profitTargets)) {
+                        UXUtils.showError('分批止盈数据不完整，请检查所有必填字段');
+                        return;
+                    }
+
+                    formData.profit_targets = profitTargets;
+
+                    // 清空单一止盈字段
+                    delete formData.take_profit_ratio;
+                    delete formData.sell_ratio;
+                } else {
+                    // 处理单一止盈数据
+                    if (formData.take_profit_ratio) {
+                        formData.take_profit_ratio = parseFloat(formData.take_profit_ratio) / 100;
+                    }
+                    if (formData.sell_ratio) {
+                        formData.sell_ratio = parseFloat(formData.sell_ratio) / 100;
+                    }
+                    
+                    // 清空分批止盈字段
+                    delete formData.profit_targets;
                 }
 
                 let response;
                 if (this.editingTradeId) {
                     // 更新交易记录
-                    response = await apiClient.updateTrade(this.editingTradeId, formData);
+                    response = await this.updateTradeWithProfitTargets(this.editingTradeId, formData);
                 } else {
                     // 创建新交易记录
-                    response = await apiClient.createTrade(formData);
+                    response = await this.createTradeWithProfitTargets(formData);
                 }
 
                 if (response.success) {
@@ -958,26 +1463,144 @@
                     // 重新加载交易记录
                     await this.loadTrades();
                 } else {
-                    UXUtils.showError(response.message || '保存失败');
-
-                    // 显示字段级错误
-                    if (response.errors) {
-                        this.formValidator.showValidationSummary(response.errors);
-                    }
+                    this.handleSaveError(response);
                 }
             } catch (error) {
                 console.error('Save trade error:', error);
-
-                if (error.response && error.response.status === 422) {
-                    const errors = error.response.data.errors || {};
-                    this.formValidator.showValidationSummary(errors);
-                    UXUtils.showError('请检查表单中的错误信息');
-                } else {
-                    UXUtils.showError('保存失败，请重试');
-                }
+                this.handleSaveError(error);
             } finally {
                 const saveBtn = document.getElementById('save-trade-btn');
                 UXUtils.hideLoading(saveBtn);
+            }
+        }
+
+        async createTradeWithProfitTargets(formData) {
+            try {
+                // 创建交易记录
+                const response = await apiClient.createTrade(formData);
+                
+                if (response.success && formData.use_batch_profit_taking && formData.profit_targets) {
+                    // 如果创建成功且使用分批止盈，同步止盈目标数据
+                    try {
+                        await this.syncProfitTargets(response.data.id, formData.profit_targets);
+                    } catch (syncError) {
+                        console.warn('Failed to sync profit targets:', syncError);
+                        // 不阻止主流程，但显示警告
+                        UXUtils.showWarning('交易记录创建成功，但止盈目标同步失败');
+                    }
+                }
+                
+                return response;
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        async updateTradeWithProfitTargets(tradeId, formData) {
+            try {
+                // 更新交易记录
+                const response = await apiClient.updateTrade(tradeId, formData);
+                
+                if (response.success && formData.use_batch_profit_taking && formData.profit_targets) {
+                    // 如果更新成功且使用分批止盈，同步止盈目标数据
+                    try {
+                        await this.syncProfitTargets(tradeId, formData.profit_targets);
+                    } catch (syncError) {
+                        console.warn('Failed to sync profit targets:', syncError);
+                        UXUtils.showWarning('交易记录更新成功，但止盈目标同步失败');
+                    }
+                }
+                
+                return response;
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        async syncProfitTargets(tradeId, profitTargets) {
+            try {
+                const response = await apiClient.setProfitTargets(tradeId, profitTargets);
+                
+                if (!response.success) {
+                    throw new Error(response.message || '止盈目标同步失败');
+                }
+                
+                return response;
+            } catch (error) {
+                console.error('Sync profit targets error:', error);
+                throw error;
+            }
+        }
+
+        validateProfitTargetsData(profitTargets) {
+            if (!profitTargets || profitTargets.length === 0) {
+                return false;
+            }
+
+            return profitTargets.every(target => {
+                return target.targetPrice > 0 && 
+                       target.sellRatio > 0 && 
+                       target.sellRatio <= 100;
+            });
+        }
+
+        showBatchProfitErrors(errors) {
+            // 显示分批止盈相关的错误信息
+            if (errors.totalSellRatio) {
+                UXUtils.showWarning(errors.totalSellRatio);
+            }
+
+            // 显示具体目标的错误
+            Object.keys(errors).forEach(targetId => {
+                if (targetId !== 'totalSellRatio' && typeof errors[targetId] === 'object') {
+                    const targetErrors = errors[targetId];
+                    Object.keys(targetErrors).forEach(field => {
+                        console.warn(`Target ${targetId} ${field}: ${targetErrors[field]}`);
+                    });
+                }
+            });
+        }
+
+        handleSaveError(error) {
+            console.error('[DEBUG] handleSaveError 接收到的错误:', error);
+            
+            if (error.response) {
+                const status = error.response.status;
+                const data = error.response.data;
+                
+                console.error(`[DEBUG] HTTP错误 ${status}:`, data);
+                
+                if (status === 422) {
+                    const errors = data.errors || {};
+                    
+                    // 处理分批止盈相关错误
+                    if (errors.profit_targets) {
+                        this.showBatchProfitErrors(errors.profit_targets);
+                    }
+                    
+                    // 显示表单验证错误
+                    if (this.formValidator) {
+                        this.formValidator.showValidationSummary(errors);
+                    }
+                    
+                    UXUtils.showError('请检查表单中的错误信息');
+                } else if (status === 400) {
+                    // 处理400错误
+                    const errorMessage = data.error?.message || data.message || '请求数据格式错误';
+                    console.error('[DEBUG] 400错误详情:', errorMessage);
+                    UXUtils.showError(`数据验证失败: ${errorMessage}`);
+                } else if (status === 403) {
+                    UXUtils.showError('访问被拒绝，请刷新页面重试');
+                } else if (status === 404) {
+                    UXUtils.showError('交易记录不存在或已被删除');
+                } else {
+                    const errorMessage = data.error?.message || data.message || `服务器错误 (${status})`;
+                    UXUtils.showError(errorMessage);
+                }
+            } else if (error.message) {
+                UXUtils.showError(error.message);
+            } else {
+                UXUtils.showError('保存失败，请重试');
             }
         }
 
@@ -1041,57 +1664,234 @@
         }
 
         async editTrade(tradeId) {
+            console.log('editTrade started for tradeId:', tradeId);
+            let loadingShown = false;
+            
             try {
-                const response = await apiClient.request('GET', `/api/trades/${tradeId}`);
+                console.log('Showing global loading...');
+                UXUtils.showGlobalLoading('加载交易记录...');
+                loadingShown = true;
+                
+                // 使用专门的API获取包含止盈目标的完整交易记录
+                console.log('Fetching trade data...');
+                const response = await apiClient.getTradeWithProfitTargets(tradeId);
+                console.log('Trade data response:', response);
 
                 if (response.success) {
                     const trade = response.data;
                     this.editingTradeId = tradeId;
+                    console.log('Trade data loaded successfully:', trade);
 
-                    // 填充表单
-                    document.getElementById('stock-code').value = trade.stock_code;
-                    document.getElementById('stock-name').value = trade.stock_name;
-                    document.getElementById('trade-type').value = trade.trade_type;
-                    document.getElementById('price').value = trade.price;
-                    document.getElementById('quantity').value = trade.quantity;
-                    document.getElementById('reason').value = trade.reason;
-                    document.getElementById('notes').value = trade.notes || '';
-
-                    // 设置交易日期
-                    const tradeDate = new Date(trade.trade_date);
-                    const localDateTime = new Date(tradeDate.getTime() - tradeDate.getTimezoneOffset() * 60000)
-                        .toISOString().slice(0, 16);
-                    document.getElementById('trade-date').value = localDateTime;
+                    // 填充基本表单数据
+                    console.log('Populating basic form...');
+                    this.populateBasicTradeForm(trade);
 
                     // 更新原因选项和买入设置
+                    console.log('Updating reason options...');
                     this.updateReasonOptions(trade.trade_type);
+                    console.log('Toggling buy settings...');
                     this.toggleBuySettings(trade.trade_type === 'buy');
 
-                    // 填充买入设置
+                    // 填充买入设置（包括分批止盈数据）
                     if (trade.trade_type === 'buy') {
-                        document.getElementById('stop-loss-price').value = trade.stop_loss_price || '';
-                        document.getElementById('take-profit-ratio').value =
-                            trade.take_profit_ratio ? (trade.take_profit_ratio * 100).toFixed(2) : '';
-                        document.getElementById('sell-ratio').value =
-                            trade.sell_ratio ? (trade.sell_ratio * 100).toFixed(2) : '';
+                        console.log('Populating buy settings...');
+                        try {
+                            await this.populateBuySettings(trade);
+                            console.log('Buy settings populated');
+                        } catch (buySettingsError) {
+                            console.error('Buy settings population failed:', buySettingsError);
+                            // 即使买入设置失败，也要继续显示模态框，让用户手动设置
+                            UXUtils.showWarning('买入设置加载失败，请手动设置止盈止损');
+                        }
+                    }
 
-                        // 计算风险收益比
-                        await this.calculateRiskReward();
+                    // 确保在显示模态框前隐藏加载状态
+                    if (loadingShown) {
+                        UXUtils.hideGlobalLoading();
+                        loadingShown = false;
+                        console.log('Global loading hidden before showing modal');
                     }
 
                     // 更新模态框标题
+                    console.log('Updating modal title...');
                     document.getElementById('trade-modal-title').textContent = '编辑交易记录';
 
                     // 显示模态框
+                    console.log('Showing modal...');
                     const modal = new bootstrap.Modal(document.getElementById('addTradeModal'));
                     modal.show();
+                    console.log('Modal shown');
                 } else {
                     throw new Error(response.message || '获取交易记录失败');
                 }
             } catch (error) {
                 console.error('Failed to load trade for editing:', error);
-                showMessage('加载交易记录失败：' + error.message, 'error');
+                this.handleEditTradeError(error);
+            } finally {
+                console.log('editTrade finally block - hiding loading...');
+                if (loadingShown) {
+                    UXUtils.hideGlobalLoading();
+                    console.log('Global loading hidden in finally');
+                }
+                console.log('editTrade completed');
             }
+        }
+
+        populateBasicTradeForm(trade) {
+            // 填充基本表单字段
+            document.getElementById('stock-code').value = trade.stock_code || '';
+            document.getElementById('stock-name').value = trade.stock_name || '';
+            document.getElementById('trade-type').value = trade.trade_type || '';
+            document.getElementById('price').value = trade.price || '';
+            document.getElementById('quantity').value = trade.quantity || '';
+            document.getElementById('reason').value = trade.reason || '';
+            document.getElementById('notes').value = trade.notes || '';
+
+            // 设置交易日期
+            if (trade.trade_date) {
+                const tradeDate = new Date(trade.trade_date);
+                const localDateTime = new Date(tradeDate.getTime() - tradeDate.getTimezoneOffset() * 60000)
+                    .toISOString().slice(0, 16);
+                document.getElementById('trade-date').value = localDateTime;
+            }
+        }
+
+        async populateBuySettings(trade) {
+            console.log('populateBuySettings started:', trade);
+            try {
+                // 填充止损价格
+                console.log('Setting stop loss price...');
+                document.getElementById('stop-loss-price').value = trade.stop_loss_price || '';
+
+                // 处理分批止盈数据
+                const useBatchProfitTaking = trade.use_batch_profit_taking || false;
+                console.log('Use batch profit taking:', useBatchProfitTaking);
+                document.getElementById('use-batch-profit-taking').checked = useBatchProfitTaking;
+                
+                // 切换到相应的止盈模式
+                console.log('Toggling profit taking mode...');
+                this.toggleProfitTakingMode(useBatchProfitTaking);
+
+                if (useBatchProfitTaking) {
+                    // 加载分批止盈数据
+                    console.log('Loading profit targets for edit...');
+                    try {
+                        await this.loadProfitTargetsForEdit(trade);
+                        console.log('Profit targets loaded');
+                    } catch (profitTargetsError) {
+                        console.error('Failed to load profit targets:', profitTargetsError);
+                        UXUtils.showWarning('止盈目标加载失败，请重新设置');
+                        // 不重新抛出错误，让主流程继续
+                    }
+                } else {
+                    // 加载单一止盈数据
+                    console.log('Loading single profit taking...');
+                    try {
+                        this.loadSingleProfitTakingForEdit(trade);
+                        console.log('Single profit taking loaded');
+                    } catch (singleProfitError) {
+                        console.error('Failed to load single profit taking:', singleProfitError);
+                        UXUtils.showWarning('止盈设置加载失败，请重新设置');
+                        // 不重新抛出错误，让主流程继续
+                    }
+                }
+
+                // 计算风险收益比
+                console.log('Scheduling risk reward calculation...');
+                setTimeout(() => {
+                    try {
+                        console.log('Calculating risk reward...');
+                        this.calculateRiskReward();
+                    } catch (riskRewardError) {
+                        console.error('Risk reward calculation failed:', riskRewardError);
+                        // 风险收益比计算失败不影响主流程
+                    }
+                }, 100);
+                
+                console.log('populateBuySettings completed successfully');
+            } catch (error) {
+                console.error('Failed to populate buy settings:', error);
+                // 不重新抛出错误，让主流程继续，只显示警告
+                UXUtils.showWarning('买入设置加载失败，请手动设置');
+            }
+        }
+
+        async loadProfitTargetsForEdit(trade) {
+            try {
+                let profitTargets = [];
+
+                // 如果交易记录中已有止盈目标数据，直接使用
+                if (trade.profit_targets && trade.profit_targets.length > 0) {
+                    profitTargets = trade.profit_targets;
+                } else {
+                    // 否则从API获取最新的止盈目标数据
+                    try {
+                        const targetsResponse = await apiClient.getProfitTargets(trade.id);
+                        if (targetsResponse.success && targetsResponse.data.profit_targets) {
+                            profitTargets = targetsResponse.data.profit_targets;
+                        }
+                    } catch (apiError) {
+                        console.warn('Failed to fetch profit targets from API:', apiError);
+                        // 如果API调用失败，使用空数组，让用户重新设置
+                        profitTargets = [];
+                    }
+                }
+
+                // 设置分批止盈管理器的数据
+                if (this.profitTargetsManager) {
+                    if (profitTargets.length > 0) {
+                        this.profitTargetsManager.setTargets(profitTargets);
+                    } else {
+                        // 如果没有数据，清空并添加默认目标
+                        this.profitTargetsManager.clear();
+                    }
+                    
+                    // 设置买入价格用于计算
+                    this.profitTargetsManager.setBuyPrice(parseFloat(trade.price) || 0);
+                } else {
+                    console.warn('ProfitTargetsManager not initialized');
+                }
+            } catch (error) {
+                console.error('Failed to load profit targets for edit:', error);
+                UXUtils.showWarning('分批止盈数据加载失败，请重新设置');
+                
+                // 清空分批止盈管理器
+                if (this.profitTargetsManager) {
+                    this.profitTargetsManager.clear();
+                }
+            }
+        }
+
+        loadSingleProfitTakingForEdit(trade) {
+            try {
+                // 加载单一止盈数据
+                const takeProfitRatio = trade.take_profit_ratio ? (trade.take_profit_ratio * 100).toFixed(2) : '';
+                const sellRatio = trade.sell_ratio ? (trade.sell_ratio * 100).toFixed(2) : '';
+                
+                document.getElementById('take-profit-ratio').value = takeProfitRatio;
+                document.getElementById('sell-ratio').value = sellRatio;
+            } catch (error) {
+                console.error('Failed to load single profit taking data:', error);
+                UXUtils.showWarning('单一止盈数据加载失败');
+            }
+        }
+
+        handleEditTradeError(error) {
+            let message = '加载交易记录失败';
+            
+            if (error.response) {
+                if (error.response.status === 404) {
+                    message = '交易记录不存在或已被删除';
+                } else if (error.response.status === 403) {
+                    message = '没有权限访问此交易记录';
+                } else if (error.response.data && error.response.data.message) {
+                    message = error.response.data.message;
+                }
+            } else if (error.message) {
+                message = error.message;
+            }
+            
+            UXUtils.showError(message);
         }
 
         async correctTrade(tradeId) {
@@ -1320,6 +2120,206 @@
             }
         }
 
+        // 添加分批止盈数据验证和用户提示方法
+        showProfitTargetsValidationFeedback(isValid, errors) {
+            const container = document.getElementById('profit-targets-container');
+            if (!container) return;
+
+            // 清除之前的全局错误提示
+            const existingAlert = container.querySelector('.profit-targets-global-error');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+
+            if (!isValid && errors) {
+                // 显示全局错误提示
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger alert-sm profit-targets-global-error mt-2';
+                alertDiv.innerHTML = `
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>分批止盈设置有误：</strong>
+                    <ul class="mb-0 mt-1">
+                        ${Object.keys(errors).map(key => {
+                            if (key === 'totalSellRatio') {
+                                return `<li>${errors[key]}</li>`;
+                            } else if (typeof errors[key] === 'object') {
+                                const targetErrors = Object.values(errors[key]);
+                                return targetErrors.map(err => `<li>${err}</li>`).join('');
+                            }
+                            return '';
+                        }).join('')}
+                    </ul>
+                `;
+                container.appendChild(alertDiv);
+            }
+        }
+
+        showBatchProfitSuccessFeedback(message) {
+            const container = document.getElementById('profit-targets-container');
+            if (!container) return;
+
+            // 显示成功提示
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-sm mt-2';
+            alertDiv.innerHTML = `
+                <i class="bi bi-check-circle me-2"></i>
+                ${message}
+            `;
+            container.appendChild(alertDiv);
+
+            // 3秒后自动移除
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 3000);
+        }
+
+        async validateAndPreviewBatchProfit() {
+            if (!this.useBatchProfitTaking || !this.profitTargetsManager) {
+                return;
+            }
+
+            try {
+                const buyPrice = parseFloat(document.getElementById('price').value) || 0;
+                const profitTargets = this.profitTargetsManager.getTargets();
+
+                // 更严格的验证条件
+                if (buyPrice <= 0) {
+                    return; // 买入价格无效，不进行计算
+                }
+
+                if (!profitTargets || profitTargets.length === 0) {
+                    return; // 没有止盈目标，不进行计算
+                }
+
+                // 检查是否有有效的止盈目标（至少有一个目标价格不为空）
+                const validTargets = profitTargets.filter(target => {
+                    const targetPrice = parseFloat(target.targetPrice || target.target_price);
+                    const sellRatio = parseFloat(target.sellRatio || target.sell_ratio);
+                    return targetPrice > 0 && sellRatio > 0;
+                });
+
+                if (validTargets.length === 0) {
+                    return; // 没有有效的止盈目标，不进行计算
+                }
+
+                // 调用API计算预期收益
+                const response = await apiClient.calculateBatchProfit(buyPrice, validTargets);
+                
+                if (response.success) {
+                    // 显示计算结果预览
+                    this.showBatchProfitPreview(response.data);
+                }
+            } catch (error) {
+                console.warn('Failed to calculate batch profit preview:', error);
+                // 清除可能显示的预览信息
+                this.clearBatchProfitPreview();
+            }
+        }
+
+        clearBatchProfitPreview() {
+            const container = document.getElementById('profit-targets-container');
+            if (container) {
+                const previewElement = container.querySelector('.batch-profit-preview');
+                if (previewElement) {
+                    previewElement.remove();
+                }
+            }
+        }
+
+        // 紧急隐藏全局加载状态的方法
+        forceHideGlobalLoading() {
+            console.log('Force hiding global loading...');
+            
+            // 调用标准的隐藏方法
+            if (typeof UXUtils !== 'undefined' && UXUtils.hideGlobalLoading) {
+                UXUtils.hideGlobalLoading();
+            }
+            
+            // 强制清理所有可能的加载遮罩
+            const overlays = document.querySelectorAll('#global-loading-overlay, .loading-overlay, [id*="loading"], [class*="loading"]');
+            overlays.forEach(overlay => {
+                if (overlay.style) {
+                    overlay.style.display = 'none';
+                }
+                // 尝试移除，但要安全处理
+                try {
+                    if (overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                } catch (e) {
+                    console.warn('Failed to remove overlay:', e);
+                }
+            });
+            
+            // 清理可能的Bootstrap模态背景
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => {
+                try {
+                    backdrop.remove();
+                } catch (e) {
+                    console.warn('Failed to remove backdrop:', e);
+                }
+            });
+            
+            // 确保body没有modal相关的类
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            
+            // 清理可能的spinner
+            const spinners = document.querySelectorAll('.spinner-border, .spinner-grow, [class*="spinner"]');
+            spinners.forEach(spinner => {
+                const parent = spinner.closest('.loading-overlay, #global-loading-overlay');
+                if (parent) {
+                    try {
+                        parent.remove();
+                    } catch (e) {
+                        console.warn('Failed to remove spinner parent:', e);
+                    }
+                }
+            });
+            
+            console.log('Global loading force hidden - all cleanup completed');
+        }
+
+        showBatchProfitPreview(calculationResult) {
+            const container = document.getElementById('profit-targets-container');
+            if (!container) return;
+
+            // 移除之前的预览
+            const existingPreview = container.querySelector('.batch-profit-preview');
+            if (existingPreview) {
+                existingPreview.remove();
+            }
+
+            // 创建预览显示
+            const previewDiv = document.createElement('div');
+            previewDiv.className = 'batch-profit-preview mt-3 p-3 bg-info bg-opacity-10 border border-info rounded';
+            previewDiv.innerHTML = `
+                <h6 class="text-info mb-2">
+                    <i class="bi bi-calculator me-2"></i>
+                    分批止盈预览
+                </h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <small class="text-muted">总预期收益率:</small>
+                        <div class="fw-bold text-success">${(calculationResult.total_expected_profit_ratio * 100).toFixed(2)}%</div>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">总卖出比例:</small>
+                        <div class="fw-bold">${calculationResult.total_sell_ratio.toFixed(2)}%</div>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">预期收益金额:</small>
+                        <div class="fw-bold text-success">¥${calculationResult.expected_profit_amount?.toFixed(2) || '0.00'}</div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(previewDiv);
+        }
+
         resetTradeForm() {
             const form = document.getElementById('trade-form');
             form.reset();
@@ -1334,6 +2334,29 @@
 
             // 重置编辑状态
             this.editingTradeId = null;
+
+            // 重置分批止盈状态
+            this.useBatchProfitTaking = false;
+            document.getElementById('use-batch-profit-taking').checked = false;
+
+            // 清除防抖计时器
+            if (this.previewCalculationTimer) {
+                clearTimeout(this.previewCalculationTimer);
+                this.previewCalculationTimer = null;
+            }
+
+            // 销毁分批止盈组件
+            if (this.profitTargetsManager) {
+                this.profitTargetsManager.destroy();
+                this.profitTargetsManager = null;
+            }
+
+            // 清除分批止盈相关的UI反馈
+            const container = document.getElementById('profit-targets-container');
+            if (container) {
+                const alerts = container.querySelectorAll('.alert');
+                alerts.forEach(alert => alert.remove());
+            }
 
             // 隐藏买入设置
             this.toggleBuySettings(false);
@@ -1364,7 +2387,61 @@
 
     function initTradingRecords() {
         tradingManager = new TradingRecordsManager();
+        
+        // 初始化完成后，确保清理任何遗留的加载状态
+        setTimeout(() => {
+            if (tradingManager && typeof tradingManager.forceHideGlobalLoading === 'function') {
+                tradingManager.forceHideGlobalLoading();
+            }
+        }, 2000);
     }
+    
+    // 全局清理函数，可以在控制台直接调用
+    window.clearAllLoadingStates = function() {
+        console.log('强制清理所有加载状态...');
+        
+        // 清理全局加载遮罩
+        const overlays = document.querySelectorAll('#global-loading-overlay, .loading-overlay, [id*="loading"], [class*="loading"]');
+        overlays.forEach(overlay => {
+            if (overlay.style) {
+                overlay.style.display = 'none';
+            }
+            try {
+                if (overlay.parentNode) {
+                    overlay.parentNode.removeChild(overlay);
+                }
+            } catch (e) {
+                console.warn('移除遮罩失败:', e);
+            }
+        });
+        
+        // 清理Bootstrap模态背景
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => {
+            try {
+                backdrop.remove();
+            } catch (e) {
+                console.warn('移除背景失败:', e);
+            }
+        });
+        
+        // 重置body样式
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        
+        // 清理表格中的加载状态
+        const tbody = document.getElementById('trades-table-body');
+        if (tbody && tbody.innerHTML.includes('加载中')) {
+            console.log('清理表格加载状态...');
+            if (window.tradingManager && typeof window.tradingManager.loadTrades === 'function') {
+                window.tradingManager.loadTrades();
+            }
+        }
+        
+        console.log('所有加载状态已清理完成');
+        return '✅ 加载状态清理完成';
+    };
 
     function filterTrades() {
         if (!tradingManager) return;
@@ -1428,6 +2505,20 @@
     // 页面加载完成后初始化
     document.addEventListener('DOMContentLoaded', () => {
         if (window.location.pathname.includes('trading-records')) {
+            // 立即清理任何可能存在的全局加载遮罩
+            setTimeout(() => {
+                const overlay = document.getElementById('global-loading-overlay');
+                if (overlay) {
+                    console.log('页面加载完成，清理全局加载遮罩...');
+                    overlay.style.display = 'none';
+                    try {
+                        overlay.remove();
+                    } catch (e) {
+                        console.warn('清理遮罩失败:', e);
+                    }
+                }
+            }, 100);
+            
             // 防止重复初始化
             if (!window.tradingManagerInitialized) {
                 window.tradingManagerInitialized = true;
@@ -1438,8 +2529,11 @@
 
     // 页面加载完成后的额外检查
     document.addEventListener('DOMContentLoaded', function () {
-        // 延迟检查，确保所有脚本都已加载
+        // 立即检查并清理任何遗留的全局加载遮罩
         setTimeout(() => {
+            console.log('开始检查页面加载状态...');
+            
+            // 检查表格加载状态
             const tbody = document.getElementById('trades-table-body');
             if (tbody && tbody.innerHTML.includes('加载中')) {
                 console.log('检测到页面仍在加载状态，尝试修复...');
@@ -1455,7 +2549,111 @@
                 </tr>
             `;
             }
-        }, 3000);
+            
+            // 强制清理任何全局加载遮罩
+            const globalOverlay = document.getElementById('global-loading-overlay');
+            if (globalOverlay) {
+                console.log('检测到全局加载遮罩，强制清理...');
+                if (window.tradingManager && typeof window.tradingManager.forceHideGlobalLoading === 'function') {
+                    window.tradingManager.forceHideGlobalLoading();
+                } else {
+                    // 直接清理
+                    globalOverlay.style.display = 'none';
+                    try {
+                        globalOverlay.remove();
+                    } catch (e) {
+                        console.warn('Failed to remove global overlay:', e);
+                    }
+                    
+                    // 清理可能的Bootstrap背景
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    backdrops.forEach(backdrop => {
+                        try {
+                            backdrop.remove();
+                        } catch (e) {
+                            console.warn('Failed to remove backdrop:', e);
+                        }
+                    });
+                    
+                    // 重置body样式
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                }
+            }
+        }, 1000); // 缩短到1秒，更快响应
+        
+        // 更频繁的检查，防止加载状态卡住
+        const checkInterval = setInterval(() => {
+            const overlay = document.getElementById('global-loading-overlay');
+            if (overlay && overlay.style.display !== 'none') {
+                const overlayTime = overlay.dataset.showTime;
+                const currentTime = Date.now();
+                
+                // 如果加载遮罩显示超过5秒，自动清理（缩短时间）
+                if (!overlayTime || (currentTime - parseInt(overlayTime)) > 5000) {
+                    console.log('加载遮罩显示时间过长，自动清理...');
+                    if (window.tradingManager && typeof window.tradingManager.forceHideGlobalLoading === 'function') {
+                        window.tradingManager.forceHideGlobalLoading();
+                    } else {
+                        overlay.style.display = 'none';
+                        try {
+                            overlay.remove();
+                        } catch (e) {
+                            console.warn('Failed to remove overlay:', e);
+                        }
+                    }
+                }
+            } else {
+                // 如果没有遮罩，清除检查间隔
+                clearInterval(checkInterval);
+            }
+        }, 1000); // 更频繁检查，每1秒一次
+        
+        // 30秒后清除检查间隔，避免内存泄漏
+        setTimeout(() => {
+            clearInterval(checkInterval);
+        }, 30000);
     });
+    
+    // 最终的强制清理 - 确保页面完全加载后清理任何遗留状态
+    setTimeout(() => {
+        console.log('执行最终强制清理...');
+        
+        // 强制清理所有加载状态
+        const allOverlays = document.querySelectorAll('*[id*="loading"], *[class*="loading"], .modal-backdrop, #global-loading-overlay');
+        allOverlays.forEach(element => {
+            if (element && element.style) {
+                element.style.display = 'none';
+                try {
+                    element.remove();
+                } catch (e) {
+                    console.warn('清理元素失败:', e);
+                }
+            }
+        });
+        
+        // 重置所有可能的样式
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        document.documentElement.style.overflow = '';
+        
+        console.log('最终强制清理完成');
+    }, 2000);
+    
+    // 持续监控和清理
+    setInterval(() => {
+        const overlay = document.getElementById('global-loading-overlay');
+        if (overlay && overlay.style.display !== 'none') {
+            console.log('检测到顽固的加载状态，强制清理...');
+            overlay.style.display = 'none';
+            try {
+                overlay.remove();
+            } catch (e) {
+                console.warn('清理失败:', e);
+            }
+        }
+    }, 1000);
 </script>
 {% endblock %}

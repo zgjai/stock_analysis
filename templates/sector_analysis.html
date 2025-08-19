@@ -14,7 +14,8 @@
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <button type="button" class="btn btn-primary" onclick="refreshSectorData()">
+                <button type="button" class="btn btn-primary" onclick="refreshSectorData()" 
+                        title="获取最新板块数据，当天数据支持实时更新">
                     <i class="fas fa-sync-alt"></i> 刷新板块数据
                 </button>
                 <button type="button" class="btn btn-outline-secondary" onclick="loadSectorRanking()">
@@ -247,7 +248,10 @@ async function refreshSectorData() {
         const response = await apiClient.refreshSectorData();
         
         if (response.success) {
-            showMessage('板块数据刷新成功', 'success');
+            const message = response.updated ? 
+                `板块数据已更新 (${response.count}条记录)` : 
+                `板块数据刷新成功 (${response.count}条记录)`;
+            showMessage(message, 'success');
             updateDataStatus('数据已更新', 'success');
             
             // 重新加载排名数据

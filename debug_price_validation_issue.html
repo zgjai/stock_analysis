@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>价格验证问题调试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>价格验证问题调试</h2>
+        
+        <form id="test-form">
+            <div class="mb-3">
+                <label for="price" class="form-label">价格</label>
+                <div class="input-group">
+                    <span class="input-group-text">¥</span>
+                    <input type="number" class="form-control" id="price" name="price" required
+                           step="0.01" min="0.01" max="9999.99" placeholder="0.00" value="19.50">
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="quantity" class="form-label">数量</label>
+                <input type="number" class="form-control" id="quantity" name="quantity" required
+                       min="1" placeholder="100" value="100">
+            </div>
+            
+            <button type="button" id="debug-btn" class="btn btn-primary">调试表单数据</button>
+        </form>
+        
+        <div id="debug-output" class="mt-4"></div>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script>
+        document.getElementById('debug-btn').addEventListener('click', function() {
+            const form = document.getElementById('test-form');
+            const output = document.getElementById('debug-output');
+            
+            console.log('=== 调试表单数据收集 ===');
+            
+            // 1. 测试原生FormData
+            const nativeFormData = new FormData(form);
+            console.log('1. 原生FormData entries:');
+            for (let [key, value] of nativeFormData.entries()) {
+                console.log(`  ${key}: "${value}" (type: ${typeof value})`);
+            }
+            
+            // 2. 测试FormUtils.serialize
+            const serializedData = FormUtils.serialize(form);
+            console.log('2. FormUtils.serialize结果:', serializedData);
+            console.log('  price值:', serializedData.price, '(type:', typeof serializedData.price, ')');
+            console.log('  quantity值:', serializedData.quantity, '(type:', typeof serializedData.quantity, ')');
+            
+            // 3. 测试直接获取元素值
+            const priceElement = document.getElementById('price');
+            const quantityElement = document.getElementById('quantity');
+            console.log('3. 直接获取元素值:');
+            console.log('  price.value:', priceElement.value, '(type:', typeof priceElement.value, ')');
+            console.log('  quantity.value:', quantityElement.value, '(type:', typeof quantityElement.value, ')');
+            
+            // 4. 模拟validateNumericField函数
+            const validateNumericField = (fieldName, fieldValue, isRequired = true) => {
+                console.log(`4. 验证字段 "${fieldName}":`, fieldValue, '(type:', typeof fieldValue, ')');
+                
+                // 如果是编辑模式且字段不存在，允许跳过
+                const editingTradeId = null; // 模拟新建模式
+                if (!isRequired && editingTradeId && (fieldValue === undefined || fieldValue === null)) {
+                    console.log('  -> 跳过验证（编辑模式且字段为空）');
+                    return null;
+                }
+                
+                // 检查必填字段
+                if (isRequired && (fieldValue === undefined || fieldValue === null || fieldValue === '')) {
+                    console.log('  -> 验证失败：字段为空');
+                    throw new Error(`${fieldName}不能为空`);
+                }
+                
+                // 处理字符串类型
+                if (typeof fieldValue === 'string') {
+                    fieldValue = fieldValue.trim();
+                    if (fieldValue === '') {
+                        if (isRequired) {
+                            console.log('  -> 验证失败：字符串为空');
+                            throw new Error(`${fieldName}不能为空`);
+                        }
+                        return null;
+                    }
+                }
+                
+                console.log('  -> 验证通过，返回值:', fieldValue);
+                return fieldValue;
+            };
+            
+            try {
+                // 5. 测试价格验证
+                console.log('5. 测试价格验证:');
+                const priceValue = validateNumericField('价格', serializedData.price, true);
+                console.log('  价格验证结果:', priceValue);
+                
+                // 6. 测试数量验证
+                console.log('6. 测试数量验证:');
+                const quantityValue = validateNumericField('数量', serializedData.quantity, true);
+                console.log('  数量验证结果:', quantityValue);
+                
+                output.innerHTML = `
+                    <div class="alert alert-success">
+                        <h5>调试结果：验证成功</h5>
+                        <p><strong>价格:</strong> ${priceValue} (${typeof priceValue})</p>
+                        <p><strong>数量:</strong> ${quantityValue} (${typeof quantityValue})</p>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('验证失败:', error.message);
+                output.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>调试结果：验证失败</h5>
+                        <p><strong>错误:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        });
+        
+        // 页面加载时自动运行一次调试
+        window.addEventListener('load', function() {
+            document.getElementById('debug-btn').click();
+        });
+    </script>
+</body>
+</html>

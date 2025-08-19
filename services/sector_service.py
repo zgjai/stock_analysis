@@ -10,6 +10,7 @@ from extensions import db
 from models.sector_data import SectorData, SectorRanking
 from services.base_service import BaseService
 from error_handlers import ValidationError, ExternalAPIError
+from utils.trading_date_utils import get_trading_date, get_data_context
 
 
 class SectorAnalysisService(BaseService):
@@ -19,18 +20,24 @@ class SectorAnalysisService(BaseService):
     
     @classmethod
     def refresh_sector_data(cls) -> Dict[str, Any]:
-        """刷新板块数据，避免重复记录"""
+        """刷新板块数据，当天数据支持实时更新"""
         try:
-            today = date.today()
+            # 获取数据应该归属的交易日期
+            # 考虑交易日当天8点前获取的是上一交易日数据
+            trading_date = get_trading_date()
+            context = get_data_context()
             
-            # 检查今日是否已有数据
-            if SectorData.has_data_for_date(today):
-                return {
-                    "success": True,
-                    "message": "今日数据已存在，无需重复获取",
-                    "date": today.isoformat(),
-                    "count": 0
-                }
+            # 记录日期调整信息用于调试
+            if context['date_adjusted']:
+                print(f"日期已调整: {context['current_date']} -> {trading_date} (原因: {context['adjustment_reason']})")
+            
+            # 检查交易日是否已有数据，如果有则先删除以便更新
+            existing_data = SectorData.has_data_for_date(trading_date)
+            if existing_data:
+                # 删除交易日的旧数据以便更新
+                SectorData.query.filter_by(record_date=trading_date).delete()
+                SectorRanking.query.filter_by(record_date=trading_date).delete()
+                db.session.commit()
             
             # 获取AKShare板块数据
             try:
@@ -42,7 +49,7 @@ class SectorAnalysisService(BaseService):
                 return {
                     "success": False,
                     "message": "未获取到板块数据",
-                    "date": today.isoformat(),
+                    "date": trading_date.isoformat(),
                     "count": 0
                 }
             
@@ -57,7 +64,7 @@ class SectorAnalysisService(BaseService):
                         sector_name=row.get('板块名称', ''),
                         sector_code=row.get('板块代码', ''),
                         change_percent=float(row.get('涨跌幅', 0)),
-                        record_date=today,
+                        record_date=trading_date,
                         rank_position=idx + 1,
                         volume=int(row.get('成交量', 0)) if pd.notna(row.get('成交量', 0)) else None,
                         market_cap=float(row.get('总市值', 0)) if pd.notna(row.get('总市值', 0)) else None
@@ -83,19 +90,37 @@ class SectorAnalysisService(BaseService):
                 db.session.commit()
                 
                 # 保存排名数据
-                SectorRanking.create_or_update(today, ranking_data, len(sector_records))
+                SectorRanking.create_or_update(trading_date, ranking_data, len(sector_records))
+                
+                action = "更新" if existing_data else "获取并保存"
+                message = f"成功{action}{len(sector_records)}条板块数据"
+                
+                # 如果日期被调整，在消息中说明
+                if context['date_adjusted']:
+                    reason_map = {
+                        'early_morning': '(早晨8点前，归属上一交易日)',
+                        'weekend': '(周末，归属上一交易日)',
+                        'other': '(非交易时间)'
+                    }
+                    reason_text = reason_map.get(context['adjustment_reason'], '')
+                    message += reason_text
                 
                 return {
                     "success": True,
-                    "message": f"成功获取并保存{len(sector_records)}条板块数据",
-                    "date": today.isoformat(),
-                    "count": len(sector_records)
+                    "message": message,
+                    "date": trading_date.isoformat(),
+                    "count": len(sector_records),
+                    "updated": existing_data,
+                    "trading_date": trading_date.isoformat(),
+                    "current_date": context['current_date'].isoformat(),
+                    "date_adjusted": context['date_adjusted'],
+                    "adjustment_reason": context['adjustment_reason']
                 }
             else:
                 return {
                     "success": False,
                     "message": "没有有效的板块数据可保存",
-                    "date": today.isoformat(),
+                    "date": trading_date.isoformat(),
                     "count": 0
                 }
                 

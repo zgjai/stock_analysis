@@ -685,6 +685,71 @@ const UXUtils = {
         
         if (container) {
             const progressBar = container.querySelector('.progress-bar');
+            const textElement = container.querySelector('.text-muted');
+            
+            if (progressBar) {
+                progressBar.style.width = `${progress}%`;
+                progressBar.setAttribute('aria-valuenow', progress);
+                progressBar.textContent = `${progress}%`;
+            }
+            
+            if (textElement && text) {
+                textElement.textContent = text;
+            }
+        }
+    },
+
+    // 全局加载状态管理
+    showGlobalLoading: (text = '加载中...') => {
+        let overlay = document.getElementById('global-loading-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'global-loading-overlay';
+            overlay.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center';
+            overlay.style.cssText = 'background: rgba(0,0,0,0.5); z-index: 9999;';
+            overlay.innerHTML = `
+                <div class="bg-white rounded p-4 text-center">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <div class="loading-text">${text}</div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        } else {
+            const textElement = overlay.querySelector('.loading-text');
+            if (textElement) {
+                textElement.textContent = text;
+            }
+            overlay.style.display = 'flex';
+        }
+        
+        // 记录显示时间，用于超时检测
+        overlay.dataset.showTime = Date.now().toString();
+        
+        // 设置自动超时清理（15秒后自动隐藏）
+        setTimeout(() => {
+            const currentOverlay = document.getElementById('global-loading-overlay');
+            if (currentOverlay && currentOverlay.dataset.showTime === overlay.dataset.showTime) {
+                console.warn('Global loading timeout, auto hiding...');
+                UXUtils.hideGlobalLoading();
+            }
+        }, 15000);
+    },
+
+    hideGlobalLoading: () => {
+        const overlay = document.getElementById('global-loading-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    },
+    updateProgress: (container, progress, text = '') => {
+        if (typeof container === 'string') {
+            container = document.querySelector(container);
+        }
+        
+        if (container) {
+            const progressBar = container.querySelector('.progress-bar');
             const textElement = container.querySelector('small');
             
             if (progressBar) {

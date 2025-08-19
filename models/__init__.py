@@ -3,6 +3,7 @@
 """
 from .base import BaseModel
 from .trade_record import TradeRecord, TradeCorrection
+from .profit_taking_target import ProfitTakingTarget
 from .review_record import ReviewRecord
 from .stock_pool import StockPool
 from .case_study import CaseStudy
@@ -15,6 +16,7 @@ __all__ = [
     'BaseModel',
     'TradeRecord',
     'TradeCorrection',
+    'ProfitTakingTarget',
     'ReviewRecord',
     'StockPool',
     'CaseStudy',

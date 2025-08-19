@@ -9,6 +9,8 @@ from extensions import db
 from models.trade_record import TradeRecord, TradeCorrection
 from models.configuration import Configuration
 from services.base_service import BaseService
+from services.profit_taking_service import ProfitTakingService
+from utils.batch_profit_compatibility import LegacyDataHandler
 from error_handlers import ValidationError, NotFoundError, DatabaseError
 
 
@@ -28,14 +30,92 @@ class TradingService(BaseService):
             if 'trade_date' not in data or data['trade_date'] is None:
                 data['trade_date'] = datetime.now()
             
-            # 创建交易记录
-            trade = cls.create(data)
+            # 检查是否使用分批止盈
+            use_batch_profit = data.get('use_batch_profit_taking', False)
+            profit_targets = data.pop('profit_targets', None)
             
-            return trade
+            if use_batch_profit and profit_targets:
+                # 使用分批止盈创建交易记录
+                return cls.create_trade_with_batch_profit(data, profit_targets)
+            else:
+                # 创建普通交易记录
+                trade = cls.create(data)
+                return trade
+                
         except Exception as e:
             if isinstance(e, (ValidationError, DatabaseError)):
                 raise e
             raise DatabaseError(f"创建交易记录失败: {str(e)}")
+    
+    @classmethod
+    def create_trade_with_batch_profit(cls, data: Dict[str, Any], profit_targets: List[Dict]) -> TradeRecord:
+        """创建带有分批止盈的交易记录"""
+        try:
+            # 验证只有买入记录才能设置分批止盈
+            if data.get('trade_type') != 'buy':
+                raise ValidationError("只有买入记录才能设置分批止盈", "trade_type")
+            
+            # 验证止盈目标数据
+            ProfitTakingService.validate_targets_total_ratio(profit_targets)
+            
+            # 设置分批止盈标志
+            data['use_batch_profit_taking'] = True
+            
+            # 创建交易记录
+            trade = cls.create(data)
+            
+            # 创建止盈目标
+            ProfitTakingService.create_profit_targets(trade.id, profit_targets)
+            
+            # 重新加载交易记录以包含止盈目标
+            db.session.refresh(trade)
+            
+            return trade
+            
+        except Exception as e:
+            db.session.rollback()
+            if isinstance(e, (ValidationError, DatabaseError)):
+                raise e
+            raise DatabaseError(f"创建分批止盈交易记录失败: {str(e)}")
+    
+    @classmethod
+    def update_trade_profit_targets(cls, trade_id: int, profit_targets: List[Dict]) -> TradeRecord:
+        """更新交易记录的止盈目标"""
+        try:
+            # 获取交易记录
+            trade = cls.get_by_id(trade_id)
+            
+            # 验证是否为买入记录
+            if trade.trade_type != 'buy':
+                raise ValidationError("只有买入记录才能设置止盈目标", "trade_type")
+            
+            if profit_targets:
+                # 更新止盈目标
+                ProfitTakingService.update_profit_targets(trade_id, profit_targets)
+                
+                # 设置分批止盈标志
+                trade.use_batch_profit_taking = True
+            else:
+                # 删除所有止盈目标
+                ProfitTakingService.delete_profit_targets(trade_id)
+                
+                # 取消分批止盈标志
+                trade.use_batch_profit_taking = False
+            
+            # 重新计算风险收益比
+            trade._calculate_risk_reward()
+            trade.save()
+            
+            # 重新加载交易记录以包含最新的止盈目标
+            db.session.refresh(trade)
+            
+            return trade
+            
+        except Exception as e:
+            db.session.rollback()
+            if isinstance(e, (ValidationError, NotFoundError, DatabaseError)):
+                raise e
+            raise DatabaseError(f"更新交易记录止盈目标失败: {str(e)}")
     
     @classmethod
     def update_trade(cls, trade_id: int, data: Dict[str, Any]) -> TradeRecord:
@@ -47,13 +127,35 @@ class TradingService(BaseService):
                 trade_type = data.get('trade_type', trade.trade_type)
                 cls._validate_trade_reason(trade_type, data.get('reason'))
             
-            # 更新交易记录
-            trade = cls.update(trade_id, data)
+            # 过滤掉None值和空字符串，避免覆盖必填字段
+            filtered_data = {}
+            for key, value in data.items():
+                if value is not None and value != '':
+                    filtered_data[key] = value
+            
+            # 处理分批止盈数据
+            profit_targets = filtered_data.pop('profit_targets', None)
+            use_batch_profit = filtered_data.get('use_batch_profit_taking', None)
+            
+            # 更新交易记录基本信息
+            trade = cls.update(trade_id, filtered_data)
+            
+            # 处理止盈目标更新
+            if profit_targets is not None or use_batch_profit is not None:
+                if use_batch_profit and profit_targets:
+                    # 更新为分批止盈
+                    cls.update_trade_profit_targets(trade_id, profit_targets)
+                elif use_batch_profit is False:
+                    # 取消分批止盈
+                    cls.update_trade_profit_targets(trade_id, [])
             
             # 如果是买入记录且更新了相关字段，重新计算止损止盈
             if trade.trade_type == 'buy':
                 trade._calculate_risk_reward()
                 trade.save()
+            
+            # 重新加载交易记录以包含最新数据
+            db.session.refresh(trade)
             
             return trade
         except Exception as e:
@@ -107,6 +209,41 @@ class TradingService(BaseService):
         return cls.get_by_id(trade_id)
     
     @classmethod
+    def get_trade_with_profit_targets(cls, trade_id: int) -> Dict[str, Any]:
+        """获取交易记录及其止盈目标详情"""
+        try:
+            trade = cls.get_by_id(trade_id)
+            trade_dict = trade.to_dict()
+            
+            # 确保向后兼容性
+            trade_dict = LegacyDataHandler.ensure_backward_compatibility(trade_dict)
+            
+            # 如果使用分批止盈，获取止盈目标详情
+            if trade.use_batch_profit_taking:
+                profit_targets = ProfitTakingService.get_profit_targets(trade_id)
+                trade_dict['profit_targets'] = [target.to_dict() for target in profit_targets]
+                
+                # 获取汇总信息
+                summary = ProfitTakingService.get_targets_summary(trade_id)
+                trade_dict.update({
+                    'total_expected_profit_ratio': summary['total_expected_profit_ratio'],
+                    'total_sell_ratio': summary['total_sell_ratio'],
+                    'targets_count': summary['targets_count']
+                })
+            else:
+                # 为单一止盈模式提供遗留数据
+                legacy_data = LegacyDataHandler.get_legacy_profit_data(trade)
+                if legacy_data:
+                    trade_dict.update(legacy_data)
+            
+            return trade_dict
+            
+        except Exception as e:
+            if isinstance(e, (NotFoundError, DatabaseError)):
+                raise e
+            raise DatabaseError(f"获取交易记录详情失败: {str(e)}")
+    
+    @classmethod
     def delete_trade(cls, trade_id: int) -> bool:
         """删除交易记录"""
         try:
@@ -121,6 +258,11 @@ class TradingService(BaseService):
             if corrections:
                 raise ValidationError("无法删除有订正记录关联的交易记录")
             
+            # 先删除相关的止盈目标（如果存在）
+            trade = cls.get_by_id(trade_id)
+            if trade.use_batch_profit_taking:
+                ProfitTakingService.delete_profit_targets(trade_id)
+            
             return cls.delete(trade_id)
         except Exception as e:
             if isinstance(e, (ValidationError, NotFoundError)):
@@ -129,8 +271,9 @@ class TradingService(BaseService):
     
     @classmethod
     def calculate_risk_reward(cls, buy_price: float, stop_loss_price: float = None,
-                            take_profit_ratio: float = None, sell_ratio: float = None) -> Dict[str, float]:
-        """计算止损止盈预期"""
+                            take_profit_ratio: float = None, sell_ratio: float = None,
+                            profit_targets: List[Dict] = None) -> Dict[str, float]:
+        """计算止损止盈预期，支持单一止盈和分批止盈"""
         try:
             result = {}
             
@@ -143,10 +286,21 @@ class TradingService(BaseService):
                 result['expected_loss_ratio'] = 0.0
             
             # 计算预计收益率
-            if take_profit_ratio and sell_ratio:
+            if profit_targets:
+                # 使用分批止盈计算
+                profit_calculation = ProfitTakingService.calculate_targets_expected_profit(
+                    buy_price, profit_targets
+                )
+                result['expected_profit_ratio'] = profit_calculation['total_expected_profit_ratio']
+                result['total_sell_ratio'] = profit_calculation['total_sell_ratio']
+                result['targets_detail'] = profit_calculation['targets_detail']
+            elif take_profit_ratio and sell_ratio:
+                # 使用传统单一止盈计算
                 result['expected_profit_ratio'] = take_profit_ratio * sell_ratio
+                result['total_sell_ratio'] = sell_ratio
             else:
                 result['expected_profit_ratio'] = 0.0
+                result['total_sell_ratio'] = 0.0
             
             # 计算风险收益比
             if result['expected_loss_ratio'] > 0:

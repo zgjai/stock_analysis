@@ -67,7 +67,9 @@ class BaseService:
             record = cls.get_by_id(id)
             for key, value in data.items():
                 if hasattr(record, key):
-                    setattr(record, key, value)
+                    # 只更新非None值，避免覆盖必填字段
+                    if value is not None:
+                        setattr(record, key, value)
             return record.save()
         except Exception as e:
             if isinstance(e, NotFoundError):

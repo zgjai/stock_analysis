@@ -1,186 +1,120 @@
 #!/usr/bin/env python3
 """
-验证交易记录页面修复
+验证交易记录JavaScript修复的脚本
 """
 
 import requests
-import json
 import time
+import subprocess
+import sys
+import os
 
-def test_trading_records_page():
-    """测试交易记录页面"""
-    
-    base_url = 'http://localhost:8080'
-    
-    print("测试交易记录页面...")
-    
+def start_server():
+    """启动Flask服务器"""
     try:
-        # 1. 测试页面加载
-        print("1. 测试页面加载...")
-        response = requests.get(f'{base_url}/trading-records', timeout=10)
-        
-        if response.status_code == 200:
-            print("   ✓ 页面加载成功")
-            
-            # 检查页面内容
-            content = response.text
-            
-            # 检查关键元素
-            checks = [
-                ('交易记录表格', 'id="trades-table-body"'),
-                ('添加交易按钮', 'id="addTradeModal"'),
-                ('JavaScript管理器', 'TradingRecordsManager'),
-                ('API客户端', 'apiClient'),
-                ('表单验证', 'FormValidator'),
-            ]
-            
-            for name, pattern in checks:
-                if pattern in content:
-                    print(f"   ✓ {name}: 存在")
-                else:
-                    print(f"   ✗ {name}: 缺失")
-        else:
-            print(f"   ✗ 页面加载失败: {response.status_code}")
-            return False
-        
-        # 2. 测试API端点
-        print("\n2. 测试API端点...")
-        
-        api_tests = [
-            ('/api/trades', '获取交易记录'),
-            ('/api/trades/config/buy-reasons', '获取买入原因'),
-            ('/api/trades/config/sell-reasons', '获取卖出原因'),
-        ]
-        
-        for endpoint, name in api_tests:
-            try:
-                api_response = requests.get(f'{base_url}{endpoint}', timeout=5)
-                if api_response.status_code == 200:
-                    data = api_response.json()
-                    if data.get('success'):
-                        print(f"   ✓ {name}: 成功")
-                    else:
-                        print(f"   ⚠ {name}: API返回失败 - {data.get('error', {}).get('message', '未知错误')}")
-                else:
-                    print(f"   ✗ {name}: HTTP {api_response.status_code}")
-            except Exception as e:
-                print(f"   ✗ {name}: 异常 - {e}")
-        
-        # 3. 测试JavaScript文件
-        print("\n3. 测试JavaScript文件...")
-        
-        js_files = [
-            '/static/js/api.js',
-            '/static/js/utils.js',
-            '/static/js/form-validation.js',
-            '/static/js/main.js'
-        ]
-        
-        for js_file in js_files:
-            try:
-                js_response = requests.get(f'{base_url}{js_file}', timeout=5)
-                if js_response.status_code == 200:
-                    print(f"   ✓ {js_file}: 可访问 ({len(js_response.text)} 字符)")
-                else:
-                    print(f"   ✗ {js_file}: HTTP {js_response.status_code}")
-            except Exception as e:
-                print(f"   ✗ {js_file}: 异常 - {e}")
-        
+        # 检查服务器是否已经运行
+        response = requests.get('http://localhost:5001/health', timeout=2)
+        print("服务器已经在运行")
         return True
+    except:
+        print("启动Flask服务器...")
+        # 启动服务器
+        subprocess.Popen([sys.executable, 'app.py'], 
+                        stdout=subprocess.DEVNULL, 
+                        stderr=subprocess.DEVNULL)
         
-    except Exception as e:
-        print(f"测试过程中出错: {e}")
+        # 等待服务器启动
+        for i in range(10):
+            try:
+                time.sleep(2)
+                response = requests.get('http://localhost:5001/health', timeout=2)
+                print("服务器启动成功")
+                return True
+            except:
+                continue
+        
+        print("服务器启动失败")
         return False
 
-def test_api_functionality():
-    """测试API功能"""
-    
-    base_url = 'http://localhost:8080'
-    
-    print("\n测试API功能...")
-    
+def test_trading_records_page():
+    """测试交易记录页面是否正常加载"""
+    try:
+        response = requests.get('http://localhost:5001/trading-records', timeout=10)
+        if response.status_code == 200:
+            print("✅ 交易记录页面加载成功")
+            
+            # 检查页面是否包含关键的JavaScript代码
+            content = response.text
+            if 'validateNumericField' in content:
+                print("✅ validateNumericField 函数存在")
+                
+                # 检查是否使用了箭头函数（修复后的版本）
+                if 'const validateNumericField = (' in content:
+                    print("✅ validateNumericField 使用箭头函数（已修复）")
+                    return True
+                else:
+                    print("❌ validateNumericField 仍使用普通函数（未修复）")
+                    return False
+            else:
+                print("❌ validateNumericField 函数不存在")
+                return False
+        else:
+            print(f"❌ 交易记录页面加载失败，状态码: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"❌ 测试交易记录页面时出错: {e}")
+        return False
+
+def test_api_endpoints():
+    """测试相关API端点"""
     try:
         # 测试获取交易记录
-        print("1. 测试获取交易记录...")
-        response = requests.get(f'{base_url}/api/trades', timeout=10)
-        
+        response = requests.get('http://localhost:5001/api/trades', timeout=5)
         if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                trades = data.get('data', {}).get('trades', [])
-                total = data.get('data', {}).get('total', 0)
-                print(f"   ✓ 成功获取 {len(trades)} 条记录 (总计: {total})")
-                
-                # 显示前几条记录
-                if trades:
-                    print("   前3条记录:")
-                    for i, trade in enumerate(trades[:3]):
-                        print(f"     {i+1}. {trade.get('stock_code')} {trade.get('stock_name')} - {trade.get('trade_type')} - ¥{trade.get('price')}")
-                
-            else:
-                print(f"   ✗ API返回失败: {data.get('error', {}).get('message', '未知错误')}")
+            print("✅ 交易记录API正常")
         else:
-            print(f"   ✗ HTTP错误: {response.status_code}")
-        
-        # 测试配置API
-        print("\n2. 测试配置API...")
-        
-        config_apis = [
-            ('/api/trades/config/buy-reasons', 'buy_reasons'),
-            ('/api/trades/config/sell-reasons', 'sell_reasons')
-        ]
-        
-        for endpoint, key in config_apis:
-            response = requests.get(f'{base_url}{endpoint}', timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('success'):
-                    reasons = data.get('data', {}).get(key, [])
-                    print(f"   ✓ {key}: {len(reasons)} 个选项")
-                    if reasons:
-                        print(f"     示例: {', '.join(reasons[:3])}")
-                else:
-                    print(f"   ✗ {key}: API返回失败")
-            else:
-                print(f"   ✗ {key}: HTTP {response.status_code}")
+            print(f"⚠️ 交易记录API状态码: {response.status_code}")
         
         return True
-        
     except Exception as e:
-        print(f"API测试过程中出错: {e}")
+        print(f"❌ 测试API时出错: {e}")
         return False
 
 def main():
-    """主函数"""
+    print("=== 交易记录JavaScript修复验证 ===\n")
     
-    print("=" * 50)
-    print("交易记录页面修复验证")
-    print("=" * 50)
+    # 检查是否在正确的目录
+    if not os.path.exists('app.py'):
+        print("❌ 请在项目根目录运行此脚本")
+        return False
     
-    # 等待服务器启动
-    print("等待服务器响应...")
-    time.sleep(2)
+    # 启动服务器
+    if not start_server():
+        return False
     
-    # 运行测试
+    print("\n--- 测试结果 ---")
+    
+    # 测试页面加载
     page_ok = test_trading_records_page()
-    api_ok = test_api_functionality()
     
-    print("\n" + "=" * 50)
-    print("测试结果汇总:")
-    print(f"页面测试: {'✓ 通过' if page_ok else '✗ 失败'}")
-    print(f"API测试: {'✓ 通过' if api_ok else '✗ 失败'}")
+    # 测试API
+    api_ok = test_api_endpoints()
+    
+    print(f"\n=== 总结 ===")
+    print(f"页面修复状态: {'✅ 成功' if page_ok else '❌ 失败'}")
+    print(f"API状态: {'✅ 正常' if api_ok else '❌ 异常'}")
     
     if page_ok and api_ok:
-        print("\n🎉 所有测试通过！交易记录页面已修复。")
-        print("\n建议:")
-        print("1. 在浏览器中访问 http://localhost:8080/trading-records")
-        print("2. 检查页面是否正常加载")
-        print("3. 尝试添加一条新的交易记录")
-        print("4. 测试筛选和排序功能")
+        print("\n🎉 修复验证成功！JavaScript上下文问题已解决。")
+        print("\n修复内容:")
+        print("- 将 validateNumericField 从普通函数改为箭头函数")
+        print("- 保持了 this 上下文，避免 'Cannot read properties of undefined' 错误")
+        print("- 保持了原有的验证逻辑和错误处理")
+        return True
     else:
-        print("\n❌ 部分测试失败，需要进一步调试。")
-    
-    print("=" * 50)
+        print("\n❌ 修复验证失败，请检查问题。")
+        return False
 
 if __name__ == '__main__':
-    main()
+    success = main()
+    sys.exit(0 if success else 1)

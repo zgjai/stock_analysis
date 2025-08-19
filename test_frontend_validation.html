@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前端验证测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .test-pass {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .test-fail {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>前端验证功能测试</h2>
+        <div id="test-results"></div>
+        <button id="run-tests" class="btn btn-primary">运行测试</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/profit-targets-manager.js"></script>
+    
+    <script>
+        // 简化的 UXUtils
+        window.UXUtils = {
+            showSuccess: (msg) => console.log('Success:', msg),
+            showError: (msg) => console.log('Error:', msg),
+            showWarning: (msg) => console.log('Warning:', msg)
+        };
+        
+        function runTests() {
+            const resultsContainer = document.getElementById('test-results');
+            resultsContainer.innerHTML = '<h4>测试结果:</h4>';
+            
+            const tests = [
+                testNormalValidation,
+                testOverSellValidation,
+                testInvalidPriceValidation,
+                testInvalidRatioValidation,
+                testWarningScenarios
+            ];
+            
+            tests.forEach((test, index) => {
+                try {
+                    const result = test();
+                    displayTestResult(`测试 ${index + 1}: ${test.name}`, result.success, result.message);
+                } catch (error) {
+                    displayTestResult(`测试 ${index + 1}: ${test.name}`, false, `错误: ${error.message}`);
+                }
+            });
+        }
+        
+        function displayTestResult(testName, success, message) {
+            const resultsContainer = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${success ? 'test-pass' : 'test-fail'}`;
+            resultDiv.innerHTML = `
+                <strong>${testName}</strong>: ${success ? '✓ 通过' : '✗ 失败'}
+                <br><small>${message}</small>
+            `;
+            resultsContainer.appendChild(resultDiv);
+        }
+        
+        function testNormalValidation() {
+            // 创建临时容器
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            
+            try {
+                const manager = new ProfitTargetsManager(container, {
+                    buyPrice: 20.00,
+                    maxTargets: 5
+                });
+                
+                // 设置正常数据
+                manager.setTargets([
+                    { targetPrice: 22.00, sellRatio: 30 },
+                    { targetPrice: 24.00, sellRatio: 40 },
+                    { targetPrice: 26.00, sellRatio: 30 }
+                ]);
+                
+                // 验证
+                manager.validateAllTargets();
+                const isValid = manager.isValidTargets();
+                
+                document.body.removeChild(container);
+                
+                return {
+                    success: isValid,
+                    message: isValid ? '正常数据验证通过' : '正常数据验证失败'
+                };
+            } catch (error) {
+                document.body.removeChild(container);
+                throw error;
+            }
+        }
+        
+        function testOverSellValidation() {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            
+            try {
+                const manager = new ProfitTargetsManager(container, {
+                    buyPrice: 20.00,
+                    maxTargets: 5
+                });
+                
+                // 设置超过100%的数据
+                manager.setTargets([
+                    { targetPrice: 22.00, sellRatio: 50 },
+                    { targetPrice: 24.00, sellRatio: 40 },
+                    { targetPrice: 26.00, sellRatio: 30 }
+                ]);
+                
+                manager.validateAllTargets();
+                const isValid = manager.isValidTargets();
+                const errors = manager.getValidationErrors();
+                
+                document.body.removeChild(container);
+                
+                return {
+                    success: !isValid && errors.totalSellRatio,
+                    message: !isValid ? '正确检测到卖出比例超过100%' : '未能检测到卖出比例超过100%'
+                };
+            } catch (error) {
+                document.body.removeChild(container);
+                throw error;
+            }
+        }
+        
+        function testInvalidPriceValidation() {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            
+            try {
+                const manager = new ProfitTargetsManager(container, {
+                    buyPrice: 20.00,
+                    maxTargets: 5
+                });
+                
+                // 设置无效价格数据
+                manager.setTargets([
+                    { targetPrice: 18.00, sellRatio: 30 }, // 低于买入价格
+                    { targetPrice: 24.00, sellRatio: 40 }
+                ]);
+                
+                manager.validateAllTargets();
+                const isValid = manager.isValidTargets();
+                const errors = manager.getValidationErrors();
+                
+                document.body.removeChild(container);
+                
+                return {
+                    success: !isValid && Object.keys(errors).length > 0,
+                    message: !isValid ? '正确检测到无效价格' : '未能检测到无效价格'
+                };
+            } catch (error) {
+                document.body.removeChild(container);
+                throw error;
+            }
+        }
+        
+        function testInvalidRatioValidation() {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            
+            try {
+                const manager = new ProfitTargetsManager(container, {
+                    buyPrice: 20.00,
+                    maxTargets: 5
+                });
+                
+                // 设置无效比例数据
+                manager.setTargets([
+                    { targetPrice: 22.00, sellRatio: 0 }, // 无效比例
+                    { targetPrice: 24.00, sellRatio: 150 } // 超过100%
+                ]);
+                
+                manager.validateAllTargets();
+                const isValid = manager.isValidTargets();
+                const errors = manager.getValidationErrors();
+                
+                document.body.removeChild(container);
+                
+                return {
+                    success: !isValid && Object.keys(errors).length > 0,
+                    message: !isValid ? '正确检测到无效比例' : '未能检测到无效比例'
+                };
+            } catch (error) {
+                document.body.removeChild(container);
+                throw error;
+            }
+        }
+        
+        function testWarningScenarios() {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            
+            try {
+                const manager = new ProfitTargetsManager(container, {
+                    buyPrice: 20.00,
+                    maxTargets: 5
+                });
+                
+                // 设置警告场景数据（总比例较低）
+                manager.setTargets([
+                    { targetPrice: 21.00, sellRatio: 20 },
+                    { targetPrice: 22.00, sellRatio: 25 }
+                ]);
+                
+                manager.validateAllTargets();
+                const isValid = manager.isValidTargets();
+                const errors = manager.getValidationErrors();
+                
+                document.body.removeChild(container);
+                
+                return {
+                    success: isValid && errors.totalSellRatioWarning,
+                    message: errors.totalSellRatioWarning ? '正确显示警告信息' : '未显示预期的警告信息'
+                };
+            } catch (error) {
+                document.body.removeChild(container);
+                throw error;
+            }
+        }
+        
+        // 绑定测试按钮
+        document.getElementById('run-tests').addEventListener('click', runTests);
+        
+        // 页面加载完成后自动运行测试
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(runTests, 500);
+        });
+    </script>
+</body>
+</html>
