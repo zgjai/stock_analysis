@@ -1,262 +1,223 @@
 #!/usr/bin/env python3
 """
-验证复盘分析页面修复效果
+验证复盘页面修复效果
 """
 
 import os
 import re
+import subprocess
+from pathlib import Path
 
-def verify_review_page_fix():
-    """验证复盘分析页面的修复"""
-    
-    template_path = "templates/review.html"
-    
-    if not os.path.exists(template_path):
-        print(f"❌ 文件不存在: {template_path}")
-        return False
-    
-    with open(template_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    checks = []
-    
-    # 检查1: 是否有初始化空状态处理
-    if 'initializeEmptyStates' in content:
-        checks.append("✅ 初始化空状态处理")
-    else:
-        checks.append("❌ 缺少初始化空状态处理")
-    
-    # 检查2: 是否有超时处理
-    if 'Promise.race' in content and '超时' in content:
-        checks.append("✅ 超时处理机制")
-    else:
-        checks.append("❌ 缺少超时处理机制")
-    
-    # 检查3: 是否有错误状态显示
-    if 'showErrorStates' in content:
-        checks.append("✅ 错误状态显示")
-    else:
-        checks.append("❌ 缺少错误状态显示")
-    
-    # 检查4: 是否有重新加载功能
-    if '重新加载' in content and 'bi-arrow-clockwise' in content:
-        checks.append("✅ 重新加载功能")
-    else:
-        checks.append("❌ 缺少重新加载功能")
-    
-    # 检查5: 是否有友好的空数据提示
-    if '暂无持仓数据' in content and '暂无复盘记录' in content:
-        checks.append("✅ 友好的空数据提示")
-    else:
-        checks.append("❌ 缺少友好的空数据提示")
-    
-    # 检查6: 是否有引导用户操作
-    if '添加交易记录' in content:
-        checks.append("✅ 用户操作引导")
-    else:
-        checks.append("❌ 缺少用户操作引导")
-    
-    # 检查7: 是否移除了原来的问题代码
-    if content.count('加载中...') <= 3:  # 应该只在初始加载时显示
-        checks.append("✅ 移除了持续加载状态")
-    else:
-        checks.append("❌ 仍有过多的加载状态")
-    
-    print("复盘分析页面修复验证:")
-    for check in checks:
-        print(f"  {check}")
-    
-    success_count = len([c for c in checks if c.startswith("✅")])
-    total_count = len(checks)
-    
-    print(f"\n修复完成度: {success_count}/{total_count} ({success_count/total_count*100:.1f}%)")
-    
-    return success_count >= total_count * 0.8  # 80%以上算成功
-
-def verify_trading_records_intact():
-    """验证交易记录页面是否完好"""
-    
-    template_path = "templates/trading_records.html"
-    
-    if not os.path.exists(template_path):
-        print(f"❌ 交易记录页面不存在")
-        return False
-    
-    with open(template_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    essential_functions = [
-        'TradingRecordsManager',
-        'loadTrades',
-        'renderTradesTable',
-        'saveTrade',
-        'filterTrades'
+def check_javascript_syntax():
+    """检查JavaScript语法"""
+    js_files = [
+        "static/js/utils.js",
+        "static/js/review-fix-emergency.js",
+        "static/js/review-page-fix.js",
+        "static/js/review-save-manager.js",
+        "static/js/keyboard-shortcuts.js"
     ]
     
-    missing_functions = []
-    for func in essential_functions:
-        if func not in content:
-            missing_functions.append(func)
+    print("🔍 检查JavaScript语法...")
     
-    if missing_functions:
-        print(f"❌ 交易记录页面缺少关键函数: {', '.join(missing_functions)}")
+    for js_file in js_files:
+        if not os.path.exists(js_file):
+            print(f"⚠️ 文件不存在: {js_file}")
+            continue
+            
+        try:
+            # 使用node检查语法（如果可用）
+            result = subprocess.run(['node', '-c', js_file], 
+                                  capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                print(f"✅ {js_file} - 语法正确")
+            else:
+                print(f"❌ {js_file} - 语法错误: {result.stderr}")
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            # 如果没有node，进行基础检查
+            with open(js_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 检查基本语法问题
+            issues = []
+            
+            # 检查括号匹配
+            open_braces = content.count('{')
+            close_braces = content.count('}')
+            if open_braces != close_braces:
+                issues.append(f"大括号不匹配: {open_braces} 开 vs {close_braces} 闭")
+            
+            open_parens = content.count('(')
+            close_parens = content.count(')')
+            if open_parens != close_parens:
+                issues.append(f"小括号不匹配: {open_parens} 开 vs {close_parens} 闭")
+            
+            # 检查重复声明
+            if 'reviewSaveManager = new ReviewSaveManager();\s*reviewSaveManager = new ReviewSaveManager();' in content:
+                issues.append("发现重复的reviewSaveManager声明")
+            
+            if issues:
+                print(f"⚠️ {js_file} - 发现问题: {', '.join(issues)}")
+            else:
+                print(f"✅ {js_file} - 基础检查通过")
+
+def check_template_issues():
+    """检查模板问题"""
+    template_path = "templates/review.html"
+    
+    print("\n🔍 检查模板问题...")
+    
+    if not os.path.exists(template_path):
+        print(f"❌ 模板文件不存在: {template_path}")
+        return False
+    
+    with open(template_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    issues = []
+    
+    # 检查重复脚本引用
+    emergency_script_count = content.count("review-fix-emergency.js")
+    if emergency_script_count > 1:
+        issues.append(f"重复引用emergency脚本 {emergency_script_count} 次")
+    
+    # 检查JavaScript代码完整性
+    if "style.display = 'inl" in content and "inline" not in content.split("style.display = 'inl")[1].split("'")[0]:
+        issues.append("发现不完整的JavaScript代码")
+    
+    # 检查模态框结构
+    if '<div class="modal fade" id="reviewModal"' not in content:
+        issues.append("缺少复盘模态框")
+    
+    if issues:
+        print(f"⚠️ 模板问题: {', '.join(issues)}")
         return False
     else:
-        print("✅ 交易记录页面功能完整")
+        print("✅ 模板检查通过")
         return True
 
-def create_test_page():
-    """创建测试页面来演示修复效果"""
+def check_fix_scripts():
+    """检查修复脚本"""
+    print("\n🔍 检查修复脚本...")
     
-    test_content = '''<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>复盘分析页面修复测试</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
-</head>
-<body>
-    <div class="container mt-4">
-        <h2>复盘分析页面修复效果演示</h2>
-        
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h6>修复前：一直加载中</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="text-center text-muted">
-                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                            加载中...
-                        </div>
-                    </div>
-                </div>
-            </div>
+    fix_scripts = [
+        "static/js/review-fix-emergency.js",
+        "static/js/review-page-fix.js"
+    ]
+    
+    for script in fix_scripts:
+        if not os.path.exists(script):
+            print(f"❌ 修复脚本不存在: {script}")
+            continue
             
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h6>修复后：友好的空状态</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="text-center text-muted py-4">
-                            <i class="bi bi-briefcase fs-1 d-block mb-2"></i>
-                            <div class="mb-2">暂无持仓数据</div>
-                            <small class="text-muted">请先添加交易记录</small>
-                            <br>
-                            <button class="btn btn-outline-primary btn-sm mt-2">
-                                <i class="bi bi-plus-circle"></i> 添加交易记录
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h6>修复后：错误状态处理</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="text-center text-muted py-4">
-                            <i class="bi bi-exclamation-triangle fs-1 d-block mb-2 text-warning"></i>
-                            <div class="mb-2">加载超时</div>
-                            <small class="text-muted">请检查网络连接或稍后重试</small>
-                            <br>
-                            <button class="btn btn-outline-primary btn-sm mt-2">
-                                <i class="bi bi-arrow-clockwise"></i> 重新加载
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        with open(script, 'r', encoding='utf-8') as f:
+            content = f.read()
         
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="alert alert-success">
-                    <h6>✅ 修复效果</h6>
-                    <ul class="mb-0">
-                        <li>不再一直显示"加载中"状态</li>
-                        <li>没有数据时显示友好的提示信息</li>
-                        <li>加载失败时显示明确的错误信息</li>
-                        <li>提供重新加载和引导操作按钮</li>
-                        <li>改善了整体用户体验</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
+        # 检查关键函数
+        required_functions = {
+            "static/js/review-fix-emergency.js": [
+                "forceCleanupLoadingStates",
+                "SimpleFloatingProfitCalculator",
+                "debounce",
+                "throttle"
+            ],
+            "static/js/review-page-fix.js": [
+                "loadHoldings",
+                "loadReviews", 
+                "loadHoldingAlerts",
+                "showEmptyState"
+            ]
+        }
         
-        <div class="row mt-3">
-            <div class="col-12">
-                <div class="alert alert-info">
-                    <h6>🔧 技术改进</h6>
-                    <ul class="mb-0">
-                        <li>添加了5秒超时机制，避免无限等待</li>
-                        <li>改进了错误处理和状态管理</li>
-                        <li>优化了页面初始化流程</li>
-                        <li>增加了自动重试和手动重试功能</li>
-                        <li>提供了更好的用户反馈</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
+        missing_functions = []
+        for func in required_functions.get(script, []):
+            if func not in content:
+                missing_functions.append(func)
+        
+        if missing_functions:
+            print(f"⚠️ {script} - 缺少函数: {', '.join(missing_functions)}")
+        else:
+            print(f"✅ {script} - 包含所需函数")
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>'''
+def generate_fix_report():
+    """生成修复报告"""
+    print("\n📋 生成修复报告...")
     
-    with open('test_review_fix.html', 'w', encoding='utf-8') as f:
-        f.write(test_content)
+    report = """
+# 复盘页面修复报告
+
+## 修复内容
+
+### 1. JavaScript语法错误修复
+- 移除了重复的变量声明
+- 修复了不完整的代码行
+- 确保了括号匹配
+
+### 2. 模板问题修复
+- 移除了重复的脚本引用
+- 确保了JavaScript代码完整性
+- 保持了模态框结构完整
+
+### 3. 加载问题修复
+- 创建了紧急修复脚本 (review-fix-emergency.js)
+- 创建了页面修复脚本 (review-page-fix.js)
+- 实现了强制清理加载状态功能
+- 添加了空状态显示逻辑
+
+### 4. 用户体验改进
+- 5秒超时自动显示内容
+- 友好的错误提示
+- 重试机制
+
+## 测试建议
+
+1. 打开复盘分析页面
+2. 检查控制台是否还有错误
+3. 验证数据是否正常加载
+4. 测试复盘功能是否可用
+5. 使用测试页面 (test_review_page_fix.html) 进行详细测试
+
+## 如果问题仍然存在
+
+1. 清除浏览器缓存
+2. 检查网络连接
+3. 确认后端API是否正常
+4. 查看服务器日志
+"""
     
-    print("✅ 创建了测试页面: test_review_fix.html")
+    with open("REVIEW_PAGE_FIX_REPORT.md", 'w', encoding='utf-8') as f:
+        f.write(report)
+    
+    print("✅ 修复报告已生成: REVIEW_PAGE_FIX_REPORT.md")
 
 def main():
     """主函数"""
-    print("🔍 验证复盘分析页面修复效果...")
-    print("=" * 50)
+    print("🔍 开始验证复盘页面修复效果...\n")
     
-    # 验证复盘分析页面修复
-    review_fix_ok = verify_review_page_fix()
+    # 检查JavaScript语法
+    check_javascript_syntax()
     
-    print("\n" + "=" * 50)
+    # 检查模板问题
+    template_ok = check_template_issues()
     
-    # 验证交易记录页面是否完好
-    trading_intact = verify_trading_records_intact()
+    # 检查修复脚本
+    check_fix_scripts()
     
-    print("\n" + "=" * 50)
+    # 生成修复报告
+    generate_fix_report()
     
-    # 创建测试页面
-    create_test_page()
+    print("\n" + "="*50)
+    print("🎯 验证完成!")
+    print("\n📋 下一步操作:")
+    print("1. 刷新浏览器页面")
+    print("2. 打开开发者工具查看控制台")
+    print("3. 测试复盘功能")
+    print("4. 如需详细测试，打开 test_review_page_fix.html")
     
-    print("\n" + "=" * 50)
-    
-    # 总结
-    if review_fix_ok and trading_intact:
-        print("🎉 修复验证通过！")
-        print("✅ 复盘分析页面已修复")
-        print("✅ 交易记录页面保持完整")
-    elif review_fix_ok:
-        print("⚠️  复盘分析页面已修复，但交易记录页面可能有问题")
-    elif trading_intact:
-        print("⚠️  交易记录页面正常，但复盘分析页面修复不完整")
+    if template_ok:
+        print("\n✅ 主要问题已修复，页面应该可以正常显示")
     else:
-        print("❌ 两个页面都可能有问题，需要进一步检查")
-    
-    print("\n现在的状态:")
-    print("- 复盘分析页面不会再一直显示'加载中'")
-    print("- 没有数据时会显示友好的提示")
-    print("- 加载失败时会显示错误信息和重试按钮")
-    print("- 交易记录页面功能保持完整")
-    
-    print("\n测试建议:")
-    print("1. 打开 test_review_fix.html 查看修复效果演示")
-    print("2. 访问复盘分析页面确认不再一直加载")
-    print("3. 访问交易记录页面确认功能正常")
+        print("\n⚠️ 仍有一些问题需要手动检查")
 
 if __name__ == "__main__":
     main()

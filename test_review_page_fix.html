@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复盘页面修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>复盘页面修复测试</h1>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>当前持仓</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshHoldings()">刷新</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="holdings-list">
+                            <div class="text-center text-muted">
+                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                加载中...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5>复盘记录</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="reviews-list">
+                            <div class="text-center text-muted">
+                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                加载中...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>持仓提醒</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="holding-alerts">
+                            <div class="text-center text-muted">
+                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                加载中...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <h3>测试控制</h3>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="testLoadHoldings()">测试加载持仓</button>
+                <button class="btn btn-secondary" onclick="testLoadReviews()">测试加载复盘</button>
+                <button class="btn btn-info" onclick="testLoadAlerts()">测试加载提醒</button>
+                <button class="btn btn-warning" onclick="testForceCleanup()">强制清理</button>
+                <button class="btn btn-success" onclick="testShowEmpty()">显示空状态</button>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <h3>控制台输出</h3>
+            <div id="console-output" class="border p-3" style="height: 200px; overflow-y: auto; background-color: #f8f9fa; font-family: monospace; font-size: 12px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- 复盘模态框 -->
+    <div class="modal fade" id="reviewModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">复盘评分</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="review-form">
+                        <input type="hidden" id="review-stock-code">
+                        <div class="mb-3">
+                            <label class="form-label">股票代码</label>
+                            <input type="text" class="form-control" id="display-stock-code" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">复盘日期</label>
+                            <input type="date" class="form-control" id="review-date">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 加载修复脚本 -->
+    <script src="static/js/review-fix-emergency.js"></script>
+    <script src="static/js/review-page-fix.js"></script>
+    
+    <script>
+        // 控制台输出重定向
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        const consoleOutput = document.getElementById('console-output');
+        
+        function addToConsole(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = {
+                'log': '#333',
+                'error': '#dc3545', 
+                'warn': '#ffc107'
+            }[type] || '#333';
+            
+            consoleOutput.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole(args.join(' '), 'error');
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsole(args.join(' '), 'warn');
+        };
+        
+        // 测试函数
+        function testLoadHoldings() {
+            console.log('🧪 测试加载持仓数据');
+            if (typeof window.loadHoldings === 'function') {
+                window.loadHoldings();
+            } else {
+                console.error('loadHoldings 函数不存在');
+            }
+        }
+        
+        function testLoadReviews() {
+            console.log('🧪 测试加载复盘记录');
+            if (typeof window.loadReviews === 'function') {
+                window.loadReviews();
+            } else {
+                console.error('loadReviews 函数不存在');
+            }
+        }
+        
+        function testLoadAlerts() {
+            console.log('🧪 测试加载持仓提醒');
+            if (typeof window.loadHoldingAlerts === 'function') {
+                window.loadHoldingAlerts();
+            } else {
+                console.error('loadHoldingAlerts 函数不存在');
+            }
+        }
+        
+        function testForceCleanup() {
+            console.log('🧪 测试强制清理');
+            if (typeof window.forceCleanupLoadingStates === 'function') {
+                window.forceCleanupLoadingStates();
+            } else {
+                console.error('forceCleanupLoadingStates 函数不存在');
+            }
+        }
+        
+        function testShowEmpty() {
+            console.log('🧪 测试显示空状态');
+            // 手动触发空状态显示
+            const containers = ['holdings-list', 'reviews-list', 'holding-alerts'];
+            containers.forEach(id => {
+                const container = document.getElementById(id);
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-info-circle fs-1 d-block mb-2"></i>
+                            <div class="mb-2">测试空状态</div>
+                            <small class="text-muted">这是一个测试显示</small>
+                        </div>
+                    `;
+                }
+            });
+        }
+        
+        // 页面加载完成后的测试
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 页面加载完成，开始测试...');
+            
+            // 测试基础函数是否存在
+            const functions = [
+                'debounce', 'throttle', 'forceCleanupLoadingStates',
+                'loadHoldings', 'loadReviews', 'loadHoldingAlerts'
+            ];
+            
+            functions.forEach(func => {
+                if (typeof window[func] === 'function') {
+                    console.log(`✅ ${func} 函数可用`);
+                } else {
+                    console.warn(`⚠️ ${func} 函数不可用`);
+                }
+            });
+            
+            // 5秒后自动测试清理功能
+            setTimeout(() => {
+                console.log('⏰ 5秒后自动测试清理功能');
+                testForceCleanup();
+            }, 5000);
+        });
+    </script>
+</body>
+</html>

@@ -23,6 +23,11 @@ class PriceService(BaseService):
     
     model = StockPrice
     
+    # 类级别的缓存变量（用于全市场数据）
+    _market_data_cache = None
+    _cache_timestamp = None
+    _cache_duration = timedelta(minutes=1)  # 1分钟缓存
+    
     def __init__(self):
         self.db = db
     
@@ -91,7 +96,8 @@ class PriceService(BaseService):
     
     def refresh_multiple_stocks(self, stock_codes: List[str], force_refresh: bool = False) -> Dict:
         """
-        批量刷新多个股票价格
+        批量刷新多个股票价格（优化版本）
+        一次获取市场数据，批量处理多只股票
         
         Args:
             stock_codes: 股票代码列表
@@ -104,22 +110,112 @@ class PriceService(BaseService):
             'success_count': 0,
             'failed_count': 0,
             'results': [],
-            'errors': []
+            'errors': [],
+            'performance': {
+                'total_time': 0,
+                'api_time': 0,
+                'processing_time': 0
+            }
         }
         
-        for stock_code in stock_codes:
-            try:
-                result = self.refresh_stock_price(stock_code, force_refresh)
-                results['results'].append(result)
-                results['success_count'] += 1
-            except Exception as e:
-                error_info = {
-                    'stock_code': stock_code,
-                    'error': str(e)
-                }
-                results['errors'].append(error_info)
-                results['failed_count'] += 1
-                logger.error(f"刷新股票 {stock_code} 失败: {e}")
+        start_time = datetime.now()
+        
+        try:
+            # 获取市场数据（一次性获取所有股票数据）
+            logger.info(f"开始批量刷新 {len(stock_codes)} 只股票价格...")
+            market_data = self._get_market_data_cached(force_refresh)
+            api_time = datetime.now()
+            
+            if market_data is None:
+                raise ExternalAPIError("无法获取市场数据")
+            
+            # 批量处理股票数据
+            for stock_code in stock_codes:
+                try:
+                    # 验证股票代码
+                    validate_stock_code(stock_code)
+                    
+                    # 从市场数据中查找股票
+                    stock_data = market_data[market_data['代码'] == stock_code]
+                    
+                    if not stock_data.empty:
+                        row = stock_data.iloc[0]
+                        
+                        # 提取价格信息
+                        price_data = {
+                            'stock_name': row['名称'],
+                            'current_price': float(row['最新价']),
+                            'change_percent': float(row['涨跌幅'])
+                        }
+                        
+                        # 保存到数据库
+                        today = date.today()
+                        stock_price = StockPrice.update_or_create(
+                            stock_code=stock_code,
+                            stock_name=price_data['stock_name'],
+                            current_price=price_data['current_price'],
+                            change_percent=price_data['change_percent'],
+                            record_date=today
+                        )
+                        
+                        results['results'].append({
+                            'success': True,
+                            'message': '价格刷新成功',
+                            'data': stock_price.to_dict(),
+                            'from_cache': False
+                        })
+                        results['success_count'] += 1
+                        
+                    else:
+                        error_msg = f"未找到股票 {stock_code} 的数据"
+                        results['errors'].append({
+                            'stock_code': stock_code,
+                            'error': error_msg
+                        })
+                        results['failed_count'] += 1
+                        logger.warning(error_msg)
+                        
+                except ValidationError as e:
+                    results['errors'].append({
+                        'stock_code': stock_code,
+                        'error': str(e)
+                    })
+                    results['failed_count'] += 1
+                    logger.error(f"股票代码验证失败 {stock_code}: {e}")
+                    
+                except Exception as e:
+                    results['errors'].append({
+                        'stock_code': stock_code,
+                        'error': str(e)
+                    })
+                    results['failed_count'] += 1
+                    logger.error(f"处理股票 {stock_code} 失败: {e}")
+            
+            end_time = datetime.now()
+            
+            # 记录性能数据
+            total_time = (end_time - start_time).total_seconds()
+            api_time_seconds = (api_time - start_time).total_seconds()
+            processing_time = (end_time - api_time).total_seconds()
+            
+            results['performance'] = {
+                'total_time': total_time,
+                'api_time': api_time_seconds,
+                'processing_time': processing_time,
+                'stocks_per_second': len(stock_codes) / total_time if total_time > 0 else 0,
+                'method': 'batch_market_data'
+            }
+            
+            logger.info(f"批量刷新完成: {results['success_count']}/{len(stock_codes)} 成功, "
+                       f"总耗时 {total_time:.2f}s (API: {api_time_seconds:.2f}s, 处理: {processing_time:.2f}s)")
+            
+        except Exception as e:
+            logger.error(f"批量刷新失败: {e}")
+            results['errors'].append({
+                'stock_code': 'ALL',
+                'error': str(e)
+            })
+            results['failed_count'] = len(stock_codes)
         
         return results
     
@@ -242,9 +338,49 @@ class PriceService(BaseService):
             logger.error(f"清理旧价格数据时发生错误: {e}")
             raise ExternalAPIError(f"清理数据失败: {str(e)}")
     
+
+    
+    def _get_market_data_cached(self, force_refresh: bool = False):
+        """
+        获取市场数据（带缓存）
+        
+        Args:
+            force_refresh: 是否强制刷新缓存
+            
+        Returns:
+            DataFrame: 市场数据
+        """
+        now = datetime.now()
+        
+        # 检查缓存是否有效
+        if (not force_refresh and 
+            self._market_data_cache is not None and 
+            self._cache_timestamp and 
+            now - self._cache_timestamp < self._cache_duration):
+            logger.debug("使用缓存的市场数据")
+            return self._market_data_cache
+        
+        try:
+            logger.info("获取最新市场数据...")
+            market_data = ak.stock_zh_a_spot_em()
+            
+            if market_data is not None and not market_data.empty:
+                # 更新类级别缓存
+                PriceService._market_data_cache = market_data
+                PriceService._cache_timestamp = now
+                logger.info(f"市场数据获取成功，包含 {len(market_data)} 只股票")
+                return market_data
+            else:
+                logger.warning("市场数据为空")
+                return None
+                
+        except Exception as e:
+            logger.error(f"获取市场数据失败: {e}")
+            return None
+    
     def _fetch_stock_price_from_akshare(self, stock_code: str) -> Optional[Dict]:
         """
-        从AKShare获取股票价格数据
+        从AKShare获取股票价格数据（使用全市场数据）
         
         Args:
             stock_code: 股票代码
@@ -253,15 +389,15 @@ class PriceService(BaseService):
             Dict: 价格数据字典
         """
         try:
-            # 获取A股实时行情数据
-            df = ak.stock_zh_a_spot_em()
+            # 使用缓存的市场数据
+            market_data = self._get_market_data_cached()
             
-            if df is None or df.empty:
-                logger.warning("AKShare返回空数据")
+            if market_data is None or market_data.empty:
+                logger.warning("无法获取市场数据")
                 return None
             
             # 查找指定股票
-            stock_data = df[df['代码'] == stock_code]
+            stock_data = market_data[market_data['代码'] == stock_code]
             
             if stock_data.empty:
                 logger.warning(f"未找到股票 {stock_code} 的数据")
@@ -330,3 +466,27 @@ class PriceService(BaseService):
                 })
         
         return cache_status
+    
+    def get_market_cache_info(self) -> Dict:
+        """
+        获取市场数据缓存信息
+        
+        Returns:
+            Dict: 缓存状态信息
+        """
+        now = datetime.now()
+        
+        return {
+            'has_cache': self._market_data_cache is not None,
+            'cache_timestamp': self._cache_timestamp.isoformat() if self._cache_timestamp else None,
+            'cache_age_seconds': (now - self._cache_timestamp).total_seconds() if self._cache_timestamp else None,
+            'cache_valid': (
+                self._cache_timestamp and 
+                now - self._cache_timestamp < self._cache_duration
+            ) if self._cache_timestamp else False,
+            'cached_stocks_count': len(self._market_data_cache) if self._market_data_cache is not None else 0,
+            'cache_duration_minutes': self._cache_duration.total_seconds() / 60,
+            'method': 'batch_market_data',
+            'api_function': 'ak.stock_zh_a_spot_em',
+            'description': '使用全市场数据批量处理，带1分钟缓存优化'
+        }

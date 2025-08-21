@@ -81,11 +81,37 @@ def create_trade():
         if not data:
             raise ValidationError("请求数据不能为空")
         
-        # 必填字段验证
+        # 必填字段验证 - 更宽松的验证逻辑
         required_fields = ['stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 'reason']
         for field in required_fields:
-            if field not in data or data[field] is None:
+            # 检查字段是否存在
+            if field not in data:
+                raise ValidationError(f"缺少必填字段: {field}")
+            
+            # 获取字段值
+            value = data[field]
+            
+            # 处理None值
+            if value is None:
                 raise ValidationError(f"{field}不能为空")
+            
+            # 处理字符串值
+            if isinstance(value, str):
+                value = value.strip()
+                if value == '':
+                    raise ValidationError(f"{field}不能为空")
+                # 更新处理后的值
+                data[field] = value
+            
+            # 处理数值字段
+            elif field in ['price', 'quantity']:
+                try:
+                    if field == 'price':
+                        data[field] = float(value)
+                    elif field == 'quantity':
+                        data[field] = int(value)
+                except (ValueError, TypeError):
+                    raise ValidationError(f"{field}格式不正确")
         
         # 设置交易日期（如果未提供）
         if 'trade_date' not in data or not data['trade_date']:
@@ -96,7 +122,7 @@ def create_trade():
             except ValueError:
                 raise ValidationError("交易日期格式不正确")
         
-        # 创建交易记录（支持分批止盈）
+        # 创建交易记录
         trade = TradingService.create_trade(data)
         
         # 如果使用分批止盈，返回包含止盈目标的详细信息

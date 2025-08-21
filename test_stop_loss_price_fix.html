@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>止损价格修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>止损价格修复测试</h2>
+        
+        <div class="alert alert-info">
+            <h5>测试目标：</h5>
+            <ul>
+                <li>验证止损价格字段是否被正确序列化</li>
+                <li>验证隐藏的买入设置字段是否能被获取</li>
+                <li>验证修复后的DOM直接获取逻辑</li>
+            </ul>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试表单</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="test-form">
+                            <div class="mb-3">
+                                <label for="trade-type" class="form-label">交易类型</label>
+                                <select class="form-select" id="trade-type" name="trade_type">
+                                    <option value="buy" selected>买入</option>
+                                    <option value="sell">卖出</option>
+                                </select>
+                            </div>
+                            
+                            <!-- 买入设置 - 默认隐藏 -->
+                            <div id="buy-settings" style="display: block;">
+                                <h6>止损止盈设置</h6>
+                                <div class="mb-3">
+                                    <label for="stop-loss-price" class="form-label">止损价格</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        <input type="number" class="form-control" id="stop-loss-price" 
+                                               name="stop_loss_price" step="0.01" min="0" 
+                                               placeholder="0.00" value="18.50">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="button" class="btn btn-primary" onclick="testSerialization()">测试序列化</button>
+                            <button type="button" class="btn btn-secondary" onclick="toggleBuySettings()">切换买入设置显示</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results">
+                            点击"测试序列化"按钮开始测试
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script>
+        function testSerialization() {
+            const form = document.getElementById('test-form');
+            const resultsDiv = document.getElementById('test-results');
+            
+            console.log('=== 止损价格序列化测试 ===');
+            
+            // 测试1: FormUtils.serialize
+            const serializedData = FormUtils.serialize(form);
+            console.log('FormUtils.serialize结果:', serializedData);
+            
+            // 测试2: 原生FormData
+            const formData = new FormData(form);
+            const nativeData = {};
+            for (let [key, value] of formData.entries()) {
+                nativeData[key] = value;
+            }
+            console.log('原生FormData结果:', nativeData);
+            
+            // 测试3: 直接从DOM获取（模拟修复后的逻辑）
+            const stopLossPriceElement = document.getElementById('stop-loss-price');
+            const domStopLossPrice = stopLossPriceElement ? stopLossPriceElement.value : null;
+            console.log('直接从DOM获取止损价格:', domStopLossPrice);
+            
+            // 测试4: 检查字段可见性
+            const buySettings = document.getElementById('buy-settings');
+            const isVisible = buySettings.style.display !== 'none';
+            console.log('买入设置是否可见:', isVisible);
+            
+            // 显示结果
+            const results = {
+                'FormUtils序列化中的止损价格': serializedData.stop_loss_price || '❌ 未找到',
+                '原生FormData中的止损价格': nativeData.stop_loss_price || '❌ 未找到',
+                '直接从DOM获取的止损价格': domStopLossPrice || '❌ 未找到',
+                '买入设置可见性': isVisible ? '✅ 可见' : '❌ 隐藏',
+                '字段元素存在性': stopLossPriceElement ? '✅ 存在' : '❌ 不存在'
+            };
+            
+            let resultHtml = '<h6>测试结果：</h6>';
+            Object.entries(results).forEach(([key, value]) => {
+                const status = value.includes('❌') ? 'text-danger' : 'text-success';
+                resultHtml += `<div class="${status}"><strong>${key}:</strong> ${value}</div>`;
+            });
+            
+            resultsDiv.innerHTML = resultHtml;
+        }
+        
+        function toggleBuySettings() {
+            const buySettings = document.getElementById('buy-settings');
+            const isHidden = buySettings.style.display === 'none';
+            buySettings.style.display = isHidden ? 'block' : 'none';
+            
+            console.log('买入设置显示状态切换为:', buySettings.style.display);
+        }
+        
+        // 页面加载后自动测试
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(testSerialization, 1000);
+        });
+    </script>
+</body>
+</html>

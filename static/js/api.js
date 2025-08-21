@@ -2,6 +2,15 @@
 class ApiClient {
     constructor(baseURL = '/api') {
         this.baseURL = baseURL;
+        this.retryConfig = {
+            maxRetries: 2,
+            retryDelay: 1000,
+            retryCondition: (error) => {
+                // 只对网络错误和5xx服务器错误进行重试
+                return error.code === 'NETWORK_ERROR' || 
+                       (error.code && error.code.startsWith('HTTP_5'));
+            }
+        };
         this.setupAxios();
     }
 
@@ -162,6 +171,82 @@ class ApiClient {
         return this.request('GET', '/holdings/alerts');
     }
 
+    // 持仓天数更新API - 需求1
+    async updateHoldingDays(stockCode, holdingDays) {
+        return this.requestWithRetry(
+            'PUT', 
+            `/holdings/${stockCode}/days`, 
+            { holding_days: holdingDays },
+            '持仓天数更新'
+        );
+    }
+
+    // 浮盈计算API - 需求3
+    async calculateFloatingProfit(stockCode, currentPrice) {
+        return this.requestWithRetry(
+            'POST', 
+            '/reviews/calculate-floating-profit', 
+            { stock_code: stockCode, current_price: currentPrice },
+            '浮盈计算'
+        );
+    }
+
+    // 扩展复盘保存方法以支持新字段 - 需求2
+    async saveReview(reviewData, reviewId = null) {
+        // 构建包含新字段的完整数据对象
+        const completeData = {
+            stock_code: reviewData.stock_code,
+            review_date: reviewData.review_date,
+            holding_days: reviewData.holding_days,
+            current_price: reviewData.current_price,
+            floating_profit_ratio: reviewData.floating_profit_ratio,
+            buy_price: reviewData.buy_price,
+            price_up_score: reviewData.price_up_score,
+            bbi_score: reviewData.bbi_score,
+            volume_score: reviewData.volume_score,
+            trend_score: reviewData.trend_score,
+            j_score: reviewData.j_score,
+            analysis: reviewData.analysis,
+            decision: reviewData.decision,
+            reason: reviewData.reason,
+            ...reviewData // 包含任何额外字段
+        };
+
+        const method = reviewId ? 'PUT' : 'POST';
+        const url = reviewId ? `/reviews/${reviewId}` : '/reviews';
+        
+        return this.requestWithRetry(method, url, completeData, '复盘保存');
+    }
+
+    // 带重试机制的请求方法
+    async requestWithRetry(method, url, data, operation = '操作') {
+        let lastError = null;
+        
+        for (let attempt = 0; attempt <= this.retryConfig.maxRetries; attempt++) {
+            try {
+                const response = await this.request(method, url, data);
+                return response;
+            } catch (error) {
+                lastError = error;
+                
+                // 检查是否应该重试
+                if (attempt < this.retryConfig.maxRetries && 
+                    this.retryConfig.retryCondition(error)) {
+                    
+                    console.log(`${operation}失败，第${attempt + 1}次重试...`);
+                    await this.delay(this.retryConfig.retryDelay * (attempt + 1));
+                    continue;
+                }
+                
+                // 不重试或已达到最大重试次数
+                break;
+            }
+        }
+        
+        // 处理最终错误
+        return this.handleReviewError(lastError, operation);
+    }
+
     // 股票池相关API
     async getStockPool(params = {}) {
         return this.request('GET', '/stock-pool', params);
@@ -290,6 +375,11 @@ class ApiClient {
         return this.request('POST', '/strategies/evaluate');
     }
 
+    // 工具方法
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     // 错误处理
     handleError(error) {
         let message = '请求失败';
@@ -347,7 +437,21 @@ class ApiClient {
         if (error.response) {
             const { status, data } = error.response;
             processedError.code = `HTTP_${status}`;
-            processedError.message = data.error?.message || `HTTP错误 ${status}`;
+            
+            // 针对复盘相关API的特定错误处理
+            if (status === 400 && data.error?.code === 'VALIDATION_ERROR') {
+                processedError.code = 'VALIDATION_ERROR';
+                processedError.message = data.error?.message || '数据验证失败，请检查输入';
+            } else if (status === 404 && error.config?.url?.includes('/holdings/')) {
+                processedError.code = 'HOLDING_NOT_FOUND';
+                processedError.message = '未找到对应的持仓记录';
+            } else if (status === 422 && error.config?.url?.includes('/reviews/')) {
+                processedError.code = 'REVIEW_VALIDATION_ERROR';
+                processedError.message = data.error?.message || '复盘数据验证失败';
+            } else {
+                processedError.message = data.error?.message || `HTTP错误 ${status}`;
+            }
+            
             processedError.details = data.error?.details || null;
         } else if (error.request) {
             processedError.code = 'NETWORK_ERROR';
@@ -357,6 +461,37 @@ class ApiClient {
         }
 
         return processedError;
+    }
+
+    // 复盘相关错误处理辅助方法
+    handleReviewError(error, operation = '操作') {
+        const errorMap = {
+            'VALIDATION_ERROR': '数据验证失败，请检查输入格式',
+            'REVIEW_VALIDATION_ERROR': '复盘数据验证失败，请检查必填字段',
+            'HOLDING_NOT_FOUND': '未找到对应的持仓记录',
+            'NETWORK_ERROR': '网络连接失败，请重试',
+            'HTTP_500': '服务器错误，请稍后重试',
+            'HTTP_403': '没有权限执行此操作',
+            'HTTP_401': '请先登录'
+        };
+        
+        const message = errorMap[error.code] || error.message || `${operation}失败`;
+        
+        // 显示错误消息
+        if (typeof showMessage === 'function') {
+            showMessage(message, 'error');
+        } else {
+            console.error(`Review API Error [${operation}]:`, message);
+        }
+        
+        return {
+            success: false,
+            error: {
+                code: error.code,
+                message: message,
+                details: error.details
+            }
+        };
     }
 
     // 批量请求
@@ -427,8 +562,10 @@ class ApiClient {
     }
 }
 
-// 创建全局API客户端实例
-const apiClient = new ApiClient();
+// 创建全局API客户端实例 - 使用条件声明避免重复
+if (typeof window.apiClient === 'undefined') {
+    window.apiClient = new ApiClient();
+}
 
 // 导出API客户端类和实例
 if (typeof module !== 'undefined' && module.exports) {

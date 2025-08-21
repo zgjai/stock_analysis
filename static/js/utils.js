@@ -1,5 +1,76 @@
 // 工具函数库
 
+// 性能优化工具 - 使用条件声明避免重复
+if (typeof window.PerformanceUtils === 'undefined') {
+    window.PerformanceUtils = {
+    // 防抖函数
+    debounce: (func, wait, immediate = false) => {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                timeout = null;
+                if (!immediate) func.apply(this, args);
+            };
+            const callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func.apply(this, args);
+        };
+    },
+
+    // 节流函数
+    throttle: (func, limit) => {
+        let inThrottle;
+        return function executedFunction(...args) {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    },
+
+    // 批处理器
+    batchProcessor: (batchSize = 10, delay = 100) => {
+        let batch = [];
+        let timer = null;
+
+        return {
+            add: (item) => {
+                batch.push(item);
+
+                if (batch.length >= batchSize) {
+                    this.flush();
+                } else if (!timer) {
+                    timer = setTimeout(() => this.flush(), delay);
+                }
+            },
+
+            flush: () => {
+                if (batch.length > 0) {
+                    const currentBatch = [...batch];
+                    batch = [];
+                    if (timer) {
+                        clearTimeout(timer);
+                        timer = null;
+                    }
+                    return currentBatch;
+                }
+                return [];
+            }
+        };
+    }
+    };
+}
+
+// 为了向后兼容，将函数导出到全局作用域 - 使用条件声明避免重复
+if (typeof window.debounce === 'undefined') {
+    window.debounce = window.PerformanceUtils.debounce;
+}
+if (typeof window.throttle === 'undefined') {
+    window.throttle = window.PerformanceUtils.throttle;
+}
+
 // 数据验证工具
 const Validators = {
     // 股票代码验证
@@ -118,7 +189,7 @@ const DOMUtils = {
     // 创建元素
     createElement: (tag, attributes = {}, content = '') => {
         const element = document.createElement(tag);
-        
+
         Object.keys(attributes).forEach(key => {
             if (key === 'className') {
                 element.className = attributes[key];
@@ -128,11 +199,11 @@ const DOMUtils = {
                 element.setAttribute(key, attributes[key]);
             }
         });
-        
+
         if (content) {
             element.textContent = content;
         }
-        
+
         return element;
     },
 
@@ -191,8 +262,8 @@ const DOMUtils = {
             element = document.querySelector(element);
         }
         if (element) {
-            const isHidden = element.style.display === 'none' || 
-                           getComputedStyle(element).display === 'none';
+            const isHidden = element.style.display === 'none' ||
+                getComputedStyle(element).display === 'none';
             element.style.display = isHidden ? '' : 'none';
         }
     }
@@ -271,7 +342,7 @@ const DataUtils = {
         return array.sort((a, b) => {
             const aVal = a[key];
             const bVal = b[key];
-            
+
             if (order === 'desc') {
                 return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
             }
@@ -414,7 +485,7 @@ const FormUtils = {
     serialize: (form) => {
         const formData = new FormData(form);
         const data = {};
-        
+
         for (let [key, value] of formData.entries()) {
             if (data[key]) {
                 // 处理多选字段
@@ -427,7 +498,7 @@ const FormUtils = {
                 data[key] = value;
             }
         }
-        
+
         return data;
     },
 
@@ -508,17 +579,17 @@ const FormUtils = {
     showFieldError: (field, message) => {
         field.classList.add('is-invalid');
         field.classList.remove('is-valid');
-        
+
         // 移除现有的反馈
         const existingFeedback = field.parentNode.querySelector('.invalid-feedback');
         if (existingFeedback) {
             existingFeedback.remove();
         }
-        
+
         const feedback = document.createElement('div');
         feedback.className = 'invalid-feedback';
         feedback.textContent = message;
-        
+
         // 插入反馈元素
         if (field.parentNode.classList.contains('input-group')) {
             field.parentNode.parentNode.appendChild(feedback);
@@ -531,18 +602,18 @@ const FormUtils = {
     showFieldSuccess: (field, message = '') => {
         field.classList.add('is-valid');
         field.classList.remove('is-invalid');
-        
+
         // 移除现有的反馈
         const existingFeedback = field.parentNode.querySelector('.valid-feedback');
         if (existingFeedback) {
             existingFeedback.remove();
         }
-        
+
         if (message) {
             const feedback = document.createElement('div');
             feedback.className = 'valid-feedback';
             feedback.textContent = message;
-            
+
             if (field.parentNode.classList.contains('input-group')) {
                 field.parentNode.parentNode.appendChild(feedback);
             } else {
@@ -554,7 +625,7 @@ const FormUtils = {
     // 实时验证字段
     validateField: (field, rules) => {
         const value = field.value;
-        
+
         for (let rule of rules) {
             if (typeof rule === 'function') {
                 const result = rule(value);
@@ -570,7 +641,7 @@ const FormUtils = {
                 }
             }
         }
-        
+
         FormUtils.showFieldSuccess(field);
         return true;
     },
@@ -581,14 +652,14 @@ const FormUtils = {
             const field = form.querySelector(`[name="${fieldName}"]`);
             if (field) {
                 const fieldRules = rules[fieldName];
-                
+
                 // 添加实时验证事件
                 const validateOnEvent = () => {
                     setTimeout(() => {
                         FormUtils.validateField(field, fieldRules);
                     }, 100);
                 };
-                
+
                 field.addEventListener('blur', validateOnEvent);
                 field.addEventListener('input', validateOnEvent);
             }
@@ -612,12 +683,12 @@ const FormUtils = {
     // 获取表单数据（包含验证）
     getValidatedData: (form, rules = {}) => {
         const validation = FormUtils.validate(form, rules);
-        
+
         if (!validation.isValid) {
             FormUtils.showErrors(form, validation.errors);
             return null;
         }
-        
+
         return FormUtils.serialize(form);
     }
 };
@@ -629,11 +700,11 @@ const UXUtils = {
         if (typeof element === 'string') {
             element = document.querySelector(element);
         }
-        
+
         if (element) {
             const originalContent = element.innerHTML;
             element.dataset.originalContent = originalContent;
-            
+
             element.innerHTML = `
                 <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                 ${text}
@@ -647,7 +718,7 @@ const UXUtils = {
         if (typeof element === 'string') {
             element = document.querySelector(element);
         }
-        
+
         if (element && element.dataset.originalContent) {
             element.innerHTML = element.dataset.originalContent;
             element.disabled = false;
@@ -660,7 +731,7 @@ const UXUtils = {
         if (typeof container === 'string') {
             container = document.querySelector(container);
         }
-        
+
         if (container) {
             container.innerHTML = `
                 <div class="progress mb-2">
@@ -682,17 +753,17 @@ const UXUtils = {
         if (typeof container === 'string') {
             container = document.querySelector(container);
         }
-        
+
         if (container) {
             const progressBar = container.querySelector('.progress-bar');
             const textElement = container.querySelector('.text-muted');
-            
+
             if (progressBar) {
                 progressBar.style.width = `${progress}%`;
                 progressBar.setAttribute('aria-valuenow', progress);
                 progressBar.textContent = `${progress}%`;
             }
-            
+
             if (textElement && text) {
                 textElement.textContent = text;
             }
@@ -723,10 +794,10 @@ const UXUtils = {
             }
             overlay.style.display = 'flex';
         }
-        
+
         // 记录显示时间，用于超时检测
         overlay.dataset.showTime = Date.now().toString();
-        
+
         // 设置自动超时清理（15秒后自动隐藏）
         setTimeout(() => {
             const currentOverlay = document.getElementById('global-loading-overlay');
@@ -743,21 +814,60 @@ const UXUtils = {
             overlay.style.display = 'none';
         }
     },
+
+    // 强制隐藏所有加载状态的函数
+    forceHideAllLoading: () => {
+        console.log('Force hiding all loading states...');
+
+        // 隐藏全局加载遮罩
+        const globalOverlay = document.getElementById('global-loading-overlay');
+        if (globalOverlay) {
+            globalOverlay.style.display = 'none';
+            try {
+                globalOverlay.remove();
+            } catch (e) {
+                console.warn('Failed to remove global overlay:', e);
+            }
+        }
+
+        // 清理所有可能的加载元素
+        const loadingElements = document.querySelectorAll(
+            '*[id*="loading"], *[class*="loading"], .modal-backdrop, .loading-overlay'
+        );
+        loadingElements.forEach(element => {
+            if (element && element.style) {
+                element.style.display = 'none';
+                try {
+                    element.remove();
+                } catch (e) {
+                    console.warn('Failed to remove loading element:', e);
+                }
+            }
+        });
+
+        // 重置body样式
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        document.documentElement.style.overflow = '';
+
+        console.log('All loading states force hidden');
+    },
     updateProgress: (container, progress, text = '') => {
         if (typeof container === 'string') {
             container = document.querySelector(container);
         }
-        
+
         if (container) {
             const progressBar = container.querySelector('.progress-bar');
             const textElement = container.querySelector('small');
-            
+
             if (progressBar) {
                 progressBar.style.width = `${progress}%`;
                 progressBar.setAttribute('aria-valuenow', progress);
                 progressBar.textContent = `${progress}%`;
             }
-            
+
             if (textElement && text) {
                 textElement.textContent = text;
             }
@@ -796,14 +906,14 @@ const UXUtils = {
             'warning': 'exclamation-triangle-fill',
             'info': 'info-circle-fill'
         };
-        
+
         const titles = {
             'success': '成功',
             'error': '错误',
             'warning': '警告',
             'info': '提示'
         };
-        
+
         const colors = {
             'success': 'text-success',
             'error': 'text-danger',
@@ -863,23 +973,23 @@ const UXUtils = {
                     </div>
                 </div>
             `;
-            
+
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             const modalElement = document.getElementById(modalId);
             const modal = new bootstrap.Modal(modalElement);
-            
+
             // 确认按钮事件
             document.getElementById(`${modalId}-confirm`).addEventListener('click', () => {
                 modal.hide();
                 resolve(true);
             });
-            
+
             // 模态框关闭事件
             modalElement.addEventListener('hidden.bs.modal', () => {
                 modalElement.remove();
                 resolve(false);
             });
-            
+
             modal.show();
         });
     },
@@ -913,19 +1023,19 @@ const UXUtils = {
                     </div>
                 </div>
             `;
-            
+
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             const modalElement = document.getElementById(modalId);
             const inputElement = document.getElementById(`${modalId}-input`);
             const modal = new bootstrap.Modal(modalElement);
-            
+
             // 确认按钮事件
             document.getElementById(`${modalId}-confirm`).addEventListener('click', () => {
                 const value = inputElement.value.trim();
                 modal.hide();
                 resolve(value || null);
             });
-            
+
             // 回车键确认
             inputElement.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -934,13 +1044,13 @@ const UXUtils = {
                     resolve(value || null);
                 }
             });
-            
+
             // 模态框关闭事件
             modalElement.addEventListener('hidden.bs.modal', () => {
                 modalElement.remove();
                 resolve(null);
             });
-            
+
             modal.show();
             inputElement.focus();
         });
@@ -951,7 +1061,7 @@ const UXUtils = {
         if (typeof container === 'string') {
             container = document.querySelector(container);
         }
-        
+
         if (container) {
             const overlay = document.createElement('div');
             overlay.className = 'loading-overlay';
@@ -961,7 +1071,7 @@ const UXUtils = {
                     <span class="ms-2">${text}</span>
                 </div>
             `;
-            
+
             container.style.position = 'relative';
             container.appendChild(overlay);
         }
@@ -972,7 +1082,7 @@ const UXUtils = {
         if (typeof container === 'string') {
             container = document.querySelector(container);
         }
-        
+
         if (container) {
             const overlay = container.querySelector('.loading-overlay');
             if (overlay) {
@@ -986,7 +1096,7 @@ const UXUtils = {
         if (typeof element === 'string') {
             element = document.querySelector(element);
         }
-        
+
         if (element) {
             const elementPosition = element.offsetTop - offset;
             window.scrollTo({
@@ -1001,7 +1111,7 @@ const UXUtils = {
         if (typeof element === 'string') {
             element = document.querySelector(element);
         }
-        
+
         if (element) {
             element.classList.add('highlight-animation');
             setTimeout(() => {
@@ -1056,7 +1166,7 @@ const ResponsiveUtils = {
     // 监听断点变化
     onBreakpointChange: (callback) => {
         let currentBreakpoint = ResponsiveUtils.getCurrentBreakpoint();
-        
+
         const handleResize = () => {
             const newBreakpoint = ResponsiveUtils.getCurrentBreakpoint();
             if (newBreakpoint !== currentBreakpoint) {
@@ -1064,7 +1174,7 @@ const ResponsiveUtils = {
                 currentBreakpoint = newBreakpoint;
             }
         };
-        
+
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }

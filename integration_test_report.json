@@ -1,0 +1,102 @@
+{
+  "timestamp": "2025-08-19T18:21:19.876676",
+  "total_score": 97.77777777777779,
+  "results": {
+    "api_endpoints": [
+      {
+        "endpoint": "/holdings",
+        "description": "获取持仓数据",
+        "success": true,
+        "status_code": 200,
+        "response_time": 0.058888
+      },
+      {
+        "endpoint": "/reviews",
+        "description": "获取复盘记录",
+        "success": true,
+        "status_code": 200,
+        "response_time": 0.002778
+      },
+      {
+        "endpoint": "/reviews/calculate-floating-profit",
+        "description": "浮盈计算",
+        "success": true,
+        "status_code": 200,
+        "response_time": 0.003191
+      }
+    ],
+    "database_integration": true,
+    "component_files": [
+      {
+        "file": "static/js/api.js",
+        "description": "API客户端",
+        "exists": true,
+        "size": 18251,
+        "has_content": true
+      },
+      {
+        "file": "static/js/holding-days-editor.js",
+        "description": "持仓天数编辑器",
+        "exists": true,
+        "size": 21096,
+        "has_content": true
+      },
+      {
+        "file": "static/js/floating-profit-calculator.js",
+        "description": "浮盈计算器",
+        "exists": true,
+        "size": 16966,
+        "has_content": true
+      },
+      {
+        "file": "static/js/review-save-manager.js",
+        "description": "复盘保存管理器",
+        "exists": true,
+        "size": 18906,
+        "has_content": true
+      },
+      {
+        "file": "static/js/review-integration.js",
+        "description": "集成管理器",
+        "exists": true,
+        "size": 28820,
+        "has_content": true
+      },
+      {
+        "file": "templates/review.html",
+        "description": "复盘页面模板",
+        "exists": true,
+        "size": 60910,
+        "has_content": false
+      },
+      {
+        "file": "api/review_routes.py",
+        "description": "复盘API路由",
+        "exists": true,
+        "size": 18889,
+        "has_content": true
+      },
+      {
+        "file": "services/review_service.py",
+        "description": "复盘服务",
+        "exists": true,
+        "size": 30316,
+        "has_content": true
+      },
+      {
+        "file": "models/review_record.py",
+        "description": "复盘记录模型",
+        "exists": true,
+        "size": 10097,
+        "has_content": true
+      }
+    ],
+    "page_integration": true,
+    "api_integration": true
+  },
+  "summary": {
+    "api_score": 100.0,
+    "file_score": 88.88888888888889,
+    "overall_status": "PASS"
+  }
+}

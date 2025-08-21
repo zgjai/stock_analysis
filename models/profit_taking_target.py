@@ -23,7 +23,7 @@ class ProfitTakingTarget(BaseModel):
     sequence_order = db.Column(db.Integer, nullable=False, default=1)  # 序列顺序
     
     # 关系定义
-    trade_record = db.relationship('TradeRecord', backref='profit_targets')
+    trade_record = db.relationship('TradeRecord', backref=db.backref('profit_targets', cascade='all, delete-orphan'))
     
     # 表约束
     __table_args__ = (

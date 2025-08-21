@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>统一消息系统测试</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">统一消息系统测试</h1>
+        
+        <!-- 消息容器 -->
+        <div id="message-container"></div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Alert样式消息测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-danger mb-2 w-100" onclick="testErrorAlert()">
+                            <i class="fas fa-exclamation-triangle"></i> 测试错误消息 (Alert)
+                        </button>
+                        <button class="btn btn-success mb-2 w-100" onclick="testSuccessAlert()">
+                            <i class="fas fa-check-circle"></i> 测试成功消息 (Alert)
+                        </button>
+                        <button class="btn btn-warning mb-2 w-100" onclick="testWarningAlert()">
+                            <i class="fas fa-exclamation-circle"></i> 测试警告消息 (Alert)
+                        </button>
+                        <button class="btn btn-info mb-2 w-100" onclick="testInfoAlert()">
+                            <i class="fas fa-info-circle"></i> 测试信息消息 (Alert)
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Toast样式消息测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-outline-danger mb-2 w-100" onclick="testErrorToast()">
+                            <i class="fas fa-exclamation-triangle"></i> 测试错误消息 (Toast)
+                        </button>
+                        <button class="btn btn-outline-success mb-2 w-100" onclick="testSuccessToast()">
+                            <i class="fas fa-check-circle"></i> 测试成功消息 (Toast)
+                        </button>
+                        <button class="btn btn-outline-warning mb-2 w-100" onclick="testWarningToast()">
+                            <i class="fas fa-exclamation-circle"></i> 测试警告消息 (Toast)
+                        </button>
+                        <button class="btn btn-outline-info mb-2 w-100" onclick="testInfoToast()">
+                            <i class="fas fa-info-circle"></i> 测试信息消息 (Toast)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>高级功能测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-primary mb-2 me-2" onclick="testLoadingMessage()">
+                            <i class="fas fa-spinner"></i> 测试加载消息
+                        </button>
+                        <button class="btn btn-secondary mb-2 me-2" onclick="testBatchMessages()">
+                            <i class="fas fa-list"></i> 测试批量消息
+                        </button>
+                        <button class="btn btn-dark mb-2 me-2" onclick="testCustomOptions()">
+                            <i class="fas fa-cog"></i> 测试自定义选项
+                        </button>
+                        <button class="btn btn-outline-secondary mb-2" onclick="clearAllMessages()">
+                            <i class="fas fa-trash"></i> 清除所有消息
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试日志</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-log" class="bg-light p-3" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.9em;">
+                            <!-- 测试日志将显示在这里 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast容器 -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" id="toast-container"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 统一消息系统 -->
+    <script src="static/js/unified-message-system.js"></script>
+    
+    <script>
+        // 测试日志函数
+        function log(message) {
+            const logContainer = document.getElementById('test-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logContainer.innerHTML += `[${timestamp}] ${message}\n`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Alert样式测试函数
+        function testErrorAlert() {
+            log('测试错误Alert消息');
+            showErrorMessage('这是一个错误消息示例，用于测试Alert样式的错误提示功能。');
+        }
+
+        function testSuccessAlert() {
+            log('测试成功Alert消息');
+            showSuccessMessage('操作成功完成！这是一个成功消息示例。');
+        }
+
+        function testWarningAlert() {
+            log('测试警告Alert消息');
+            showWarningMessage('请注意：这是一个警告消息，提醒您注意某些重要信息。');
+        }
+
+        function testInfoAlert() {
+            log('测试信息Alert消息');
+            showInfoMessage('这是一个信息提示，为您提供有用的信息。');
+        }
+
+        // Toast样式测试函数
+        function testErrorToast() {
+            log('测试错误Toast消息');
+            showErrorMessage('网络连接失败，请检查您的网络设置。', { position: 'toast' });
+        }
+
+        function testSuccessToast() {
+            log('测试成功Toast消息');
+            showSuccessMessage('数据保存成功！', { position: 'toast' });
+        }
+
+        function testWarningToast() {
+            log('测试警告Toast消息');
+            showWarningMessage('您有未保存的更改', { position: 'toast' });
+        }
+
+        function testInfoToast() {
+            log('测试信息Toast消息');
+            showInfoMessage('正在同步数据...', { position: 'toast' });
+        }
+
+        // 高级功能测试
+        let loadingMessageId = null;
+
+        function testLoadingMessage() {
+            log('测试加载消息');
+            if (loadingMessageId) {
+                unifiedMessageSystem.hideLoadingMessage(loadingMessageId);
+                loadingMessageId = null;
+                log('隐藏加载消息');
+            } else {
+                loadingMessageId = unifiedMessageSystem.showLoadingMessage('正在处理您的请求，请稍候...');
+                log('显示加载消息，ID: ' + loadingMessageId);
+                
+                // 3秒后自动隐藏
+                setTimeout(() => {
+                    if (loadingMessageId) {
+                        unifiedMessageSystem.hideLoadingMessage(loadingMessageId);
+                        loadingMessageId = null;
+                        log('自动隐藏加载消息');
+                    }
+                }, 3000);
+            }
+        }
+
+        function testBatchMessages() {
+            log('测试批量消息');
+            const messages = [
+                { type: 'info', message: '开始处理批量操作...' },
+                { type: 'success', message: '第1步完成' },
+                { type: 'success', message: '第2步完成' },
+                { type: 'warning', message: '第3步遇到警告' },
+                { type: 'success', message: '所有操作完成！' }
+            ];
+            
+            unifiedMessageSystem.showMessages(messages);
+        }
+
+        function testCustomOptions() {
+            log('测试自定义选项');
+            
+            // 测试不同持续时间
+            showErrorMessage('这条消息将在10秒后消失', { duration: 10000 });
+            
+            // 测试不可关闭的消息
+            showWarningMessage('这条消息不能手动关闭', { 
+                dismissible: false, 
+                duration: 5000 
+            });
+            
+            // 测试自定义图标
+            showInfoMessage('这条消息使用了自定义图标', { 
+                icon: 'fas fa-rocket',
+                position: 'toast'
+            });
+        }
+
+        function clearAllMessages() {
+            log('清除所有消息');
+            if (unifiedMessageSystem) {
+                unifiedMessageSystem.clearAllMessages();
+            }
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('页面加载完成，统一消息系统已初始化');
+            
+            // 显示欢迎消息
+            setTimeout(() => {
+                showInfoMessage('欢迎使用统一消息系统测试页面！', { 
+                    position: 'toast',
+                    duration: 4000
+                });
+            }, 500);
+        });
+
+        // 测试向后兼容性
+        function testBackwardCompatibility() {
+            log('测试向后兼容性');
+            
+            // 这些函数应该在全局作用域中可用
+            if (typeof showErrorMessage === 'function') {
+                log('✅ showErrorMessage 函数可用');
+            } else {
+                log('❌ showErrorMessage 函数不可用');
+            }
+            
+            if (typeof showSuccessMessage === 'function') {
+                log('✅ showSuccessMessage 函数可用');
+            } else {
+                log('❌ showSuccessMessage 函数不可用');
+            }
+            
+            if (typeof UnifiedMessageSystem === 'function') {
+                log('✅ UnifiedMessageSystem 类可用');
+            } else {
+                log('❌ UnifiedMessageSystem 类不可用');
+            }
+        }
+
+        // 在页面加载后运行兼容性测试
+        window.addEventListener('load', function() {
+            setTimeout(testBackwardCompatibility, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复盘修复简单测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="bi bi-bug"></i>
+                            复盘页面修复验证
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>修复内容：</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>修复了 FloatingProfitCalculator 初始化错误</li>
+                                <li>添加了 debounce 和 throttle 函数</li>
+                                <li>改进了错误处理和依赖检查</li>
+                                <li>添加了加载状态强制清理功能</li>
+                            </ul>
+                        </div>
+                        
+                        <div id="test-results" class="mt-4">
+                            <h5>测试结果：</h5>
+                            <div id="test-log" class="border rounded p-3" style="height: 300px; overflow-y: auto; background-color: #f8f9fa;">
+                                <div class="text-muted">正在运行测试...</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button id="run-tests" class="btn btn-primary">
+                                <i class="bi bi-play-circle"></i>
+                                重新运行测试
+                            </button>
+                            <button id="clear-log" class="btn btn-secondary">
+                                <i class="bi bi-trash"></i>
+                                清空日志
+                            </button>
+                            <button id="force-cleanup" class="btn btn-warning">
+                                <i class="bi bi-arrow-clockwise"></i>
+                                强制清理加载状态
+                            </button>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <h6>浮盈计算器测试：</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label class="form-label">股票代码</label>
+                                    <input type="text" id="stock-code" class="form-control" value="000001">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">买入价格</label>
+                                    <input type="number" id="buy-price" class="form-control" value="10.50" step="0.01">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">当前价格</label>
+                                    <input type="number" id="current-price" class="form-control" value="11.20" step="0.01">
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <button id="test-calculator" class="btn btn-success">
+                                    <i class="bi bi-calculator"></i>
+                                    测试浮盈计算
+                                </button>
+                                
+                                <div id="calculation-result" class="mt-2"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 隐藏的测试元素 -->
+                        <div style="display: none;">
+                            <input type="number" id="current-price-input" step="0.01" min="0">
+                            <div id="floating-profit-ratio" class="text-muted">--</div>
+                            <div id="buy-price-display" class="text-muted">--</div>
+                            <div id="profit-amount-display" class="text-muted">--</div>
+                            <div id="floating-profit-error" class="text-danger small mt-1" style="display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/floating-profit-calculator.js"></script>
+    <script src="/static/js/review-integration.js"></script>
+    <script src="/static/js/loading-cleanup.js"></script>
+    
+    <script>
+        let testLog = document.getElementById('test-log');
+        let testCount = 0;
+        let passedCount = 0;
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                'info': 'text-info',
+                'success': 'text-success',
+                'error': 'text-danger',
+                'warning': 'text-warning'
+            };
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = colors[type] || 'text-muted';
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            
+            testLog.appendChild(logEntry);
+            testLog.scrollTop = testLog.scrollHeight;
+        }
+        
+        function runTest(name, testFunc) {
+            testCount++;
+            log(`开始测试: ${name}`, 'info');
+            
+            try {
+                const result = testFunc();
+                if (result) {
+                    passedCount++;
+                    log(`✓ ${name} - 通过`, 'success');
+                } else {
+                    log(`❌ ${name} - 失败`, 'error');
+                }
+                return result;
+            } catch (error) {
+                log(`❌ ${name} - 异常: ${error.message}`, 'error');
+                console.error(`测试 ${name} 失败:`, error);
+                return false;
+            }
+        }
+        
+        function testDependencies() {
+            const deps = [
+                { name: 'debounce', check: () => typeof debounce === 'function' },
+                { name: 'throttle', check: () => typeof throttle === 'function' },
+                { name: 'PerformanceUtils', check: () => typeof PerformanceUtils === 'object' },
+                { name: 'FloatingProfitCalculator', check: () => typeof FloatingProfitCalculator === 'function' },
+                { name: 'ReviewIntegrationManager', check: () => typeof ReviewIntegrationManager === 'function' }
+            ];
+            
+            let allPassed = true;
+            deps.forEach(dep => {
+                if (dep.check()) {
+                    log(`  ✓ ${dep.name} 可用`, 'success');
+                } else {
+                    log(`  ❌ ${dep.name} 不可用`, 'error');
+                    allPassed = false;
+                }
+            });
+            
+            return allPassed;
+        }
+        
+        function testFloatingProfitCalculator() {
+            try {
+                const calculator = new FloatingProfitCalculator('000001', 10.50);
+                log('  ✓ 计算器实例创建成功', 'success');
+                
+                calculator.setCurrentPrice(11.20);
+                log('  ✓ 设置当前价格成功', 'success');
+                
+                const result = calculator.getCalculationResult();
+                if (result && result.floating_profit_ratio !== null) {
+                    log(`  ✓ 计算结果: ${result.formatted_ratio}`, 'success');
+                    return true;
+                } else {
+                    log('  ❌ 无法获取计算结果', 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`  ❌ 计算器测试异常: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        function testReviewIntegrationManager() {
+            try {
+                const manager = new ReviewIntegrationManager();
+                log('  ✓ 集成管理器实例创建成功', 'success');
+                
+                // 测试状态获取
+                const state = manager.getState();
+                if (state && typeof state === 'object') {
+                    log('  ✓ 状态获取成功', 'success');
+                    return true;
+                } else {
+                    log('  ❌ 无法获取状态', 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`  ❌ 集成管理器测试异常: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        function testLoadingCleanup() {
+            try {
+                if (typeof forceCleanupLoadingStates === 'function') {
+                    log('  ✓ 加载清理函数可用', 'success');
+                    
+                    // 创建一个测试加载元素
+                    const testElement = document.createElement('div');
+                    testElement.className = 'spinner-border';
+                    testElement.textContent = '加载中...';
+                    document.body.appendChild(testElement);
+                    
+                    // 执行清理
+                    forceCleanupLoadingStates();
+                    
+                    // 检查元素是否被隐藏
+                    if (testElement.style.display === 'none') {
+                        log('  ✓ 加载状态清理功能正常', 'success');
+                        testElement.remove();
+                        return true;
+                    } else {
+                        log('  ❌ 加载状态清理功能异常', 'error');
+                        testElement.remove();
+                        return false;
+                    }
+                } else {
+                    log('  ❌ 加载清理函数不可用', 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`  ❌ 加载清理测试异常: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        function runAllTests() {
+            testLog.innerHTML = '<div class="text-muted">开始运行测试...</div>';
+            testCount = 0;
+            passedCount = 0;
+            
+            setTimeout(() => {
+                runTest('JavaScript依赖检查', testDependencies);
+                runTest('浮盈计算器功能', testFloatingProfitCalculator);
+                runTest('集成管理器功能', testReviewIntegrationManager);
+                runTest('加载状态清理功能', testLoadingCleanup);
+                
+                // 显示总结
+                setTimeout(() => {
+                    log('', 'info');
+                    log('='.repeat(40), 'info');
+                    log(`测试完成: ${passedCount}/${testCount} 项通过`, passedCount === testCount ? 'success' : 'warning');
+                    
+                    if (passedCount === testCount) {
+                        log('🎉 所有测试通过！修复成功！', 'success');
+                    } else {
+                        log('⚠️ 部分测试失败，需要进一步检查', 'warning');
+                    }
+                }, 100);
+            }, 100);
+        }
+        
+        // 事件监听器
+        document.getElementById('run-tests').addEventListener('click', runAllTests);
+        
+        document.getElementById('clear-log').addEventListener('click', () => {
+            testLog.innerHTML = '<div class="text-muted">日志已清空</div>';
+        });
+        
+        document.getElementById('force-cleanup').addEventListener('click', () => {
+            if (typeof forceCleanupLoadingStates === 'function') {
+                forceCleanupLoadingStates();
+                log('强制清理执行完成', 'warning');
+            } else {
+                log('强制清理函数不可用', 'error');
+            }
+        });
+        
+        document.getElementById('test-calculator').addEventListener('click', () => {
+            const stockCode = document.getElementById('stock-code').value;
+            const buyPrice = parseFloat(document.getElementById('buy-price').value);
+            const currentPrice = parseFloat(document.getElementById('current-price').value);
+            const resultDiv = document.getElementById('calculation-result');
+            
+            try {
+                const calculator = new FloatingProfitCalculator(stockCode, buyPrice);
+                calculator.setCurrentPrice(currentPrice);
+                const result = calculator.getCalculationResult();
+                
+                if (result) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>计算成功！</strong><br>
+                            股票代码: ${result.stock_code}<br>
+                            买入价格: ¥${result.buy_price?.toFixed(2) || 'N/A'}<br>
+                            当前价格: ¥${result.current_price?.toFixed(2) || 'N/A'}<br>
+                            浮盈比例: <span class="${result.color_class}">${result.formatted_ratio}</span><br>
+                            盈亏金额: ¥${result.floating_profit_amount?.toFixed(2) || 'N/A'}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">计算失败：无法获取结果</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger">计算失败：${error.message}</div>`;
+            }
+        });
+        
+        // 页面加载完成后自动运行测试
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(runAllTests, 500);
+        });
+    </script>
+</body>
+</html>

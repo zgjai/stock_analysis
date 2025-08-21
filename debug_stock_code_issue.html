@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调试股票代码传递问题</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>调试股票代码传递问题</h2>
+        
+        <div class="card">
+            <div class="card-body">
+                <form id="test-form">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="stock-code" class="form-label">股票代码 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="stock-code" name="stock_code" required
+                                    placeholder="例如: 000001" maxlength="6" pattern="[0-9]{6}" value="000001">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="stock-name" class="form-label">股票名称 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="stock-name" name="stock_name" required
+                                    placeholder="例如: 平安银行" value="平安银行">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="trade-type" class="form-label">交易类型 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="trade-type" name="trade_type" required>
+                                    <option value="">请选择交易类型</option>
+                                    <option value="buy" selected>买入</option>
+                                    <option value="sell">卖出</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="trade-date" class="form-label">交易日期 <span class="text-danger">*</span></label>
+                                <input type="datetime-local" class="form-control" id="trade-date" name="trade_date" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="price" class="form-label">价格 <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">¥</span>
+                                    <input type="number" class="form-control" id="price" name="price" required
+                                        step="0.01" min="0.01" max="9999.99" placeholder="0.00" value="10.50">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="quantity" class="form-label">数量 <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="quantity" name="quantity" required
+                                        min="100" step="100" placeholder="100" value="1000">
+                                    <span class="input-group-text">股</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">操作原因 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="reason" name="reason" required>
+                            <option value="">请选择操作原因</option>
+                            <option value="少妇B1战法" selected>少妇B1战法</option>
+                            <option value="少妇SB1战法">少妇SB1战法</option>
+                            <option value="少妇B2战法">少妇B2战法</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">备注</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" maxlength="500"
+                            placeholder="可选的备注信息...">测试备注</textarea>
+                    </div>
+
+                    <button type="button" class="btn btn-primary" id="test-serialize">测试表单序列化</button>
+                    <button type="button" class="btn btn-success" id="test-api-call">测试API调用</button>
+                </form>
+
+                <div class="mt-4">
+                    <h5>调试信息</h5>
+                    <pre id="debug-output" class="bg-light p-3" style="max-height: 400px; overflow-y: auto;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    
+    <script>
+        // 设置默认交易日期为当前时间
+        document.getElementById('trade-date').value = new Date().toISOString().slice(0, 16);
+        
+        const debugOutput = document.getElementById('debug-output');
+        
+        function log(message, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            let output = `[${timestamp}] ${message}`;
+            if (data) {
+                output += '\n' + JSON.stringify(data, null, 2);
+            }
+            debugOutput.textContent += output + '\n\n';
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+            console.log(message, data);
+        }
+        
+        // 测试表单序列化
+        document.getElementById('test-serialize').addEventListener('click', () => {
+            log('=== 测试表单序列化 ===');
+            
+            const form = document.getElementById('test-form');
+            
+            // 方法1: FormData
+            const formData = new FormData(form);
+            const formDataObj = {};
+            for (let [key, value] of formData.entries()) {
+                formDataObj[key] = value;
+            }
+            log('FormData 序列化结果:', formDataObj);
+            
+            // 方法2: FormUtils.serialize (如果存在)
+            if (typeof FormUtils !== 'undefined' && FormUtils.serialize) {
+                const utilsData = FormUtils.serialize(form);
+                log('FormUtils.serialize 结果:', utilsData);
+            }
+            
+            // 方法3: 手动获取字段值
+            const manualData = {
+                stock_code: document.getElementById('stock-code').value,
+                stock_name: document.getElementById('stock-name').value,
+                trade_type: document.getElementById('trade-type').value,
+                trade_date: document.getElementById('trade-date').value,
+                price: document.getElementById('price').value,
+                quantity: document.getElementById('quantity').value,
+                reason: document.getElementById('reason').value,
+                notes: document.getElementById('notes').value
+            };
+            log('手动获取字段值:', manualData);
+            
+            // 检查每个字段的值和类型
+            log('=== 字段详细检查 ===');
+            Object.keys(manualData).forEach(key => {
+                const value = manualData[key];
+                log(`${key}: "${value}" (类型: ${typeof value}, 长度: ${value ? value.length : 'N/A'})`);
+            });
+        });
+        
+        // 测试API调用
+        document.getElementById('test-api-call').addEventListener('click', async () => {
+            log('=== 测试API调用 ===');
+            
+            try {
+                const form = document.getElementById('test-form');
+                const formData = new FormData(form);
+                const data = {};
+                
+                for (let [key, value] of formData.entries()) {
+                    data[key] = value;
+                }
+                
+                log('准备发送的数据:', data);
+                
+                // 数据类型转换
+                if (data.price) {
+                    data.price = parseFloat(data.price);
+                }
+                if (data.quantity) {
+                    data.quantity = parseInt(data.quantity);
+                }
+                
+                log('类型转换后的数据:', data);
+                
+                // 验证必填字段
+                const requiredFields = ['stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 'reason'];
+                const missingFields = [];
+                
+                for (const field of requiredFields) {
+                    if (!data[field] || data[field] === '') {
+                        missingFields.push(field);
+                    }
+                }
+                
+                if (missingFields.length > 0) {
+                    log('缺少必填字段:', missingFields);
+                    return;
+                }
+                
+                log('开始API调用...');
+                
+                // 调用API
+                const response = await apiClient.createTrade(data);
+                log('API调用成功:', response);
+                
+            } catch (error) {
+                log('API调用失败:', {
+                    message: error.message,
+                    code: error.code,
+                    details: error.details,
+                    response: error.response ? {
+                        status: error.response.status,
+                        data: error.response.data
+                    } : null
+                });
+            }
+        });
+        
+        log('调试页面已加载，请点击按钮进行测试');
+    </script>
+</body>
+</html>

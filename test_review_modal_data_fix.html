@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复盘模态框数据修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>复盘模态框数据修复测试</h2>
+        
+        <div class="alert alert-info">
+            <h5>测试目标：</h5>
+            <ul>
+                <li>验证复盘模态框打开时能正确显示成本价和当前价</li>
+                <li>验证浮盈计算功能正常</li>
+                <li>验证盈利颜色显示正确（盈利红色，亏损绿色）</li>
+            </ul>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>1. 测试持仓数据获取</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-primary" onclick="testHoldingsData()">获取持仓数据</button>
+                <div id="holdings-data-result" class="mt-3"></div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>2. 模拟复盘模态框</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="test-stock-code" placeholder="输入股票代码" value="000776">
+                    </div>
+                    <div class="col-md-6">
+                        <button class="btn btn-success" onclick="testModalData()">测试模态框数据</button>
+                    </div>
+                </div>
+                <div id="modal-test-result" class="mt-3"></div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>3. 颜色显示测试</h5>
+            </div>
+            <div class="card-body">
+                <div id="color-test-result"></div>
+            </div>
+        </div>
+
+        <!-- 模拟复盘模态框的关键元素 -->
+        <div style="display: none;">
+            <div id="buy-price-display">--</div>
+            <input type="number" id="current-price-input" step="0.01">
+            <input type="number" id="holding-days" value="1">
+        </div>
+    </div>
+
+    <script>
+        // 模拟全局变量
+        window.ReviewPageGlobals = {
+            currentHoldings: []
+        };
+
+        async function testHoldingsData() {
+            const resultDiv = document.getElementById('holdings-data-result');
+            resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>正在获取数据...';
+            
+            try {
+                const response = await fetch('/api/holdings');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    window.ReviewPageGlobals.currentHoldings = data.data;
+                    
+                    let html = '<div class="alert alert-success">✅ 持仓数据获取成功</div>';
+                    html += '<h6>持仓列表：</h6>';
+                    
+                    data.data.forEach((holding, index) => {
+                        const profitRatio = calculateProfitRatio(holding);
+                        const profitClass = getProfitClass(holding);
+                        
+                        html += `<div class="card mb-2">`;
+                        html += `<div class="card-body">`;
+                        html += `<div class="row">`;
+                        html += `<div class="col-md-2"><strong>${holding.stock_code}</strong><br><small>${holding.stock_name}</small></div>`;
+                        html += `<div class="col-md-2">成本价: <strong>¥${holding.avg_buy_price ? holding.avg_buy_price.toFixed(2) : '--'}</strong></div>`;
+                        html += `<div class="col-md-2">当前价: <strong>¥${holding.current_price ? holding.current_price.toFixed(2) : '--'}</strong></div>`;
+                        html += `<div class="col-md-2">持仓量: <strong>${holding.current_quantity || 0}</strong></div>`;
+                        html += `<div class="col-md-2">浮盈: <strong class="${profitClass}">${profitRatio}</strong></div>`;
+                        html += `<div class="col-md-2"><button class="btn btn-sm btn-primary" onclick="testOpenModal('${holding.stock_code}')">测试复盘</button></div>`;
+                        html += `</div>`;
+                        html += `</div>`;
+                        html += `</div>`;
+                    });
+                    
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = '<div class="alert alert-warning">⚠️ 没有持仓数据</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="alert alert-danger">❌ 获取失败: ' + error.message + '</div>';
+            }
+        }
+
+        async function testModalData() {
+            const stockCode = document.getElementById('test-stock-code').value;
+            const resultDiv = document.getElementById('modal-test-result');
+            
+            if (!stockCode) {
+                resultDiv.innerHTML = '<div class="alert alert-warning">请输入股票代码</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>正在测试...';
+            
+            try {
+                // 模拟 loadHoldingInfo 函数
+                const holding = await loadHoldingInfo(stockCode);
+                
+                if (holding) {
+                    // 模拟 populateModalWithHoldingData 函数
+                    populateModalWithHoldingData(stockCode, holding);
+                    
+                    let html = '<div class="alert alert-success">✅ 模态框数据填充成功</div>';
+                    html += '<h6>填充的数据：</h6>';
+                    html += '<div class="row">';
+                    html += `<div class="col-md-3">股票代码: <strong>${stockCode}</strong></div>`;
+                    html += `<div class="col-md-3">成本价: <strong>${document.getElementById('buy-price-display').textContent}</strong></div>`;
+                    html += `<div class="col-md-3">当前价: <strong>¥${document.getElementById('current-price-input').value || '--'}</strong></div>`;
+                    html += `<div class="col-md-3">持仓天数: <strong>${document.getElementById('holding-days').value}天</strong></div>`;
+                    html += '</div>';
+                    
+                    // 计算浮盈
+                    const buyPrice = holding.avg_buy_price || holding.avg_price;
+                    const currentPrice = holding.current_price;
+                    if (buyPrice && currentPrice) {
+                        const profitRatio = ((currentPrice - buyPrice) / buyPrice * 100).toFixed(2);
+                        const profitClass = profitRatio > 0 ? 'text-danger' : profitRatio < 0 ? 'text-success' : 'text-muted';
+                        html += `<div class="mt-2">浮盈比例: <strong class="${profitClass}">${profitRatio}%</strong></div>`;
+                    }
+                    
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">❌ 未找到持仓信息</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="alert alert-danger">❌ 测试失败: ' + error.message + '</div>';
+            }
+        }
+
+        function testOpenModal(stockCode) {
+            const holding = window.ReviewPageGlobals.currentHoldings.find(h => h.stock_code === stockCode);
+            if (holding) {
+                populateModalWithHoldingData(stockCode, holding);
+                alert(`模态框数据已填充：\n成本价: ${document.getElementById('buy-price-display').textContent}\n当前价: ¥${document.getElementById('current-price-input').value || '--'}`);
+            }
+        }
+
+        function testColorDisplay() {
+            const resultDiv = document.getElementById('color-test-result');
+            
+            // 测试不同盈亏情况的颜色
+            const testCases = [
+                { name: '盈利情况', buyPrice: 10.00, currentPrice: 12.00, expectedColor: 'text-danger' },
+                { name: '亏损情况', buyPrice: 10.00, currentPrice: 8.00, expectedColor: 'text-success' },
+                { name: '持平情况', buyPrice: 10.00, currentPrice: 10.00, expectedColor: 'text-muted' }
+            ];
+            
+            let html = '<h6>颜色显示测试：</h6>';
+            testCases.forEach(testCase => {
+                const mockHolding = {
+                    avg_buy_price: testCase.buyPrice,
+                    current_price: testCase.currentPrice
+                };
+                
+                const profitRatio = calculateProfitRatio(mockHolding);
+                const profitClass = getProfitClass(mockHolding);
+                const isCorrect = profitClass === testCase.expectedColor;
+                
+                html += `<div class="mb-2">`;
+                html += `<strong>${testCase.name}</strong>: `;
+                html += `成本价¥${testCase.buyPrice.toFixed(2)} → 当前价¥${testCase.currentPrice.toFixed(2)} = `;
+                html += `<span class="${profitClass}">${profitRatio}</span> `;
+                html += `<span class="badge ${isCorrect ? 'bg-success' : 'bg-danger'}">${isCorrect ? '✅ 正确' : '❌ 错误'}</span>`;
+                html += `</div>`;
+            });
+            
+            resultDiv.innerHTML = html;
+        }
+
+        // 辅助函数
+        async function loadHoldingInfo(stockCode) {
+            try {
+                const response = await fetch('/api/holdings');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    window.ReviewPageGlobals.currentHoldings = data.data;
+                    const holding = data.data.find(h => h.stock_code === stockCode);
+                    return holding;
+                }
+                return null;
+            } catch (error) {
+                console.error('获取持仓信息失败:', error);
+                return null;
+            }
+        }
+
+        function populateModalWithHoldingData(stockCode, holding) {
+            console.log('填充模态框数据:', stockCode, holding);
+            
+            // 设置持仓天数
+            const holdingDays = document.getElementById('holding-days');
+            if (holdingDays) {
+                holdingDays.value = holding.holding_days || 1;
+            }
+
+            // 设置成本价
+            const buyPriceDisplay = document.getElementById('buy-price-display');
+            if (buyPriceDisplay) {
+                const buyPrice = holding.avg_buy_price || holding.avg_price;
+                buyPriceDisplay.textContent = buyPrice ? `¥${buyPrice.toFixed(2)}` : '--';
+            }
+
+            // 设置当前价格
+            const currentPriceInput = document.getElementById('current-price-input');
+            if (currentPriceInput && holding.current_price) {
+                currentPriceInput.value = holding.current_price.toFixed(2);
+            }
+        }
+
+        function calculateProfitRatio(holding) {
+            if (!holding.avg_buy_price || !holding.current_price) {
+                return '--';
+            }
+            const ratio = ((holding.current_price - holding.avg_buy_price) / holding.avg_buy_price * 100).toFixed(2);
+            return ratio + '%';
+        }
+
+        function getProfitClass(holding) {
+            if (!holding.avg_buy_price || !holding.current_price) {
+                return 'text-muted';
+            }
+            const ratio = (holding.current_price - holding.avg_buy_price) / holding.avg_buy_price;
+            return ratio > 0 ? 'text-danger' : ratio < 0 ? 'text-success' : 'text-muted';
+        }
+
+        // 页面加载时自动测试
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('复盘模态框数据修复测试页面已加载');
+            testHoldingsData();
+            testColorDisplay();
+        });
+    </script>
+</body>
+</html>

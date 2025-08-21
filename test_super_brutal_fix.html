@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>超级暴力修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container py-4">
+        <h1 class="text-danger">🔥🔥🔥 超级暴力修复测试</h1>
+        
+        <div class="alert alert-danger">
+            <h5>🔥 最终测试</h5>
+            <p>这是最后一次测试！如果这个不行，那就真的没办法了！</p>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>🔍 对象检查</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="objects-check">检查中...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>🎯 函数测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-danger btn-sm mb-2 w-100" onclick="testFloatingProfitManagerClearAll()">
+                            测试 floatingProfitManager.clearAll()
+                        </button>
+                        <button class="btn btn-warning btn-sm mb-2 w-100" onclick="testReviewModalShow()">
+                            测试 reviewModal.show()
+                        </button>
+                        <button class="btn btn-success btn-sm mb-2 w-100" onclick="testOpenReviewModal()">
+                            测试 openReviewModal()
+                        </button>
+                        <div id="function-test-results" class="mt-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>🚀 综合测试</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-danger btn-lg w-100" onclick="runAllTests()">
+                    🔥 运行所有测试
+                </button>
+                <div id="all-test-results" class="mt-3"></div>
+            </div>
+        </div>
+        
+        <!-- 模态框 -->
+        <div class="modal fade" id="reviewModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">🔥 超级暴力修复测试模态框</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-success">
+                            <strong>🎉🎉🎉 超级成功！</strong> 
+                            <br>如果你能看到这个模态框，说明超级暴力修复成功了！
+                            <br>所有问题都应该解决了！
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/review-emergency-fix.js"></script>
+    
+    <script>
+        let testResults = [];
+        
+        function addResult(test, success, message) {
+            testResults.push({ test, success, message, time: new Date().toLocaleTimeString() });
+        }
+        
+        function displayResults(containerId) {
+            const container = document.getElementById(containerId);
+            const html = testResults.map(result => {
+                const icon = result.success ? 'check-circle text-success' : 'times-circle text-danger';
+                const badge = result.success ? 'success' : 'danger';
+                return `
+                    <div class="d-flex align-items-center mb-1">
+                        <i class="fas fa-${icon} me-2"></i>
+                        <span class="badge bg-${badge} me-2">${result.time}</span>
+                        <small><strong>${result.test}:</strong> ${result.message}</small>
+                    </div>
+                `;
+            }).join('');
+            container.innerHTML = html || '<div class="text-muted">暂无结果</div>';
+        }
+        
+        function checkObjects() {
+            const checks = [
+                { name: 'floatingProfitManager', obj: window.floatingProfitManager },
+                { name: 'floatingProfitManager.clearAll', obj: window.floatingProfitManager?.clearAll },
+                { name: 'reviewModal', obj: window.reviewModal },
+                { name: 'reviewModal.show', obj: window.reviewModal?.show },
+                { name: 'openReviewModal', obj: window.openReviewModal },
+                { name: 'bootstrap', obj: window.bootstrap },
+                { name: 'bootstrap.Modal', obj: window.bootstrap?.Modal }
+            ];
+            
+            const results = checks.map(check => {
+                const exists = check.obj !== undefined;
+                const status = exists ? 'success' : 'danger';
+                const icon = exists ? 'check-circle' : 'times-circle';
+                
+                return `
+                    <div class="d-flex align-items-center mb-1">
+                        <i class="fas fa-${icon} text-${status} me-2"></i>
+                        <small>${check.name}: ${exists ? '✓' : '✗'}</small>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('objects-check').innerHTML = results;
+        }
+        
+        function testFloatingProfitManagerClearAll() {
+            try {
+                if (window.floatingProfitManager && typeof window.floatingProfitManager.clearAll === 'function') {
+                    window.floatingProfitManager.clearAll();
+                    addResult('floatingProfitManager.clearAll', true, '调用成功');
+                } else {
+                    addResult('floatingProfitManager.clearAll', false, '函数不存在');
+                }
+            } catch (error) {
+                addResult('floatingProfitManager.clearAll', false, error.message);
+            }
+            displayResults('function-test-results');
+        }
+        
+        function testReviewModalShow() {
+            try {
+                if (window.reviewModal && typeof window.reviewModal.show === 'function') {
+                    window.reviewModal.show();
+                    addResult('reviewModal.show', true, '调用成功');
+                } else {
+                    addResult('reviewModal.show', false, '函数不存在');
+                }
+            } catch (error) {
+                addResult('reviewModal.show', false, error.message);
+            }
+            displayResults('function-test-results');
+        }
+        
+        function testOpenReviewModal() {
+            try {
+                if (typeof window.openReviewModal === 'function') {
+                    window.openReviewModal('000001');
+                    addResult('openReviewModal', true, '调用成功');
+                } else {
+                    addResult('openReviewModal', false, '函数不存在');
+                }
+            } catch (error) {
+                addResult('openReviewModal', false, error.message);
+            }
+            displayResults('function-test-results');
+        }
+        
+        function runAllTests() {
+            testResults = []; // 清空之前的结果
+            
+            console.log('🔥 开始运行所有测试');
+            
+            // 测试所有函数
+            testFloatingProfitManagerClearAll();
+            testReviewModalShow();
+            testOpenReviewModal();
+            
+            // 显示结果
+            displayResults('all-test-results');
+            
+            // 统计结果
+            const successCount = testResults.filter(r => r.success).length;
+            const totalCount = testResults.length;
+            
+            const summaryEl = document.createElement('div');
+            summaryEl.className = `alert ${successCount === totalCount ? 'alert-success' : 'alert-danger'} mt-3`;
+            summaryEl.innerHTML = `
+                <h6>测试结果汇总</h6>
+                <p>成功: ${successCount}/${totalCount}</p>
+                ${successCount === totalCount ? 
+                    '<strong>🎉 所有测试通过！超级暴力修复成功！</strong>' : 
+                    '<strong>❌ 还有问题需要解决</strong>'
+                }
+            `;
+            
+            document.getElementById('all-test-results').appendChild(summaryEl);
+        }
+        
+        // 页面加载后立即检查
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                checkObjects();
+                console.log('🔥 超级暴力修复测试页面加载完成');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

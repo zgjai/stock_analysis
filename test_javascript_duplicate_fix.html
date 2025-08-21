@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript重复声明修复测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        #console-output { 
+            background: #000; 
+            color: #0f0; 
+            padding: 10px; 
+            font-family: monospace; 
+            height: 300px; 
+            overflow-y: auto; 
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>JavaScript重复声明修复测试</h1>
+    
+    <div id="test-results"></div>
+    
+    <h3>控制台输出:</h3>
+    <div id="console-output"></div>
+
+    <!-- 按照review.html中的加载顺序加载脚本 -->
+    <script src="/static/js/review-emergency-fix.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/performance-optimizations.js"></script>
+    <script src="/static/js/api.js"></script>
+
+    <script>
+        // 捕获控制台输出
+        const consoleOutput = document.getElementById('console-output');
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        function addToConsole(type, ...args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            consoleOutput.textContent += `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            addToConsole('log', ...args);
+            originalLog.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            addToConsole('error', ...args);
+            originalError.apply(console, args);
+        };
+
+        console.warn = function(...args) {
+            addToConsole('warn', ...args);
+            originalWarn.apply(console, args);
+        };
+
+        // 测试函数
+        function runTests() {
+            const results = document.getElementById('test-results');
+            const tests = [];
+
+            // 测试1: 检查PerformanceUtils是否正确加载
+            tests.push({
+                name: 'PerformanceUtils加载测试',
+                test: () => {
+                    return typeof window.PerformanceUtils !== 'undefined' && 
+                           typeof window.PerformanceUtils.debounce === 'function';
+                }
+            });
+
+            // 测试2: 检查debounce函数是否正确加载
+            tests.push({
+                name: 'debounce函数加载测试',
+                test: () => {
+                    return typeof window.debounce === 'function';
+                }
+            });
+
+            // 测试3: 检查throttle函数是否正确加载
+            tests.push({
+                name: 'throttle函数加载测试',
+                test: () => {
+                    return typeof window.throttle === 'function';
+                }
+            });
+
+            // 测试4: 检查ApiClient类是否正确加载
+            tests.push({
+                name: 'ApiClient类加载测试',
+                test: () => {
+                    return typeof ApiClient !== 'undefined';
+                }
+            });
+
+            // 测试5: 检查apiClient实例是否正确创建
+            tests.push({
+                name: 'apiClient实例创建测试',
+                test: () => {
+                    return typeof window.apiClient !== 'undefined' && 
+                           window.apiClient !== null;
+                }
+            });
+
+            // 测试6: 测试debounce函数功能
+            tests.push({
+                name: 'debounce函数功能测试',
+                test: () => {
+                    let counter = 0;
+                    const debouncedFn = window.debounce(() => counter++, 100);
+                    
+                    // 快速调用多次
+                    debouncedFn();
+                    debouncedFn();
+                    debouncedFn();
+                    
+                    // 立即检查counter应该还是0（因为被防抖了）
+                    return counter === 0;
+                }
+            });
+
+            // 运行测试
+            let passedTests = 0;
+            tests.forEach(test => {
+                try {
+                    const result = test.test();
+                    const div = document.createElement('div');
+                    div.className = `test-result ${result ? 'success' : 'error'}`;
+                    div.textContent = `${test.name}: ${result ? '✅ 通过' : '❌ 失败'}`;
+                    results.appendChild(div);
+                    
+                    if (result) passedTests++;
+                    
+                    console.log(`测试 "${test.name}": ${result ? '通过' : '失败'}`);
+                } catch (error) {
+                    const div = document.createElement('div');
+                    div.className = 'test-result error';
+                    div.textContent = `${test.name}: ❌ 错误 - ${error.message}`;
+                    results.appendChild(div);
+                    
+                    console.error(`测试 "${test.name}" 出错:`, error);
+                }
+            });
+
+            // 显示总结
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = `test-result ${passedTests === tests.length ? 'success' : 'warning'}`;
+            summaryDiv.innerHTML = `<strong>测试总结: ${passedTests}/${tests.length} 通过</strong>`;
+            results.appendChild(summaryDiv);
+
+            console.log(`测试完成: ${passedTests}/${tests.length} 通过`);
+        }
+
+        // 页面加载完成后运行测试
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', runTests);
+        } else {
+            runTests();
+        }
+
+        // 监听JavaScript错误
+        window.addEventListener('error', function(e) {
+            console.error('JavaScript错误:', e.error);
+            const div = document.createElement('div');
+            div.className = 'test-result error';
+            div.innerHTML = `<strong>JavaScript错误:</strong> ${e.error.message}<br><small>文件: ${e.filename}:${e.lineno}</small>`;
+            document.getElementById('test-results').appendChild(div);
+        });
+
+        // 监听未处理的Promise拒绝
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('未处理的Promise拒绝:', e.reason);
+            const div = document.createElement('div');
+            div.className = 'test-result error';
+            div.innerHTML = `<strong>Promise拒绝:</strong> ${e.reason}`;
+            document.getElementById('test-results').appendChild(div);
+        });
+    </script>
+</body>
+</html>

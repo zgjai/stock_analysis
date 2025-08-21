@@ -477,7 +477,168 @@ class TestHoldingAPI:
         assert response.status_code == 400
         data = json.loads(response.data)
         assert data['success'] is False
-        assert '持仓天数必须是整数' in data['error']['message']
+        assert '持仓天数必须是正整数' in data['error']['message']
+    
+    def test_update_holding_days_negative_value(self, client, db_session):
+        """测试更新负数持仓天数"""
+        update_data = {'holding_days': -5}
+        
+        response = client.put('/api/holdings/000001/days',
+                            data=json.dumps(update_data),
+                            content_type='application/json')
+        
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data['success'] is False
+        assert '持仓天数必须是正整数' in data['error']['message']
+    
+    def test_update_holding_days_zero_value(self, client, db_session):
+        """测试更新零值持仓天数"""
+        update_data = {'holding_days': 0}
+        
+        response = client.put('/api/holdings/000001/days',
+                            data=json.dumps(update_data),
+                            content_type='application/json')
+        
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data['success'] is False
+        assert '持仓天数必须是正整数' in data['error']['message']
+    
+    def test_get_holding_days_success(self, client, db_session):
+        """测试成功获取持仓天数"""
+        stock_code = '000001'
+        holding_days = 15
+        
+        # 先创建持仓天数记录
+        create_data = {'holding_days': holding_days}
+        client.post(f'/api/holdings/{stock_code}/days',
+                   data=json.dumps(create_data),
+                   content_type='application/json')
+        
+        # 获取持仓天数
+        response = client.get(f'/api/holdings/{stock_code}/days')
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['success'] is True
+        assert data['data']['stock_code'] == stock_code
+        assert data['data']['holding_days'] == holding_days
+        assert f'获取股票{stock_code}持仓天数成功' in data['message']
+    
+    def test_get_holding_days_not_found(self, client, db_session):
+        """测试获取不存在的持仓天数"""
+        response = client.get('/api/holdings/999999/days')
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['success'] is True
+        assert data['data']['holding_days'] is None
+    
+    def test_create_holding_days_success(self, client, db_session):
+        """测试成功创建持仓天数"""
+        stock_code = '000001'
+        holding_days = 10
+        
+        create_data = {'holding_days': holding_days}
+        
+        response = client.post(f'/api/holdings/{stock_code}/days',
+                             data=json.dumps(create_data),
+                             content_type='application/json')
+        
+        assert response.status_code == 201
+        data = json.loads(response.data)
+        assert data['success'] is True
+        assert data['data']['holding_days'] == holding_days
+        assert f'创建股票{stock_code}持仓天数成功' in data['message']
+    
+    def test_create_holding_days_missing_data(self, client, db_session):
+        """测试创建持仓天数缺少数据"""
+        response = client.post('/api/holdings/000001/days',
+                             data=json.dumps({}),
+                             content_type='application/json')
+        
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data['success'] is False
+        assert '持仓天数不能为空' in data['error']['message']
+    
+    def test_create_holding_days_invalid_data(self, client, db_session):
+        """测试创建无效的持仓天数"""
+        create_data = {'holding_days': 'invalid'}
+        
+        response = client.post('/api/holdings/000001/days',
+                             data=json.dumps(create_data),
+                             content_type='application/json')
+        
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data['success'] is False
+        assert '持仓天数必须是正整数' in data['error']['message']
+    
+    def test_create_holding_days_negative_value(self, client, db_session):
+        """测试创建负数持仓天数"""
+        create_data = {'holding_days': -3}
+        
+        response = client.post('/api/holdings/000001/days',
+                             data=json.dumps(create_data),
+                             content_type='application/json')
+        
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data['success'] is False
+        assert '持仓天数必须是正整数' in data['error']['message']
+    
+    def test_create_holding_days_already_exists(self, client, db_session):
+        """测试创建已存在的持仓天数记录"""
+        stock_code = '000001'
+        holding_days = 10
+        
+        create_data = {'holding_days': holding_days}
+        
+        # 第一次创建
+        response1 = client.post(f'/api/holdings/{stock_code}/days',
+                              data=json.dumps(create_data),
+                              content_type='application/json')
+        assert response1.status_code == 201
+        
+        # 第二次创建应该失败
+        response2 = client.post(f'/api/holdings/{stock_code}/days',
+                              data=json.dumps(create_data),
+                              content_type='application/json')
+        
+        assert response2.status_code == 400
+        data = json.loads(response2.data)
+        assert data['success'] is False
+        assert '已存在复盘记录' in data['error']['message']
+    
+    def test_delete_holding_days_success(self, client, db_session):
+        """测试成功删除持仓天数"""
+        stock_code = '000001'
+        holding_days = 10
+        
+        # 先创建持仓天数记录
+        create_data = {'holding_days': holding_days}
+        client.post(f'/api/holdings/{stock_code}/days',
+                   data=json.dumps(create_data),
+                   content_type='application/json')
+        
+        # 删除持仓天数
+        response = client.delete(f'/api/holdings/{stock_code}/days')
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['success'] is True
+        assert f'删除股票{stock_code}持仓天数成功' in data['message']
+    
+    def test_delete_holding_days_not_found(self, client, db_session):
+        """测试删除不存在的持仓天数"""
+        response = client.delete('/api/holdings/999999/days')
+        
+        assert response.status_code == 404
+        data = json.loads(response.data)
+        assert data['success'] is False
+        assert '没有复盘记录' in data['error']['message']
     
     def test_get_holding_stats(self, client, db_session):
         """测试获取持仓统计信息"""

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时调试API请求</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .debug-section {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .json-display {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 0.75rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .step-indicator {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: #6c757d;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+        .step-indicator.success {
+            background: #198754;
+        }
+        .step-indicator.error {
+            background: #dc3545;
+        }
+        .step-indicator.warning {
+            background: #fd7e14;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>实时调试API请求 - 股票代码传递问题</h2>
+        
+        <!-- 表单区域 -->
+        <div class="debug-section">
+            <h5><span class="step-indicator" id="step1">1</span>表单数据输入</h5>
+            <form id="debug-form">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="stock-code" class="form-label">股票代码 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="stock-code" name="stock_code" required
+                                placeholder="例如: 000001" value="000001">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="stock-name" class="form-label">股票名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="stock-name" name="stock_name" required
+                                placeholder="例如: 平安银行" value="平安银行">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="trade-type" class="form-label">交易类型 <span class="text-danger">*</span></label>
+                            <select class="form-select" id="trade-type" name="trade_type" required>
+                                <option value="">请选择交易类型</option>
+                                <option value="buy" selected>买入</option>
+                                <option value="sell">卖出</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="price" class="form-label">价格 <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="price" name="price" required
+                                step="0.01" min="0.01" value="10.50">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="quantity" class="form-label">数量 <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" required
+                                min="100" step="100" value="1000">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="trade-date" class="form-label">交易日期 <span class="text-danger">*</span></label>
+                            <input type="datetime-local" class="form-control" id="trade-date" name="trade_date" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">操作原因 <span class="text-danger">*</span></label>
+                            <select class="form-select" id="reason" name="reason" required>
+                                <option value="">请选择操作原因</option>
+                                <option value="少妇B1战法" selected>少妇B1战法</option>
+                                <option value="少妇SB1战法">少妇SB1战法</option>
+                                <option value="少妇B2战法">少妇B2战法</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="notes" class="form-label">备注</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="2">测试交易记录</textarea>
+                </div>
+                
+                <button type="button" class="btn btn-primary" id="debug-submit">调试提交</button>
+                <button type="button" class="btn btn-secondary" id="clear-log">清空日志</button>
+            </form>
+        </div>
+        
+        <!-- 数据序列化 -->
+        <div class="debug-section">
+            <h5><span class="step-indicator" id="step2">2</span>数据序列化</h5>
+            <div class="json-display" id="serialized-data">等待表单提交...</div>
+        </div>
+        
+        <!-- 请求发送 -->
+        <div class="debug-section">
+            <h5><span class="step-indicator" id="step3">3</span>API请求</h5>
+            <div class="json-display" id="request-data">等待API请求...</div>
+        </div>
+        
+        <!-- 服务器响应 -->
+        <div class="debug-section">
+            <h5><span class="step-indicator" id="step4">4</span>服务器响应</h5>
+            <div class="json-display" id="response-data">等待服务器响应...</div>
+        </div>
+        
+        <!-- 错误分析 -->
+        <div class="debug-section">
+            <h5><span class="step-indicator" id="step5">5</span>错误分析</h5>
+            <div class="json-display" id="error-analysis">等待错误分析...</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <script>
+        // 设置默认交易日期
+        document.getElementById('trade-date').value = new Date().toISOString().slice(0, 16);
+        
+        // 更新步骤指示器
+        function updateStep(stepId, status) {
+            const step = document.getElementById(stepId);
+            step.className = `step-indicator ${status}`;
+        }
+        
+        // 显示JSON数据
+        function displayJson(elementId, data, title = '') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            let content = title ? `[${timestamp}] ${title}\n` : `[${timestamp}] `;
+            content += JSON.stringify(data, null, 2);
+            element.textContent = content;
+        }
+        
+        // 显示文本
+        function displayText(elementId, text, title = '') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            let content = title ? `[${timestamp}] ${title}\n` : `[${timestamp}] `;
+            content += text;
+            element.textContent = content;
+        }
+        
+        // 序列化表单数据
+        function serializeForm() {
+            const form = document.getElementById('debug-form');
+            const formData = new FormData(form);
+            const data = {};
+            
+            // 基本序列化
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+            
+            // 数据类型转换
+            if (data.price) {
+                data.price = parseFloat(data.price);
+            }
+            if (data.quantity) {
+                data.quantity = parseInt(data.quantity);
+            }
+            
+            return data;
+        }
+        
+        // 验证必填字段
+        function validateRequiredFields(data) {
+            const requiredFields = ['stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 'reason'];
+            const errors = [];
+            
+            for (const field of requiredFields) {
+                if (!data[field] || data[field] === '') {
+                    errors.push(`${field}不能为空`);
+                }
+            }
+            
+            return errors;
+        }
+        
+        // 分析错误
+        function analyzeError(error, requestData) {
+            let analysis = "错误分析:\n\n";
+            
+            if (error.response) {
+                analysis += `HTTP状态码: ${error.response.status}\n`;
+                analysis += `错误信息: ${error.response.data?.message || error.response.data?.error?.message || '未知错误'}\n\n`;
+                
+                if (error.response.status === 400) {
+                    analysis += "400错误通常表示请求数据格式错误或验证失败\n\n";
+                    
+                    // 检查请求数据
+                    analysis += "请求数据检查:\n";
+                    const validationErrors = validateRequiredFields(requestData);
+                    if (validationErrors.length > 0) {
+                        analysis += "前端验证错误:\n";
+                        validationErrors.forEach(err => analysis += `- ${err}\n`);
+                    } else {
+                        analysis += "前端验证通过，问题可能在后端\n";
+                    }
+                    
+                    analysis += "\n后端可能的问题:\n";
+                    analysis += "- 验证器函数语法错误\n";
+                    analysis += "- 数据类型转换失败\n";
+                    analysis += "- 数据库约束违反\n";
+                    analysis += "- 必填字段验证逻辑错误\n";
+                }
+            } else if (error.request) {
+                analysis += "网络错误: 无法连接到服务器\n";
+            } else {
+                analysis += `其他错误: ${error.message}\n`;
+            }
+            
+            return analysis;
+        }
+        
+        // 调试提交
+        document.getElementById('debug-submit').addEventListener('click', async () => {
+            try {
+                // 步骤1: 重置状态
+                updateStep('step1', 'success');
+                updateStep('step2', '');
+                updateStep('step3', '');
+                updateStep('step4', '');
+                updateStep('step5', '');
+                
+                // 步骤2: 序列化数据
+                const data = serializeForm();
+                displayJson('serialized-data', data, '表单数据序列化完成');
+                updateStep('step2', 'success');
+                
+                // 验证必填字段
+                const validationErrors = validateRequiredFields(data);
+                if (validationErrors.length > 0) {
+                    updateStep('step2', 'error');
+                    displayText('serialized-data', 
+                        `表单验证失败:\n${validationErrors.join('\n')}`, 
+                        '前端验证错误');
+                    return;
+                }
+                
+                // 步骤3: 发送API请求
+                updateStep('step3', 'warning');
+                displayJson('request-data', {
+                    method: 'POST',
+                    url: '/api/trades',
+                    data: data
+                }, 'API请求发送中...');
+                
+                const response = await axios.post('/api/trades', data);
+                
+                // 步骤4: 处理响应
+                updateStep('step3', 'success');
+                updateStep('step4', 'success');
+                displayJson('response-data', response.data, 'API请求成功');
+                
+                // 步骤5: 成功分析
+                updateStep('step5', 'success');
+                displayText('error-analysis', '请求成功完成，没有错误', '成功');
+                
+            } catch (error) {
+                console.error('API请求失败:', error);
+                
+                // 更新步骤状态
+                updateStep('step3', 'error');
+                updateStep('step4', 'error');
+                updateStep('step5', 'warning');
+                
+                // 显示请求信息
+                displayJson('request-data', {
+                    method: 'POST',
+                    url: '/api/trades',
+                    data: serializeForm(),
+                    error: error.message
+                }, 'API请求失败');
+                
+                // 显示响应信息
+                if (error.response) {
+                    displayJson('response-data', {
+                        status: error.response.status,
+                        statusText: error.response.statusText,
+                        data: error.response.data
+                    }, 'API响应');
+                } else {
+                    displayText('response-data', error.message, 'API错误');
+                }
+                
+                // 显示错误分析
+                const analysis = analyzeError(error, serializeForm());
+                displayText('error-analysis', analysis, '错误分析');
+            }
+        });
+        
+        // 清空日志
+        document.getElementById('clear-log').addEventListener('click', () => {
+            ['serialized-data', 'request-data', 'response-data', 'error-analysis'].forEach(id => {
+                document.getElementById(id).textContent = '等待操作...';
+            });
+            
+            ['step1', 'step2', 'step3', 'step4', 'step5'].forEach(id => {
+                document.getElementById(id).className = 'step-indicator';
+            });
+        });
+        
+        console.log('实时调试工具已加载');
+    </script>
+</body>
+</html>

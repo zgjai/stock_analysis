@@ -32,6 +32,11 @@ class ReviewRecord(BaseModel):
     reason = db.Column(db.Text)
     holding_days = db.Column(db.Integer)  # 手动输入的持仓天数
     
+    # 浮盈计算相关字段
+    current_price = db.Column(db.Numeric(10, 2))  # 当前价格
+    floating_profit_ratio = db.Column(db.Numeric(5, 4))  # 浮盈比例
+    buy_price = db.Column(db.Numeric(10, 2))  # 成本价（冗余存储，便于计算）
+    
     # 表约束
     __table_args__ = (
         db.CheckConstraint("price_up_score IN (0, 1)", name='check_price_up_score'),
@@ -41,8 +46,12 @@ class ReviewRecord(BaseModel):
         db.CheckConstraint("j_score IN (0, 1)", name='check_j_score'),
         db.CheckConstraint("total_score BETWEEN 0 AND 5", name='check_total_score'),
         db.CheckConstraint("decision IN ('hold', 'sell_all', 'sell_partial')", name='check_decision'),
+        db.CheckConstraint("current_price >= 0", name='check_current_price_positive'),
+        db.CheckConstraint("buy_price >= 0", name='check_buy_price_positive'),
         db.UniqueConstraint('stock_code', 'review_date', name='unique_stock_review_date'),
         db.Index('idx_review_stock_date', 'stock_code', 'review_date'),
+        db.Index('idx_review_current_price', 'current_price'),
+        db.Index('idx_review_floating_profit', 'floating_profit_ratio'),
     )
     
     def __init__(self, **kwargs):
@@ -75,11 +84,40 @@ class ReviewRecord(BaseModel):
         if 'holding_days' in data and data['holding_days'] is not None:
             try:
                 holding_days = int(data['holding_days'])
-                if holding_days < 0:
-                    raise ValidationError("持仓天数不能为负数", "holding_days")
+                if holding_days <= 0:
+                    raise ValidationError("持仓天数必须是正整数", "holding_days")
                 data['holding_days'] = holding_days
             except (ValueError, TypeError):
-                raise ValidationError("持仓天数必须是整数", "holding_days")
+                raise ValidationError("持仓天数必须是正整数", "holding_days")
+        
+        # 验证当前价格
+        if 'current_price' in data and data['current_price'] is not None:
+            try:
+                current_price = float(data['current_price'])
+                if current_price < 0:
+                    raise ValidationError("当前价格不能为负数", "current_price")
+                data['current_price'] = current_price
+            except (ValueError, TypeError):
+                raise ValidationError("当前价格必须是数字", "current_price")
+        
+        # 验证买入价格
+        if 'buy_price' in data and data['buy_price'] is not None:
+            try:
+                buy_price = float(data['buy_price'])
+                if buy_price < 0:
+                    raise ValidationError("买入价格不能为负数", "buy_price")
+                data['buy_price'] = buy_price
+            except (ValueError, TypeError):
+                raise ValidationError("买入价格必须是数字", "buy_price")
+        
+        # 验证浮盈比例
+        if 'floating_profit_ratio' in data and data['floating_profit_ratio'] is not None:
+            try:
+                floating_profit_ratio = float(data['floating_profit_ratio'])
+                # 浮盈比例可以为负数（亏损）
+                data['floating_profit_ratio'] = floating_profit_ratio
+            except (ValueError, TypeError):
+                raise ValidationError("浮盈比例必须是数字", "floating_profit_ratio")
     
     def _calculate_total_score(self):
         """自动计算总分"""
@@ -97,6 +135,63 @@ class ReviewRecord(BaseModel):
             if hasattr(self, field) and field.endswith('_score'):
                 setattr(self, field, value)
         self._calculate_total_score()
+    
+    def calculate_floating_profit(self, current_price):
+        """计算浮盈比例"""
+        if not self.buy_price or not current_price:
+            return None
+        
+        try:
+            buy_price_float = float(self.buy_price)
+            current_price_float = float(current_price)
+            
+            if buy_price_float <= 0:
+                return None
+            
+            profit_ratio = (current_price_float - buy_price_float) / buy_price_float
+            self.current_price = current_price_float
+            self.floating_profit_ratio = profit_ratio
+            return profit_ratio
+        except (ValueError, TypeError, ZeroDivisionError):
+            return None
+    
+    def update_floating_profit(self, current_price, buy_price=None):
+        """更新浮盈相关数据"""
+        if buy_price is not None:
+            self.buy_price = buy_price
+        
+        return self.calculate_floating_profit(current_price)
+    
+    def get_floating_profit_display(self):
+        """获取格式化的浮盈显示"""
+        if self.floating_profit_ratio is None:
+            return {
+                'ratio': None,
+                'display': '无法计算',
+                'color': 'text-muted'
+            }
+        
+        ratio = float(self.floating_profit_ratio)
+        percentage = ratio * 100
+        
+        if ratio > 0:
+            return {
+                'ratio': ratio,
+                'display': f'+{percentage:.2f}%',
+                'color': 'text-success'
+            }
+        elif ratio < 0:
+            return {
+                'ratio': ratio,
+                'display': f'{percentage:.2f}%',
+                'color': 'text-danger'
+            }
+        else:
+            return {
+                'ratio': ratio,
+                'display': '0.00%',
+                'color': 'text-muted'
+            }
     
     @classmethod
     def get_by_stock_code(cls, stock_code):
@@ -116,6 +211,21 @@ class ReviewRecord(BaseModel):
         """获取某股票最新的复盘记录"""
         return cls.query.filter_by(stock_code=stock_code).order_by(cls.review_date.desc()).first()
     
+    @classmethod
+    def get_buy_price_from_trades(cls, stock_code):
+        """从交易记录中获取买入价格"""
+        from models.trade_record import TradeRecord
+        
+        # 获取该股票的最新买入记录
+        buy_record = TradeRecord.query.filter_by(
+            stock_code=stock_code,
+            trade_type='buy'
+        ).order_by(TradeRecord.trade_date.desc()).first()
+        
+        if buy_record:
+            return float(buy_record.price)
+        return None
+    
     def to_dict(self):
         """转换为字典，包含特殊字段处理"""
         result = super().to_dict()
@@ -123,6 +233,15 @@ class ReviewRecord(BaseModel):
         if result.get('review_date') is not None:
             if hasattr(self.review_date, 'isoformat'):
                 result['review_date'] = self.review_date.isoformat()
+        
+        # 转换Decimal类型为float
+        for field in ['current_price', 'floating_profit_ratio', 'buy_price']:
+            if result.get(field) is not None:
+                result[field] = float(result[field])
+        
+        # 添加格式化的浮盈显示
+        result['floating_profit_display'] = self.get_floating_profit_display()
+        
         return result
     
     def __repr__(self):

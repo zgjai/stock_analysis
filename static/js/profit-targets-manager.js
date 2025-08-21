@@ -162,28 +162,31 @@ class ProfitTargetsManager {
         return `
             <div class="target-row mb-3 p-3 border rounded" data-target-id="${target.id}">
                 <div class="row align-items-center">
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label class="form-label small">止盈比例 <span class="text-danger">*</span></label>
                         <div class="input-group input-group-sm">
                             <input type="number" 
                                    class="form-control target-input profit-ratio-input" 
+                                   name="profit_ratio_${target.id}"
                                    data-target-id="${target.id}"
                                    data-field="profitRatio"
                                    value="${target.profitRatio}" 
                                    step="0.01" 
                                    min="0.01" 
                                    max="1000"
-                                   placeholder="20.00">
+                                   placeholder="20.00"
+                                   style="min-width: 120px;">
                             <span class="input-group-text">%</span>
                         </div>
                     </div>
                     
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label small">止盈价格</label>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text">¥</span>
                             <input type="number" 
                                    class="form-control target-input target-price-input" 
+                                   name="target_price_${target.id}"
                                    data-target-id="${target.id}"
                                    data-field="targetPrice"
                                    value="${target.targetPrice}" 
@@ -199,13 +202,15 @@ class ProfitTargetsManager {
                         <div class="input-group input-group-sm">
                             <input type="number" 
                                    class="form-control target-input sell-ratio-input" 
+                                   name="sell_ratio_${target.id}"
                                    data-target-id="${target.id}"
                                    data-field="sellRatio"
                                    value="${target.sellRatio}" 
                                    step="0.01" 
                                    min="0.01" 
                                    max="100" 
-                                   placeholder="30.00">
+                                   placeholder="30.00"
+                                   style="min-width: 120px;">
                             <span class="input-group-text">%</span>
                         </div>
                     </div>
@@ -554,13 +559,26 @@ class ProfitTargetsManager {
 
     // 公共方法
     getTargets() {
-        return this.targets.map(target => ({
-            targetPrice: parseFloat(target.targetPrice) || 0,
-            profitRatio: parseFloat(target.profitRatio) || 0,
-            sellRatio: parseFloat(target.sellRatio) || 0,
-            expectedProfitRatio: target.expectedProfitRatio || 0,
-            sequenceOrder: target.sequenceOrder
-        }));
+        return this.targets.map(target => {
+            let sellRatio = parseFloat(target.sellRatio) || 0;
+            let profitRatio = parseFloat(target.profitRatio) || 0;
+            
+            // 如果是百分比格式（>1），转换为小数格式供后端使用
+            if (sellRatio > 1) {
+                sellRatio = sellRatio / 100;
+            }
+            if (profitRatio > 1) {
+                profitRatio = profitRatio / 100;
+            }
+            
+            return {
+                targetPrice: parseFloat(target.targetPrice) || 0,
+                profitRatio: profitRatio,
+                sellRatio: sellRatio,
+                expectedProfitRatio: target.expectedProfitRatio || 0,
+                sequenceOrder: target.sequenceOrder
+            };
+        });
     }
 
     setTargets(targets) {
@@ -569,11 +587,23 @@ class ProfitTargetsManager {
         
         if (targets && targets.length > 0) {
             targets.forEach((targetData, index) => {
+                // 处理从后端获取的数据格式转换
+                let sellRatio = targetData.sellRatio || targetData.sell_ratio || '';
+                let profitRatio = targetData.profitRatio || targetData.profit_ratio || '';
+                
+                // 如果是小数格式（从数据库获取），转换为百分比格式供前端使用
+                if (sellRatio && parseFloat(sellRatio) <= 1) {
+                    sellRatio = (parseFloat(sellRatio) * 100).toString();
+                }
+                if (profitRatio && parseFloat(profitRatio) <= 1) {
+                    profitRatio = (parseFloat(profitRatio) * 100).toString();
+                }
+                
                 const target = {
                     id: this.nextId++,
                     targetPrice: targetData.targetPrice || targetData.target_price || '',
-                    profitRatio: targetData.profitRatio || targetData.profit_ratio || '',
-                    sellRatio: targetData.sellRatio || targetData.sell_ratio || '',
+                    profitRatio: profitRatio,
+                    sellRatio: sellRatio,
                     expectedProfitRatio: targetData.expectedProfitRatio || targetData.expected_profit_ratio || 0,
                     sequenceOrder: targetData.sequenceOrder || targetData.sequence_order || (index + 1)
                 };
