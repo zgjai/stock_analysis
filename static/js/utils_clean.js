@@ -442,40 +442,6 @@
                     }
                 }, duration);
             }
-        },
-
-        // Toast消息显示（别名方法，兼容现有代码）
-        showToast: (message, type = 'info', duration = 3000) => {
-            return UXUtils.showMessage(message, type, duration);
-        },
-
-        // 滚动到元素
-        scrollToElement: (element, offset = 0) => {
-            if (!element) return;
-            
-            const elementPosition = element.offsetTop;
-            const offsetPosition = elementPosition - offset;
-            
-            window.scrollTo({
-                top: offsetPosition,
-                behavior: 'smooth'
-            });
-        },
-
-        // 显示确认对话框
-        showConfirm: (message, title = '确认', options = {}) => {
-            return new Promise((resolve) => {
-                const confirmed = confirm(`${title}\n\n${message}`);
-                resolve(confirmed);
-            });
-        },
-
-        // 显示输入对话框
-        showPrompt: (message, title = '输入', defaultValue = '', options = {}) => {
-            return new Promise((resolve) => {
-                const result = prompt(`${title}\n\n${message}`, defaultValue);
-                resolve(result);
-            });
         }
     };
 

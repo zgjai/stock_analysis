@@ -1456,10 +1456,11 @@
                     delete formData.stop_loss_price;
                 }
 
-                // 处理分批止盈数据
-                formData.use_batch_profit_taking = this.useBatchProfitTaking;
+                // 处理分批止盈数据 - 只有买入交易才能设置止盈
+                const isBuyTrade = formData.trade_type === 'buy';
+                formData.use_batch_profit_taking = isBuyTrade && this.useBatchProfitTaking;
 
-                if (this.useBatchProfitTaking && this.profitTargetsManager) {
+                if (isBuyTrade && this.useBatchProfitTaking && this.profitTargetsManager) {
                     // 验证分批止盈数据
                     if (!this.profitTargetsManager.isValidTargets()) {
                         const errors = this.profitTargetsManager.getValidationErrors();
@@ -1482,8 +1483,8 @@
                     // 清空单一止盈字段
                     delete formData.take_profit_ratio;
                     delete formData.sell_ratio;
-                } else {
-                    // 处理单一止盈数据
+                } else if (isBuyTrade) {
+                    // 处理单一止盈数据 - 只有买入交易才处理止盈
                     if (formData.take_profit_ratio) {
                         formData.take_profit_ratio = parseFloat(formData.take_profit_ratio) / 100;
                     }
@@ -1493,6 +1494,13 @@
 
                     // 清空分批止盈字段
                     delete formData.profit_targets;
+                } else {
+                    // 卖出交易 - 清空所有止盈相关字段
+                    delete formData.use_batch_profit_taking;
+                    delete formData.profit_targets;
+                    delete formData.take_profit_ratio;
+                    delete formData.sell_ratio;
+                    delete formData.stop_loss_price;
                 }
 
                 let response;
