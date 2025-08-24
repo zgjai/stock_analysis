@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调试监控系统集成测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        .test-result.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .test-result.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .test-result.warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .console-output {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .btn-test {
+            margin: 5px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-indicator.success { background-color: #28a745; }
+        .status-indicator.error { background-color: #dc3545; }
+        .status-indicator.warning { background-color: #ffc107; }
+        .status-indicator.info { background-color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="text-center mb-4">
+                    <i class="fas fa-bug"></i> 调试监控系统集成测试
+                </h1>
+                <p class="text-center text-muted">测试任务10：添加错误监控和调试支持</p>
+            </div>
+        </div>
+
+        <!-- 系统状态概览 -->
+        <div class="test-section">
+            <h3><i class="fas fa-tachometer-alt"></i> 系统状态概览</h3>
+            <div id="system-status" class="row">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">调试系统</h5>
+                            <p class="card-text" id="debug-system-status">
+                                <span class="status-indicator info"></span>检查中...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">依赖状态</h5>
+                            <p class="card-text" id="dependencies-status">
+                                <span class="status-indicator info"></span>检查中...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">错误计数</h5>
+                            <p class="card-text" id="error-count">
+                                <span class="status-indicator success"></span>0
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">性能状态</h5>
+                            <p class="card-text" id="performance-status">
+                                <span class="status-indicator info"></span>监控中...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 测试控制面板 -->
+        <div class="test-section">
+            <h3><i class="fas fa-play-circle"></i> 测试控制面板</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>基础功能测试</h5>
+                    <button class="btn btn-primary btn-test" onclick="testDebugSystemInitialization()">
+                        <i class="fas fa-cog"></i> 测试调试系统初始化
+                    </button>
+                    <button class="btn btn-info btn-test" onclick="testDependencyCheck()">
+                        <i class="fas fa-check-circle"></i> 测试依赖检查
+                    </button>
+                    <button class="btn btn-success btn-test" onclick="testFunctionalTests()">
+                        <i class="fas fa-flask"></i> 运行功能测试
+                    </button>
+                    <button class="btn btn-warning btn-test" onclick="testErrorHandling()">
+                        <i class="fas fa-exclamation-triangle"></i> 测试错误处理
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <h5>高级功能测试</h5>
+                    <button class="btn btn-secondary btn-test" onclick="testPerformanceMonitoring()">
+                        <i class="fas fa-chart-line"></i> 测试性能监控
+                    </button>
+                    <button class="btn btn-dark btn-test" onclick="testLogExport()">
+                        <i class="fas fa-download"></i> 测试日志导出
+                    </button>
+                    <button class="btn btn-outline-primary btn-test" onclick="testHealthCheck()">
+                        <i class="fas fa-heartbeat"></i> 执行健康检查
+                    </button>
+                    <button class="btn btn-outline-danger btn-test" onclick="simulateError()">
+                        <i class="fas fa-bomb"></i> 模拟错误
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 测试结果显示 -->
+        <div class="test-section">
+            <h3><i class="fas fa-clipboard-list"></i> 测试结果</h3>
+            <div id="test-results"></div>
+        </div>
+
+        <!-- 控制台输出 -->
+        <div class="test-section">
+            <h3><i class="fas fa-terminal"></i> 控制台输出</h3>
+            <div class="console-output" id="console-output"></div>
+            <div class="mt-2">
+                <button class="btn btn-sm btn-outline-secondary" onclick="clearConsoleOutput()">
+                    <i class="fas fa-trash"></i> 清空输出
+                </button>
+                <button class="btn btn-sm btn-outline-primary" onclick="exportConsoleOutput()">
+                    <i class="fas fa-download"></i> 导出日志
+                </button>
+            </div>
+        </div>
+
+        <!-- 调试工具面板 -->
+        <div class="test-section">
+            <h3><i class="fas fa-tools"></i> 调试工具面板</h3>
+            <div class="row">
+                <div class="col-md-4">
+                    <h5>系统诊断</h5>
+                    <button class="btn btn-outline-info btn-sm w-100 mb-2" onclick="showSystemStatus()">
+                        系统状态报告
+                    </button>
+                    <button class="btn btn-outline-success btn-sm w-100 mb-2" onclick="showDependencyReport()">
+                        依赖状态报告
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm w-100 mb-2" onclick="showErrorReport()">
+                        错误报告
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <h5>性能分析</h5>
+                    <button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="showPerformanceReport()">
+                        性能报告
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm w-100 mb-2" onclick="measurePageMetrics()">
+                        页面性能指标
+                    </button>
+                    <button class="btn btn-outline-dark btn-sm w-100 mb-2" onclick="optimizePerformance()">
+                        执行性能优化
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <h5>维护工具</h5>
+                    <button class="btn btn-outline-danger btn-sm w-100 mb-2" onclick="clearDebugCache()">
+                        清理调试缓存
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm w-100 mb-2" onclick="resetDebugState()">
+                        重置调试状态
+                    </button>
+                    <button class="btn btn-outline-info btn-sm w-100 mb-2" onclick="exportAllLogs()">
+                        导出所有日志
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载必要的脚本 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 模拟依赖脚本 -->
+    <script>
+        // 模拟统一消息系统
+        function showErrorMessage(message, options = {}) {
+            console.error('🚨 错误:', message);
+            addToConsole('ERROR', message);
+            updateErrorCount();
+        }
+        
+        function showSuccessMessage(message, options = {}) {
+            console.log('✅ 成功:', message);
+            addToConsole('SUCCESS', message);
+        }
+        
+        function showWarningMessage(message, options = {}) {
+            console.warn('⚠️ 警告:', message);
+            addToConsole('WARNING', message);
+        }
+        
+        function showInfoMessage(message, options = {}) {
+            console.info('ℹ️ 信息:', message);
+            addToConsole('INFO', message);
+        }
+        
+        // 模拟API客户端
+        class ApiClient {
+            constructor() {
+                this.baseURL = '/api';
+            }
+            
+            async get(url) {
+                return { data: 'mock data' };
+            }
+            
+            async post(url, data) {
+                return { success: true };
+            }
+            
+            async put(url, data) {
+                return { success: true };
+            }
+            
+            async delete(url) {
+                return { success: true };
+            }
+        }
+        
+        // 模拟保存管理器
+        class ReviewSaveManager {
+            constructor(formSelector) {
+                this.formSelector = formSelector;
+                this.hasUnsavedChanges = () => false;
+            }
+            
+            saveReview() {
+                console.log('📝 模拟保存复盘');
+                return Promise.resolve({ success: true });
+            }
+        }
+        
+        // 模拟工具函数
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        function throttle(func, limit) {
+            let inThrottle;
+            return function() {
+                const args = arguments;
+                const context = this;
+                if (!inThrottle) {
+                    func.apply(context, args);
+                    inThrottle = true;
+                    setTimeout(() => inThrottle = false, limit);
+                }
+            }
+        }
+    </script>
+    
+    <!-- 加载调试监控系统 -->
+    <script src="static/js/debug-monitoring.js"></script>
+    
+    <script>
+        // 测试状态
+        let testResults = [];
+        let errorCount = 0;
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 调试监控系统测试页面初始化');
+            
+            // 等待调试系统初始化
+            setTimeout(() => {
+                updateSystemStatus();
+                runInitialTests();
+            }, 1000);
+        });
+        
+        // 更新系统状态显示
+        function updateSystemStatus() {
+            // 检查调试系统状态
+            const debugSystemStatus = document.getElementById('debug-system-status');
+            if (typeof debugMonitor !== 'undefined' && debugMonitor) {
+                debugSystemStatus.innerHTML = '<span class="status-indicator success"></span>已初始化';
+            } else {
+                debugSystemStatus.innerHTML = '<span class="status-indicator error"></span>未初始化';
+            }
+            
+            // 检查依赖状态
+            const dependenciesStatus = document.getElementById('dependencies-status');
+            if (typeof debugTools !== 'undefined') {
+                const deps = debugTools.checkDependencies();
+                const missing = deps.summary.missing;
+                if (missing === 0) {
+                    dependenciesStatus.innerHTML = '<span class="status-indicator success"></span>完整';
+                } else {
+                    dependenciesStatus.innerHTML = `<span class="status-indicator warning"></span>缺失${missing}个`;
+                }
+            } else {
+                dependenciesStatus.innerHTML = '<span class="status-indicator error"></span>无法检查';
+            }
+            
+            // 更新错误计数
+            updateErrorCount();
+            
+            // 检查性能状态
+            const performanceStatus = document.getElementById('performance-status');
+            if ('performance' in window) {
+                const loadTime = performance.now();
+                if (loadTime < 1000) {
+                    performanceStatus.innerHTML = '<span class="status-indicator success"></span>良好';
+                } else if (loadTime < 3000) {
+                    performanceStatus.innerHTML = '<span class="status-indicator warning"></span>一般';
+                } else {
+                    performanceStatus.innerHTML = '<span class="status-indicator error"></span>较慢';
+                }
+            } else {
+                performanceStatus.innerHTML = '<span class="status-indicator info"></span>不支持';
+            }
+        }
+        
+        // 更新错误计数
+        function updateErrorCount() {
+            const errorCountElement = document.getElementById('error-count');
+            if (typeof debugMonitor !== 'undefined' && debugMonitor) {
+                const count = debugMonitor.state.errorCount;
+                const indicator = count === 0 ? 'success' : (count < 5 ? 'warning' : 'error');
+                errorCountElement.innerHTML = `<span class="status-indicator ${indicator}"></span>${count}`;
+            } else {
+                errorCountElement.innerHTML = `<span class="status-indicator info"></span>${errorCount}`;
+            }
+        }
+        
+        // 运行初始测试
+        function runInitialTests() {
+            console.log('🧪 运行初始测试套件');
+            
+            addTestResult('初始化测试', '开始运行初始测试套件', 'info');
+            
+            // 测试调试系统是否正确初始化
+            testDebugSystemInitialization();
+            
+            // 测试依赖检查
+            setTimeout(() => testDependencyCheck(), 500);
+            
+            // 测试功能测试
+            setTimeout(() => testFunctionalTests(), 1000);
+        }
+        
+        // 测试调试系统初始化
+        function testDebugSystemInitialization() {
+            console.log('🔧 测试调试系统初始化');
+            
+            try {
+                const tests = [
+                    {
+                        name: 'DebugMonitoringSystem类存在',
+                        test: () => typeof DebugMonitoringSystem !== 'undefined'
+                    },
+                    {
+                        name: '调试监控实例存在',
+                        test: () => typeof debugMonitor !== 'undefined' && debugMonitor !== null
+                    },
+                    {
+                        name: '调试工具可用',
+                        test: () => typeof debugTools !== 'undefined'
+                    },
+                    {
+                        name: '日志记录函数可用',
+                        test: () => typeof logInitializationProgress === 'function'
+                    },
+                    {
+                        name: '全局错误处理已设置',
+                        test: () => debugMonitor && debugMonitor.state.initialized
+                    }
+                ];
+                
+                let passed = 0;
+                const results = tests.map(test => {
+                    const result = test.test();
+                    if (result) passed++;
+                    return { name: test.name, passed: result };
+                });
+                
+                const success = passed === tests.length;
+                addTestResult(
+                    '调试系统初始化测试',
+                    `${passed}/${tests.length} 项测试通过`,
+                    success ? 'success' : 'error'
+                );
+                
+                // 显示详细结果
+                results.forEach(result => {
+                    addToConsole(
+                        result.passed ? 'SUCCESS' : 'ERROR',
+                        `${result.name}: ${result.passed ? '通过' : '失败'}`
+                    );
+                });
+                
+            } catch (error) {
+                addTestResult('调试系统初始化测试', '测试执行异常: ' + error.message, 'error');
+                console.error('调试系统初始化测试异常:', error);
+            }
+        }
+        
+        // 测试依赖检查
+        function testDependencyCheck() {
+            console.log('🔍 测试依赖检查功能');
+            
+            try {
+                if (typeof debugTools === 'undefined') {
+                    addTestResult('依赖检查测试', '调试工具不可用', 'error');
+                    return;
+                }
+                
+                const deps = debugTools.checkDependencies();
+                const summary = deps.summary;
+                
+                addTestResult(
+                    '依赖检查测试',
+                    `总计: ${summary.total}, 可用: ${summary.available}, 缺失: ${summary.missing}`,
+                    summary.missing === 0 ? 'success' : 'warning'
+                );
+                
+                // 显示分类统计
+                Object.entries(summary.byCategory).forEach(([category, stats]) => {
+                    addToConsole(
+                        'INFO',
+                        `${category}类别: ${stats.available}/${stats.total} 可用`
+                    );
+                });
+                
+            } catch (error) {
+                addTestResult('依赖检查测试', '测试执行异常: ' + error.message, 'error');
+                console.error('依赖检查测试异常:', error);
+            }
+        }
+        
+        // 测试功能测试
+        function testFunctionalTests() {
+            console.log('🧪 测试功能测试套件');
+            
+            try {
+                if (typeof debugTools === 'undefined') {
+                    addTestResult('功能测试', '调试工具不可用', 'error');
+                    return;
+                }
+                
+                const testResults = debugTools.runFunctionalTests();
+                const summary = testResults.summary;
+                
+                addTestResult(
+                    '功能测试',
+                    `通过率: ${summary.passRate} (${summary.passed}/${summary.total})`,
+                    summary.failed === 0 ? 'success' : 'warning'
+                );
+                
+                // 显示详细结果
+                testResults.results.forEach(result => {
+                    addToConsole(
+                        result.passed ? 'SUCCESS' : 'ERROR',
+                        `${result.name}: ${result.passed ? '通过' : '失败'} - ${result.message}`
+                    );
+                });
+                
+            } catch (error) {
+                addTestResult('功能测试', '测试执行异常: ' + error.message, 'error');
+                console.error('功能测试异常:', error);
+            }
+        }
+        
+        // 测试错误处理
+        function testErrorHandling() {
+            console.log('⚠️ 测试错误处理机制');
+            
+            try {
+                // 模拟JavaScript错误
+                setTimeout(() => {
+                    throw new Error('这是一个测试错误');
+                }, 100);
+                
+                // 模拟Promise拒绝
+                setTimeout(() => {
+                    Promise.reject(new Error('这是一个测试Promise拒绝'));
+                }, 200);
+                
+                addTestResult('错误处理测试', '已触发测试错误，检查控制台输出', 'info');
+                
+            } catch (error) {
+                addTestResult('错误处理测试', '测试执行异常: ' + error.message, 'error');
+            }
+        }
+        
+        // 测试性能监控
+        function testPerformanceMonitoring() {
+            console.log('⚡ 测试性能监控功能');
+            
+            try {
+                if (typeof debugTools === 'undefined') {
+                    addTestResult('性能监控测试', '调试工具不可用', 'error');
+                    return;
+                }
+                
+                const report = debugTools.performanceReport();
+                
+                addTestResult(
+                    '性能监控测试',
+                    '性能报告已生成，检查控制台输出',
+                    'success'
+                );
+                
+                addToConsole('INFO', '性能监控测试完成，报告已生成');
+                
+            } catch (error) {
+                addTestResult('性能监控测试', '测试执行异常: ' + error.message, 'error');
+                console.error('性能监控测试异常:', error);
+            }
+        }
+        
+        // 测试日志导出
+        function testLogExport() {
+            console.log('📁 测试日志导出功能');
+            
+            try {
+                if (typeof debugTools === 'undefined') {
+                    addTestResult('日志导出测试', '调试工具不可用', 'error');
+                    return;
+                }
+                
+                const exportData = debugTools.exportLogs();
+                
+                addTestResult(
+                    '日志导出测试',
+                    '日志导出功能正常，文件已下载',
+                    'success'
+                );
+                
+                addToConsole('SUCCESS', '日志导出测试完成');
+                
+            } catch (error) {
+                addTestResult('日志导出测试', '测试执行异常: ' + error.message, 'error');
+                console.error('日志导出测试异常:', error);
+            }
+        }
+        
+        // 执行健康检查
+        function testHealthCheck() {
+            console.log('🏥 执行健康检查');
+            
+            try {
+                if (typeof debugTools === 'undefined') {
+                    addTestResult('健康检查', '调试工具不可用', 'error');
+                    return;
+                }
+                
+                const healthResult = debugTools.healthCheck();
+                
+                addTestResult(
+                    '健康检查',
+                    `系统状态: ${healthResult.overall ? '健康' : '异常'}`,
+                    healthResult.overall ? 'success' : 'warning'
+                );
+                
+                healthResult.results.forEach(result => {
+                    addToConsole(
+                        result.passed ? 'SUCCESS' : 'WARNING',
+                        `${result.name}: ${result.passed ? '正常' : '异常'}`
+                    );
+                });
+                
+            } catch (error) {
+                addTestResult('健康检查', '检查执行异常: ' + error.message, 'error');
+                console.error('健康检查异常:', error);
+            }
+        }
+        
+        // 模拟错误
+        function simulateError() {
+            console.log('💥 模拟系统错误');
+            
+            // 模拟不同类型的错误
+            const errorTypes = [
+                () => { throw new Error('模拟JavaScript运行时错误'); },
+                () => { Promise.reject(new Error('模拟Promise拒绝错误')); },
+                () => { 
+                    const img = document.createElement('img');
+                    img.src = 'nonexistent-image.jpg';
+                    document.body.appendChild(img);
+                }
+            ];
+            
+            const randomError = errorTypes[Math.floor(Math.random() * errorTypes.length)];
+            
+            try {
+                randomError();
+                addTestResult('错误模拟', '已触发模拟错误', 'info');
+            } catch (error) {
+                addTestResult('错误模拟', '错误已触发: ' + error.message, 'warning');
+            }
+        }
+        
+        // 显示系统状态
+        function showSystemStatus() {
+            if (typeof debugTools !== 'undefined') {
+                const status = debugTools.getSystemStatus();
+                addToConsole('INFO', '系统状态报告已生成，检查控制台');
+            } else {
+                addToConsole('ERROR', '调试工具不可用');
+            }
+        }
+        
+        // 显示依赖报告
+        function showDependencyReport() {
+            if (typeof debugTools !== 'undefined') {
+                const deps = debugTools.checkDependencies();
+                addToConsole('INFO', '依赖状态报告已生成，检查控制台');
+            } else {
+                addToConsole('ERROR', '调试工具不可用');
+            }
+        }
+        
+        // 显示错误报告
+        function showErrorReport() {
+            if (typeof debugTools !== 'undefined') {
+                const report = debugTools.errorReport();
+                addToConsole('INFO', '错误报告已生成，检查控制台');
+            } else {
+                addToConsole('ERROR', '调试工具不可用');
+            }
+        }
+        
+        // 显示性能报告
+        function showPerformanceReport() {
+            if (typeof debugTools !== 'undefined') {
+                const report = debugTools.performanceReport();
+                addToConsole('INFO', '性能报告已生成，检查控制台');
+            } else {
+                addToConsole('ERROR', '调试工具不可用');
+            }
+        }
+        
+        // 测量页面性能指标
+        function measurePageMetrics() {
+            if ('performance' in window) {
+                const navigation = performance.getEntriesByType('navigation')[0];
+                const metrics = {
+                    'DNS查询': (navigation.domainLookupEnd - navigation.domainLookupStart).toFixed(2) + 'ms',
+                    'TCP连接': (navigation.connectEnd - navigation.connectStart).toFixed(2) + 'ms',
+                    '页面加载': (navigation.loadEventEnd - navigation.navigationStart).toFixed(2) + 'ms'
+                };
+                
+                Object.entries(metrics).forEach(([key, value]) => {
+                    addToConsole('INFO', `${key}: ${value}`);
+                });
+            } else {
+                addToConsole('WARNING', 'Performance API 不支持');
+            }
+        }
+        
+        // 优化性能
+        function optimizePerformance() {
+            if (typeof debugTools !== 'undefined') {
+                // 清理调试缓存
+                debugTools.clearCache();
+                addToConsole('SUCCESS', '性能优化完成');
+            } else {
+                addToConsole('ERROR', '调试工具不可用');
+            }
+        }
+        
+        // 清理调试缓存
+        function clearDebugCache() {
+            if (typeof debugTools !== 'undefined') {
+                debugTools.clearCache();
+                addToConsole('SUCCESS', '调试缓存已清理');
+            } else {
+                addToConsole('ERROR', '调试工具不可用');
+            }
+        }
+        
+        // 重置调试状态
+        function resetDebugState() {
+            if (typeof debugTools !== 'undefined') {
+                debugTools.reset();
+                addToConsole('SUCCESS', '调试状态已重置');
+                updateSystemStatus();
+            } else {
+                addToConsole('ERROR', '调试工具不可用');
+            }
+        }
+        
+        // 导出所有日志
+        function exportAllLogs() {
+            if (typeof debugTools !== 'undefined') {
+                debugTools.exportLogs();
+                addToConsole('SUCCESS', '所有日志已导出');
+            } else {
+                addToConsole('ERROR', '调试工具不可用');
+            }
+        }
+        
+        // 添加测试结果
+        function addTestResult(testName, message, type) {
+            const result = {
+                name: testName,
+                message: message,
+                type: type,
+                timestamp: new Date().toISOString()
+            };
+            
+            testResults.push(result);
+            
+            const resultsContainer = document.getElementById('test-results');
+            const resultElement = document.createElement('div');
+            resultElement.className = `test-result ${type}`;
+            resultElement.innerHTML = `
+                <strong>${testName}</strong>: ${message}
+                <small class="float-end">${new Date().toLocaleTimeString()}</small>
+            `;
+            
+            resultsContainer.appendChild(resultElement);
+            resultsContainer.scrollTop = resultsContainer.scrollHeight;
+        }
+        
+        // 添加到控制台输出
+        function addToConsole(level, message) {
+            const consoleOutput = document.getElementById('console-output');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${level}: ${message}\n`;
+            
+            consoleOutput.textContent += logEntry;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            
+            if (level === 'ERROR') {
+                errorCount++;
+                updateErrorCount();
+            }
+        }
+        
+        // 清空控制台输出
+        function clearConsoleOutput() {
+            document.getElementById('console-output').textContent = '';
+            addToConsole('INFO', '控制台输出已清空');
+        }
+        
+        // 导出控制台输出
+        function exportConsoleOutput() {
+            const output = document.getElementById('console-output').textContent;
+            const blob = new Blob([output], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `console-output-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+            link.click();
+            
+            addToConsole('SUCCESS', '控制台输出已导出');
+        }
+        
+        // 定期更新系统状态
+        setInterval(updateSystemStatus, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task 6 - 页面初始化流程控制测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>Task 6 - 页面初始化流程控制测试</h1>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results">
+                            <div class="text-center">
+                                <div class="spinner-border" role="status"></div>
+                                <p>正在测试初始化流程...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试控制</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-primary w-100 mb-2" onclick="runInitializationTest()">重新测试初始化</button>
+                        <button class="btn btn-info w-100 mb-2" onclick="showInitializationReport()">显示初始化报告</button>
+                        <button class="btn btn-warning w-100 mb-2" onclick="exportInitializationLogs()">导出日志</button>
+                        <button class="btn btn-secondary w-100" onclick="clearInitializationLogs()">清除日志</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模拟复盘模态框 -->
+    <div class="modal fade" id="reviewModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">测试模态框</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="review-form">
+                        <input type="hidden" id="review-stock-code">
+                        <input type="hidden" id="review-id">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">当前价格</label>
+                            <input type="number" class="form-control" id="current-price-input" step="0.01">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">成本价</label>
+                            <div class="form-control-plaintext" id="buy-price-display">10.50</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">浮盈比例</label>
+                            <div class="floating-profit-container">
+                                <div class="form-control-plaintext fw-bold" id="floating-profit-ratio">--</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="price-up-score" value="1">
+                                <label class="form-check-label" for="price-up-score">收盘价上升</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="bbi-score" value="1">
+                                <label class="form-check-label" for="bbi-score">不破BBI线</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="volume-score" value="1">
+                                <label class="form-check-label" for="volume-score">无放量阴线</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="trend-score" value="1">
+                                <label class="form-check-label" for="trend-score">趋势还在向上</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="j-score" value="1">
+                                <label class="form-check-label" for="j-score">J没死叉</label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>总分: <span id="total-score" class="text-primary">0</span>/5</strong>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="save-review-btn">保存复盘</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 模拟依赖文件 -->
+    <script>
+        // 模拟统一消息系统
+        class UnifiedMessageSystem {
+            static showMessage(message, type = 'info', options = {}) {
+                console.log(`[${type.toUpperCase()}] ${message}`);
+                
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+                alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                alertDiv.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                document.body.appendChild(alertDiv);
+                
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.parentNode.removeChild(alertDiv);
+                    }
+                }, options.duration || 3000);
+            }
+        }
+        
+        function showErrorMessage(message, options = {}) {
+            UnifiedMessageSystem.showMessage(message, 'error', options);
+        }
+        
+        function showSuccessMessage(message, options = {}) {
+            UnifiedMessageSystem.showMessage(message, 'success', options);
+        }
+        
+        function showWarningMessage(message, options = {}) {
+            UnifiedMessageSystem.showMessage(message, 'warning', options);
+        }
+        
+        function showInfoMessage(message, options = {}) {
+            UnifiedMessageSystem.showMessage(message, 'info', options);
+        }
+        
+        // 模拟API客户端
+        class ApiClient {
+            constructor() {
+                console.log('ApiClient 构造函数调用');
+            }
+            
+            async saveReview(data) {
+                console.log('ApiClient.saveReview 调用:', data);
+                return { success: true, data: { id: 1 } };
+            }
+        }
+        
+        // 模拟复盘保存管理器
+        class ReviewSaveManager {
+            constructor(formSelector) {
+                console.log('ReviewSaveManager 构造函数调用:', formSelector);
+                this.formSelector = formSelector;
+            }
+            
+            hasUnsavedChanges() {
+                return false;
+            }
+            
+            async saveReview() {
+                console.log('ReviewSaveManager.saveReview 调用');
+                return { success: true };
+            }
+        }
+    </script>
+    
+    <!-- 从review.html复制的初始化代码 -->
+    <script>
+        // 全局API客户端和保存管理器实例
+        let apiClient = null;
+        let reviewSaveManager = null;
+        let reviewModal = null;
+
+        // 依赖检查函数
+        function checkDependencies() {
+            console.log('🔍 检查JavaScript依赖...');
+            
+            const dependencies = [
+                { name: 'UnifiedMessageSystem', check: () => typeof UnifiedMessageSystem !== 'undefined' },
+                { name: 'ApiClient', check: () => typeof ApiClient !== 'undefined' },
+                { name: 'ReviewSaveManager', check: () => typeof ReviewSaveManager !== 'undefined' },
+                { name: 'Bootstrap', check: () => typeof bootstrap !== 'undefined' }
+            ];
+            
+            const missing = dependencies.filter(dep => !dep.check());
+            
+            if (missing.length > 0) {
+                const missingNames = missing.map(dep => dep.name).join(', ');
+                console.error('❌ 缺少依赖:', missingNames);
+                
+                if (typeof showErrorMessage === 'function') {
+                    showErrorMessage(`页面依赖加载失败: ${missingNames}。请刷新页面重试。`);
+                } else {
+                    alert(`页面依赖加载失败: ${missingNames}。请刷新页面重试。`);
+                }
+                return false;
+            }
+            
+            console.log('✅ 所有依赖检查通过');
+            return true;
+        }
+
+        // 初始化API客户端
+        function initializeApiClient() {
+            console.log('🔧 初始化API客户端...');
+            
+            try {
+                if (typeof ApiClient !== 'undefined') {
+                    apiClient = new ApiClient();
+                    console.log('✅ API客户端初始化成功');
+                    return true;
+                } else {
+                    console.error('❌ ApiClient类未找到');
+                    showErrorMessage('API客户端加载失败，请刷新页面重试');
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ API客户端初始化失败:', error);
+                showErrorMessage('API客户端初始化失败: ' + error.message);
+                return false;
+            }
+        }
+
+        // 初始化复盘保存管理器
+        function initializeReviewSaveManager() {
+            console.log('🔧 初始化复盘保存管理器...');
+            
+            try {
+                if (typeof ReviewSaveManager !== 'undefined') {
+                    reviewSaveManager = new ReviewSaveManager('#review-form');
+                    console.log('✅ 复盘保存管理器初始化成功');
+                    return true;
+                } else {
+                    console.error('❌ ReviewSaveManager类未找到');
+                    showErrorMessage('保存管理器加载失败，请刷新页面重试');
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ 复盘保存管理器初始化失败:', error);
+                showErrorMessage('保存管理器初始化失败: ' + error.message);
+                return false;
+            }
+        }
+
+        // 绑定复盘页面相关事件
+        function bindReviewEvents() {
+            console.log('🔗 绑定复盘页面事件');
+            
+            try {
+                bindScoreCheckboxes();
+                bindFloatingProfitCalculator();
+                bindModalEvents();
+                
+                console.log('✅ 复盘页面事件绑定成功');
+                return true;
+            } catch (error) {
+                console.error('❌ 复盘页面事件绑定失败:', error);
+                return false;
+            }
+        }
+
+        function bindScoreCheckboxes() {
+            console.log('🔗 绑定评分复选框事件');
+            
+            const checkboxes = ['price-up-score', 'bbi-score', 'volume-score', 'trend-score', 'j-score'];
+            let boundCount = 0;
+            
+            checkboxes.forEach(id => {
+                const checkbox = document.getElementById(id);
+                if (checkbox) {
+                    checkbox.addEventListener('change', calculateTotalScore);
+                    boundCount++;
+                } else {
+                    console.warn(`⚠️ 评分复选框 ${id} 未找到`);
+                }
+            });
+            
+            console.log(`✅ 评分复选框事件绑定完成: ${boundCount}/${checkboxes.length}`);
+            return boundCount > 0;
+        }
+
+        function bindFloatingProfitCalculator() {
+            console.log('🔗 绑定浮盈计算器事件');
+            
+            const currentPriceInput = document.getElementById('current-price-input');
+            if (currentPriceInput) {
+                currentPriceInput.addEventListener('input', calculateFloatingProfit);
+                console.log('✅ 浮盈计算器事件绑定成功');
+                return true;
+            } else {
+                console.warn('⚠️ 当前价格输入框未找到');
+                return false;
+            }
+        }
+
+        function bindModalEvents() {
+            console.log('🔗 绑定模态框事件');
+            
+            const modalElement = document.getElementById('reviewModal');
+            if (modalElement) {
+                modalElement.addEventListener('shown.bs.modal', function() {
+                    console.log('📋 复盘模态框已显示');
+                    const firstInput = modalElement.querySelector('input:not([readonly]):not([type="hidden"])');
+                    if (firstInput) {
+                        firstInput.focus();
+                    }
+                });
+                
+                modalElement.addEventListener('hide.bs.modal', function(event) {
+                    console.log('📋 复盘模态框准备隐藏');
+                    if (reviewSaveManager && reviewSaveManager.hasUnsavedChanges && reviewSaveManager.hasUnsavedChanges()) {
+                        if (!confirm('您有未保存的更改，确定要关闭吗？')) {
+                            event.preventDefault();
+                            return false;
+                        }
+                    }
+                });
+                
+                console.log('✅ 模态框事件绑定成功');
+                return true;
+            } else {
+                console.warn('⚠️ 复盘模态框元素未找到');
+                return false;
+            }
+        }
+
+        function calculateTotalScore() {
+            const checkboxes = ['price-up-score', 'bbi-score', 'volume-score', 'trend-score', 'j-score'];
+            let total = 0;
+            checkboxes.forEach(id => {
+                const checkbox = document.getElementById(id);
+                if (checkbox && checkbox.checked) {
+                    total += 1;
+                }
+            });
+            const totalScoreEl = document.getElementById('total-score');
+            if (totalScoreEl) {
+                totalScoreEl.textContent = total;
+            }
+        }
+
+        function calculateFloatingProfit() {
+            console.log('💰 计算浮盈比例');
+            
+            const currentPriceInput = document.getElementById('current-price-input');
+            const buyPriceDisplay = document.getElementById('buy-price-display');
+            const floatingProfitRatio = document.getElementById('floating-profit-ratio');
+            const floatingProfitContainer = document.querySelector('.floating-profit-container');
+            
+            if (!currentPriceInput || !buyPriceDisplay || !floatingProfitRatio) {
+                console.warn('⚠️ 浮盈计算所需元素未找到');
+                return;
+            }
+            
+            const currentPrice = parseFloat(currentPriceInput.value);
+            const buyPriceText = buyPriceDisplay.textContent.replace('¥', '').replace('--', '');
+            const buyPrice = parseFloat(buyPriceText);
+            
+            if (!currentPrice || !buyPrice || currentPrice <= 0 || buyPrice <= 0) {
+                floatingProfitRatio.textContent = '--';
+                if (floatingProfitContainer) {
+                    floatingProfitContainer.className = 'floating-profit-container neutral';
+                }
+                return;
+            }
+            
+            const profitRatio = ((currentPrice - buyPrice) / buyPrice * 100);
+            const profitRatioText = (profitRatio >= 0 ? '+' : '') + profitRatio.toFixed(2) + '%';
+            
+            floatingProfitRatio.textContent = profitRatioText;
+            
+            if (floatingProfitContainer) {
+                if (profitRatio > 0) {
+                    floatingProfitContainer.className = 'floating-profit-container profit';
+                } else if (profitRatio < 0) {
+                    floatingProfitContainer.className = 'floating-profit-container loss';
+                } else {
+                    floatingProfitContainer.className = 'floating-profit-container neutral';
+                }
+            }
+            
+            console.log(`💰 浮盈计算完成: ${profitRatioText}`);
+        }
+
+        // 模拟其他必要函数
+        function integrateReviewSaveStateManagement() {
+            console.log('🔧 集成保存状态管理');
+            return true;
+        }
+
+        function loadAllData() {
+            console.log('📊 加载所有数据');
+            return Promise.resolve(true);
+        }
+
+        // 添加初始化过程的详细日志记录功能
+        function logInitializationProgress(step, status, details = {}) {
+            const timestamp = new Date().toISOString();
+            const logEntry = {
+                timestamp,
+                step,
+                status,
+                ...details
+            };
+            
+            const logs = JSON.parse(sessionStorage.getItem('reviewPageInitLogs') || '[]');
+            logs.push(logEntry);
+            sessionStorage.setItem('reviewPageInitLogs', JSON.stringify(logs));
+            
+            const emoji = status === 'success' ? '✅' : status === 'error' ? '❌' : status === 'warning' ? '⚠️' : 'ℹ️';
+            console.log(`${emoji} [${timestamp}] ${step}:`, details);
+        }
+
+        function getInitializationLogs() {
+            return JSON.parse(sessionStorage.getItem('reviewPageInitLogs') || '[]');
+        }
+
+        function clearInitializationLogs() {
+            sessionStorage.removeItem('reviewPageInitLogs');
+            console.log('🧹 初始化日志已清除');
+        }
+
+        function exportInitializationLogs() {
+            const logs = getInitializationLogs();
+            const logText = logs.map(log => 
+                `[${log.timestamp}] ${log.step}: ${log.status} ${JSON.stringify(log, null, 2)}`
+            ).join('\n');
+            
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `review-page-init-logs-${new Date().toISOString().slice(0, 19)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log('📄 初始化日志已导出');
+        }
+
+        function showInitializationReport() {
+            const logs = getInitializationLogs();
+            const report = {
+                totalSteps: logs.length,
+                successCount: logs.filter(log => log.status === 'success').length,
+                errorCount: logs.filter(log => log.status === 'error').length,
+                warningCount: logs.filter(log => log.status === 'warning').length,
+                lastInitTime: logs.length > 0 ? logs[logs.length - 1].timestamp : null
+            };
+            
+            console.group('📊 初始化状态报告');
+            console.table(report);
+            console.log('📋 详细日志:');
+            console.table(logs);
+            console.groupEnd();
+            
+            // 在页面上显示报告
+            const resultsDiv = document.getElementById('test-results');
+            if (resultsDiv) {
+                resultsDiv.innerHTML = `
+                    <h6>初始化状态报告</h6>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-primary">${report.totalSteps}</h5>
+                                    <p class="card-text">总步骤</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-success">${report.successCount}</h5>
+                                    <p class="card-text">成功</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-danger">${report.errorCount}</h5>
+                                    <p class="card-text">错误</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-warning">${report.warningCount}</h5>
+                                    <p class="card-text">警告</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <h6>详细日志</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>步骤</th>
+                                        <th>状态</th>
+                                        <th>详情</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${logs.map(log => `
+                                        <tr class="${log.status === 'success' ? 'table-success' : log.status === 'error' ? 'table-danger' : log.status === 'warning' ? 'table-warning' : ''}">
+                                            <td>${new Date(log.timestamp).toLocaleTimeString()}</td>
+                                            <td>${log.step}</td>
+                                            <td>${log.status}</td>
+                                            <td>${log.error || log.description || '--'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return report;
+        }
+
+        // 页面初始化主函数 - 实现分步初始化流程，包含错误处理和日志记录
+        async function initializeReviewPage() {
+            console.log('🚀 开始初始化复盘页面');
+            console.time('页面初始化耗时');
+            
+            const initSteps = [
+                { 
+                    name: '依赖检查', 
+                    fn: checkDependencies,
+                    critical: true,
+                    description: '检查JavaScript依赖是否正确加载'
+                },
+                { 
+                    name: 'API客户端初始化', 
+                    fn: initializeApiClient,
+                    critical: true,
+                    description: '初始化API客户端实例'
+                },
+                { 
+                    name: '保存管理器初始化', 
+                    fn: initializeReviewSaveManager,
+                    critical: true,
+                    description: '初始化复盘保存管理器实例'
+                },
+                { 
+                    name: '事件绑定', 
+                    fn: bindReviewEvents,
+                    critical: false,
+                    description: '绑定页面事件处理器'
+                },
+                { 
+                    name: '保存状态管理集成', 
+                    fn: integrateReviewSaveStateManagement,
+                    critical: false,
+                    description: '集成保存状态管理功能'
+                },
+                { 
+                    name: '数据加载', 
+                    fn: loadAllData,
+                    critical: false,
+                    description: '加载页面初始数据'
+                }
+            ];
+            
+            let successCount = 0;
+            let criticalFailure = false;
+            const results = [];
+            
+            for (let i = 0; i < initSteps.length; i++) {
+                const step = initSteps[i];
+                const stepStartTime = performance.now();
+                
+                console.group(`📋 步骤 ${i + 1}/${initSteps.length}: ${step.name}`);
+                console.log(`📝 描述: ${step.description}`);
+                console.log(`🔧 开始执行...`);
+                
+                logInitializationProgress(step.name, 'start', {
+                    stepIndex: i + 1,
+                    totalSteps: initSteps.length,
+                    description: step.description,
+                    critical: step.critical
+                });
+                
+                try {
+                    const result = await Promise.resolve(step.fn());
+                    const stepEndTime = performance.now();
+                    const stepDuration = (stepEndTime - stepStartTime).toFixed(2);
+                    
+                    if (result === false) {
+                        console.error(`❌ ${step.name}失败`);
+                        console.log(`⏱️ 耗时: ${stepDuration}ms`);
+                        
+                        logInitializationProgress(step.name, 'error', {
+                            error: '函数返回false',
+                            duration: stepDuration,
+                            critical: step.critical
+                        });
+                        
+                        results.push({
+                            step: step.name,
+                            success: false,
+                            error: '函数返回false',
+                            duration: stepDuration,
+                            critical: step.critical
+                        });
+                        
+                        if (step.critical) {
+                            console.error(`🚨 关键步骤失败，停止后续初始化`);
+                            logInitializationProgress('初始化流程', 'error', {
+                                reason: '关键步骤失败',
+                                failedStep: step.name
+                            });
+                            criticalFailure = true;
+                            console.groupEnd();
+                            break;
+                        }
+                    } else {
+                        console.log(`✅ ${step.name}成功`);
+                        console.log(`⏱️ 耗时: ${stepDuration}ms`);
+                        successCount++;
+                        
+                        logInitializationProgress(step.name, 'success', {
+                            duration: stepDuration,
+                            critical: step.critical
+                        });
+                        
+                        results.push({
+                            step: step.name,
+                            success: true,
+                            duration: stepDuration,
+                            critical: step.critical
+                        });
+                    }
+                } catch (error) {
+                    const stepEndTime = performance.now();
+                    const stepDuration = (stepEndTime - stepStartTime).toFixed(2);
+                    
+                    console.error(`❌ ${step.name}异常:`, error);
+                    console.log(`⏱️ 耗时: ${stepDuration}ms`);
+                    
+                    logInitializationProgress(step.name, 'error', {
+                        error: error.message || error.toString(),
+                        stack: error.stack,
+                        duration: stepDuration,
+                        critical: step.critical
+                    });
+                    
+                    results.push({
+                        step: step.name,
+                        success: false,
+                        error: error.message || error.toString(),
+                        duration: stepDuration,
+                        critical: step.critical
+                    });
+                    
+                    if (typeof showErrorMessage === 'function') {
+                        showErrorMessage(`${step.name}失败: ${error.message || '未知错误'}`);
+                    }
+                    
+                    if (step.critical) {
+                        console.error(`🚨 关键步骤异常，停止后续初始化`);
+                        logInitializationProgress('初始化流程', 'error', {
+                            reason: '关键步骤异常',
+                            failedStep: step.name,
+                            error: error.message
+                        });
+                        criticalFailure = true;
+                        console.groupEnd();
+                        break;
+                    }
+                }
+                
+                console.groupEnd();
+                
+                if (i < initSteps.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+            }
+            
+            console.timeEnd('页面初始化耗时');
+            
+            console.group('📊 初始化结果汇总');
+            console.table(results);
+            console.log(`✅ 成功步骤: ${successCount}/${initSteps.length}`);
+            console.log(`❌ 失败步骤: ${initSteps.length - successCount}/${initSteps.length}`);
+            console.log(`🚨 关键失败: ${criticalFailure ? '是' : '否'}`);
+            console.groupEnd();
+            
+            if (criticalFailure) {
+                console.error('🚨 复盘页面初始化失败，关键功能无法使用');
+                
+                logInitializationProgress('初始化完成', 'error', {
+                    successCount,
+                    totalSteps: initSteps.length,
+                    criticalFailure: true,
+                    results
+                });
+                
+                if (typeof showErrorMessage === 'function') {
+                    showErrorMessage('页面初始化失败，请刷新页面重试');
+                }
+                return false;
+            } else if (successCount === initSteps.length) {
+                console.log('🎉 复盘页面初始化完全成功');
+                
+                logInitializationProgress('初始化完成', 'success', {
+                    successCount,
+                    totalSteps: initSteps.length,
+                    criticalFailure: false,
+                    results
+                });
+                
+                if (typeof showSuccessMessage === 'function') {
+                    showSuccessMessage('复盘页面初始化成功');
+                }
+                
+                return true;
+            } else {
+                console.warn('⚠️ 复盘页面初始化部分成功，某些功能可能无法正常使用');
+                
+                logInitializationProgress('初始化完成', 'warning', {
+                    successCount,
+                    totalSteps: initSteps.length,
+                    criticalFailure: false,
+                    results
+                });
+                
+                if (typeof showWarningMessage === 'function') {
+                    showWarningMessage(`页面初始化部分成功 (${successCount}/${initSteps.length})，某些功能可能受限`);
+                }
+                return true;
+            }
+        }
+
+        // 初始化Bootstrap模态框
+        async function initializeBootstrapModal() {
+            console.log('🔧 初始化Bootstrap模态框');
+            
+            const modalElement = document.getElementById('reviewModal');
+            if (!modalElement) {
+                console.warn('⚠️ 复盘模态框元素未找到');
+                return false;
+            }
+            
+            try {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    reviewModal = new bootstrap.Modal(modalElement);
+                    console.log('✅ Bootstrap模态框初始化成功');
+                    return true;
+                } else {
+                    console.error('❌ Bootstrap Modal类未找到');
+                    if (typeof showWarningMessage === 'function') {
+                        showWarningMessage('Bootstrap Modal未加载，模态框功能可能无法正常使用');
+                    }
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ Bootstrap模态框初始化失败:', error);
+                if (typeof showErrorMessage === 'function') {
+                    showErrorMessage('模态框初始化失败: ' + error.message);
+                }
+                return false;
+            }
+        }
+
+        function performPostInitializationTasks() {
+            console.log('🎯 执行后续初始化任务');
+            
+            const tasks = [
+                {
+                    name: '设置自动刷新',
+                    fn: () => {
+                        console.log('⏰ 自动刷新设置完成');
+                        return true;
+                    }
+                },
+                {
+                    name: '注册全局错误处理',
+                    fn: () => {
+                        window.addEventListener('error', function(event) {
+                            console.error('🚨 全局JavaScript错误:', event.error);
+                        });
+                        window.addEventListener('unhandledrejection', function(event) {
+                            console.error('🚨 未处理的Promise拒绝:', event.reason);
+                        });
+                        console.log('🛡️ 全局错误处理注册完成');
+                        return true;
+                    }
+                },
+                {
+                    name: '性能监控',
+                    fn: () => {
+                        if ('performance' in window) {
+                            const loadTime = performance.now();
+                            console.log(`⚡ 页面加载性能: ${loadTime.toFixed(2)}ms`);
+                        }
+                        return true;
+                    }
+                }
+            ];
+            
+            tasks.forEach(task => {
+                try {
+                    task.fn();
+                    console.log(`✅ ${task.name}完成`);
+                } catch (error) {
+                    console.error(`❌ ${task.name}失败:`, error);
+                }
+            });
+            
+            console.log('🎉 后续初始化任务完成');
+        }
+
+        // 页面初始化 - 在DOMContentLoaded事件中调用初始化函数
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🌟 DOM加载完成，开始复盘页面初始化流程');
+            console.log('📅 初始化时间:', new Date().toLocaleString('zh-CN'));
+            console.log('🌐 用户代理:', navigator.userAgent);
+            
+            try {
+                const initSuccess = await initializeReviewPage();
+                await initializeBootstrapModal();
+                
+                console.log('🏁 复盘页面初始化流程完成');
+                console.log('📊 初始化结果:', initSuccess ? '成功' : '失败');
+                
+                if (initSuccess) {
+                    console.log('🎯 开始执行后续初始化操作');
+                    setTimeout(() => {
+                        performPostInitializationTasks();
+                    }, 100);
+                } else {
+                    console.error('🚨 初始化失败，页面功能可能受限');
+                }
+                
+                // 自动显示初始化报告
+                setTimeout(() => {
+                    showInitializationReport();
+                }, 500);
+                
+            } catch (error) {
+                console.error('🚨 页面初始化过程中发生未捕获的异常:', error);
+                if (typeof showErrorMessage === 'function') {
+                    showErrorMessage('页面初始化异常: ' + error.message);
+                } else {
+                    alert('页面初始化异常，请刷新页面重试');
+                }
+            }
+        });
+
+        // 测试函数
+        function runInitializationTest() {
+            console.log('🧪 重新运行初始化测试');
+            clearInitializationLogs();
+            location.reload();
+        }
+
+        // 暴露全局函数
+        window.runInitializationTest = runInitializationTest;
+        window.showInitializationReport = showInitializationReport;
+        window.exportInitializationLogs = exportInitializationLogs;
+        window.clearInitializationLogs = clearInitializationLogs;
+    </script>
+</body>
+</html>

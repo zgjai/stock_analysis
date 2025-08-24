@@ -7,6 +7,7 @@ from typing import List, Dict, Optional, Any
 from sqlalchemy import and_, or_, desc, asc
 from extensions import db
 from models.trade_record import TradeRecord, TradeCorrection
+from models.profit_taking_target import ProfitTakingTarget
 from models.configuration import Configuration
 from services.base_service import BaseService
 from services.profit_taking_service import ProfitTakingService
@@ -128,9 +129,14 @@ class TradingService(BaseService):
                 cls._validate_trade_reason(trade_type, data.get('reason'))
             
             # 过滤掉None值和空字符串，避免覆盖必填字段
+            # 但保留交易日期字段，即使它可能是空字符串
             filtered_data = {}
             for key, value in data.items():
-                if value is not None and value != '':
+                if key == 'trade_date':
+                    # 交易日期字段特殊处理，允许更新
+                    if value is not None:
+                        filtered_data[key] = value
+                elif value is not None and value != '':
                     filtered_data[key] = value
             
             # 处理分批止盈数据
@@ -258,13 +264,20 @@ class TradingService(BaseService):
             if corrections:
                 raise ValidationError("无法删除有订正记录关联的交易记录")
             
-            # 先删除相关的止盈目标（如果存在）
+            # 获取交易记录
             trade = cls.get_by_id(trade_id)
-            if trade.use_batch_profit_taking:
-                ProfitTakingService.delete_profit_targets(trade_id)
             
+            # 由于设置了cascade='all, delete-orphan'，删除TradeRecord时会自动删除相关的ProfitTakingTarget
+            # 但为了确保数据一致性，我们仍然手动删除止盈目标
+            if trade.use_batch_profit_taking:
+                # 直接删除相关的止盈目标记录
+                ProfitTakingTarget.query.filter_by(trade_record_id=trade_id).delete()
+                db.session.flush()  # 确保删除操作立即执行
+            
+            # 删除交易记录（BaseService.delete 方法会自动提交事务）
             return cls.delete(trade_id)
         except Exception as e:
+            db.session.rollback()
             if isinstance(e, (ValidationError, NotFoundError)):
                 raise e
             raise DatabaseError(f"删除交易记录失败: {str(e)}")

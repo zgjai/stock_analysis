@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复盘页面调试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>复盘页面调试工具</h2>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>系统状态检查</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="status-log" class="small" style="height: 400px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 4px;">
+                            <div class="text-muted">等待检查...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>操作面板</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button id="check-dependencies" class="btn btn-primary">检查依赖</button>
+                            <button id="test-calculator" class="btn btn-success">测试计算器</button>
+                            <button id="test-integration" class="btn btn-info">测试集成</button>
+                            <button id="force-cleanup" class="btn btn-warning">强制清理加载</button>
+                            <button id="clear-log" class="btn btn-secondary">清空日志</button>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">测试股票代码</label>
+                            <input type="text" id="test-stock-code" class="form-control" value="000001" placeholder="6位股票代码">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">测试买入价格</label>
+                            <input type="number" id="test-buy-price" class="form-control" value="10.50" step="0.01" min="0">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">测试当前价格</label>
+                            <input type="number" id="test-current-price" class="form-control" value="11.20" step="0.01" min="0">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/floating-profit-calculator.js"></script>
+    <script src="/static/js/review-integration.js"></script>
+    <script src="/static/js/loading-cleanup.js"></script>
+    
+    <script>
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('status-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                'info': 'text-info',
+                'success': 'text-success',
+                'error': 'text-danger',
+                'warning': 'text-warning'
+            };
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = colors[type] || 'text-muted';
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        document.getElementById('clear-log').addEventListener('click', () => {
+            document.getElementById('status-log').innerHTML = '<div class="text-muted">日志已清空</div>';
+        });
+        
+        document.getElementById('check-dependencies').addEventListener('click', () => {
+            log('开始检查依赖...', 'info');
+            
+            const dependencies = [
+                { name: 'debounce', obj: window.debounce },
+                { name: 'throttle', obj: window.throttle },
+                { name: 'FloatingProfitCalculator', obj: window.FloatingProfitCalculator },
+                { name: 'ReviewIntegrationManager', obj: window.ReviewIntegrationManager },
+                { name: 'PerformanceUtils', obj: window.PerformanceUtils }
+            ];
+            
+            dependencies.forEach(dep => {
+                if (typeof dep.obj !== 'undefined') {
+                    log(`✓ ${dep.name} 可用`, 'success');
+                } else {
+                    log(`❌ ${dep.name} 不可用`, 'error');
+                }
+            });
+            
+            log('依赖检查完成', 'info');
+        });
+        
+        document.getElementById('test-calculator').addEventListener('click', () => {
+            log('开始测试浮盈计算器...', 'info');
+            
+            try {
+                const stockCode = document.getElementById('test-stock-code').value;
+                const buyPrice = parseFloat(document.getElementById('test-buy-price').value);
+                const currentPrice = parseFloat(document.getElementById('test-current-price').value);
+                
+                const calculator = new FloatingProfitCalculator(stockCode, buyPrice);
+                log(`✓ 计算器创建成功 (${stockCode})`, 'success');
+                
+                calculator.setCurrentPrice(currentPrice);
+                log(`✓ 设置当前价格: ${currentPrice}`, 'success');
+                
+                const result = calculator.getCalculationResult();
+                if (result) {
+                    log(`✓ 计算结果: ${result.formatted_ratio}`, 'success');
+                    log(`  盈亏金额: ¥${result.floating_profit_amount?.toFixed(2) || 'N/A'}`, 'info');
+                } else {
+                    log('❌ 无法获取计算结果', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ 计算器测试失败: ${error.message}`, 'error');
+                console.error('计算器测试失败:', error);
+            }
+        });
+        
+        document.getElementById('test-integration').addEventListener('click', async () => {
+            log('开始测试集成管理器...', 'info');
+            
+            try {
+                if (typeof ReviewIntegrationManager === 'undefined') {
+                    throw new Error('ReviewIntegrationManager 不可用');
+                }
+                
+                const manager = new ReviewIntegrationManager();
+                log('✓ 集成管理器创建成功', 'success');
+                
+                await manager.init();
+                log('✓ 集成管理器初始化成功', 'success');
+                
+                const state = manager.getState();
+                log(`✓ 管理器状态: ${JSON.stringify(state, null, 2)}`, 'info');
+                
+            } catch (error) {
+                log(`❌ 集成管理器测试失败: ${error.message}`, 'error');
+                console.error('集成管理器测试失败:', error);
+            }
+        });
+        
+        document.getElementById('force-cleanup').addEventListener('click', () => {
+            log('执行强制清理...', 'warning');
+            
+            if (typeof forceCleanupLoadingStates === 'function') {
+                forceCleanupLoadingStates();
+                log('✓ 强制清理完成', 'success');
+            } else {
+                log('❌ 清理函数不可用', 'error');
+            }
+        });
+        
+        // 页面加载完成后自动检查依赖
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.getElementById('check-dependencies').click();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

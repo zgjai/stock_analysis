@@ -6,7 +6,6 @@ from typing import List, Dict, Optional, Any
 from sqlalchemy import func, and_, or_, desc, asc
 from extensions import db
 from services.base_service import BaseService
-from services.review_service import HoldingService
 from models.trading_strategy import TradingStrategy
 from models.stock_price import StockPrice
 from error_handlers import ValidationError, NotFoundError, DatabaseError
@@ -189,6 +188,9 @@ class StrategyEvaluator:
     def evaluate_all_holdings(cls) -> List[Dict[str, Any]]:
         """评估所有持仓的策略提醒"""
         try:
+            # 动态导入避免循环导入
+            from services.review_service import HoldingService
+            
             # 获取当前持仓
             holdings = HoldingService.get_current_holdings()
             
@@ -260,6 +262,9 @@ class StrategyEvaluator:
     def evaluate_single_holding(cls, stock_code: str) -> List[Dict[str, Any]]:
         """评估单个股票的持仓策略"""
         try:
+            # 动态导入避免循环导入
+            from services.review_service import HoldingService
+            
             # 获取持仓信息
             holding = HoldingService.get_holding_by_stock(stock_code)
             if not holding:

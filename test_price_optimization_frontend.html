@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>价格优化测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">
+                    <i class="fas fa-rocket text-primary"></i>
+                    价格服务优化测试
+                </h1>
+                
+                <!-- 测试控制面板 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-cogs"></i>
+                            测试控制面板
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button class="btn btn-primary me-2" onclick="testGetHoldings()">
+                                    <i class="fas fa-list"></i>
+                                    获取持仓列表
+                                </button>
+                                <button class="btn btn-success me-2" onclick="testBatchRefresh()">
+                                    <i class="fas fa-sync-alt"></i>
+                                    批量刷新价格
+                                </button>
+                                <button class="btn btn-info me-2" onclick="testCacheInfo()">
+                                    <i class="fas fa-database"></i>
+                                    查看缓存状态
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <button class="btn btn-warning me-2" onclick="testOptimizedFlow()">
+                                    <i class="fas fa-magic"></i>
+                                    完整优化流程
+                                </button>
+                                <button class="btn btn-secondary" onclick="clearResults()">
+                                    <i class="fas fa-trash"></i>
+                                    清空结果
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 结果显示区域 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line"></i>
+                            测试结果
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results">
+                            <div class="text-muted text-center py-4">
+                                <i class="fas fa-play-circle fa-2x mb-2"></i>
+                                <p>点击上方按钮开始测试</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_BASE = 'http://localhost:5001/api';
+        
+        function addResult(title, content, type = 'info') {
+            const resultsDiv = document.getElementById('test-results');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const alertClass = {
+                'success': 'alert-success',
+                'error': 'alert-danger',
+                'info': 'alert-info',
+                'warning': 'alert-warning'
+            }[type] || 'alert-info';
+            
+            const resultHtml = `
+                <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-clock"></i>
+                        ${timestamp} - ${title}
+                    </h6>
+                    <div>${content}</div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            if (resultsDiv.innerHTML.includes('点击上方按钮开始测试')) {
+                resultsDiv.innerHTML = resultHtml;
+            } else {
+                resultsDiv.insertAdjacentHTML('afterbegin', resultHtml);
+            }
+        }
+        
+        function formatTime(seconds) {
+            return seconds.toFixed(2) + 's';
+        }
+        
+        async function testGetHoldings() {
+            const startTime = performance.now();
+            
+            try {
+                addResult('获取持仓列表', '正在请求...', 'info');
+                
+                const response = await fetch(`${API_BASE}/holdings`);
+                const data = await response.json();
+                const endTime = performance.now();
+                const duration = (endTime - startTime) / 1000;
+                
+                if (data.success) {
+                    const holdings = data.data;
+                    const content = `
+                        <strong>✅ 获取成功</strong><br>
+                        📊 持仓数量: ${holdings.length} 只<br>
+                        ⏱️ 耗时: ${formatTime(duration)}<br>
+                        📋 股票代码: ${holdings.map(h => h.stock_code).join(', ')}
+                    `;
+                    addResult('获取持仓列表', content, 'success');
+                } else {
+                    addResult('获取持仓列表', `❌ 失败: ${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                const endTime = performance.now();
+                const duration = (endTime - startTime) / 1000;
+                addResult('获取持仓列表', `❌ 请求失败: ${error.message} (耗时: ${formatTime(duration)})`, 'error');
+            }
+        }
+        
+        async function testBatchRefresh() {
+            const startTime = performance.now();
+            
+            try {
+                addResult('批量刷新价格', '正在获取持仓列表...', 'info');
+                
+                // 先获取持仓列表
+                const holdingsResponse = await fetch(`${API_BASE}/holdings`);
+                const holdingsData = await holdingsResponse.json();
+                
+                if (!holdingsData.success || !holdingsData.data.length) {
+                    addResult('批量刷新价格', '❌ 没有持仓数据', 'error');
+                    return;
+                }
+                
+                const stockCodes = holdingsData.data.map(h => h.stock_code);
+                addResult('批量刷新价格', `正在刷新 ${stockCodes.length} 只股票价格...`, 'info');
+                
+                // 批量刷新价格
+                const refreshResponse = await fetch(`${API_BASE}/holdings/refresh-prices`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        stock_codes: stockCodes,
+                        force_refresh: true
+                    })
+                });
+                
+                const refreshData = await refreshResponse.json();
+                const endTime = performance.now();
+                const duration = (endTime - startTime) / 1000;
+                
+                if (refreshData.success) {
+                    const result = refreshData.data;
+                    const performance = result.performance || {};
+                    
+                    const content = `
+                        <strong>✅ 批量刷新成功</strong><br>
+                        📊 成功: ${result.success_count}/${stockCodes.length}<br>
+                        ❌ 失败: ${result.failed_count}<br>
+                        ⏱️ 总耗时: ${formatTime(duration)}<br>
+                        🔍 API时间: ${formatTime(performance.api_time || 0)}<br>
+                        🔍 处理时间: ${formatTime(performance.processing_time || 0)}<br>
+                        🚀 处理速度: ${(performance.stocks_per_second || 0).toFixed(1)} 股票/秒
+                    `;
+                    addResult('批量刷新价格', content, 'success');
+                    
+                    if (result.errors && result.errors.length > 0) {
+                        const errorContent = `
+                            <strong>⚠️ 部分失败</strong><br>
+                            ${result.errors.map(e => `${e.stock_code}: ${e.error}`).join('<br>')}
+                        `;
+                        addResult('刷新错误详情', errorContent, 'warning');
+                    }
+                } else {
+                    addResult('批量刷新价格', `❌ 失败: ${refreshData.message}`, 'error');
+                }
+                
+            } catch (error) {
+                const endTime = performance.now();
+                const duration = (endTime - startTime) / 1000;
+                addResult('批量刷新价格', `❌ 请求失败: ${error.message} (耗时: ${formatTime(duration)})`, 'error');
+            }
+        }
+        
+        async function testCacheInfo() {
+            const startTime = performance.now();
+            
+            try {
+                addResult('缓存状态查询', '正在查询...', 'info');
+                
+                const response = await fetch(`${API_BASE}/price-service/cache-info`);
+                const data = await response.json();
+                const endTime = performance.now();
+                const duration = (endTime - startTime) / 1000;
+                
+                if (data.success) {
+                    const cache = data.data;
+                    const content = `
+                        <strong>✅ 缓存信息获取成功</strong><br>
+                        🗄️ 是否有缓存: ${cache.has_cache ? '是' : '否'}<br>
+                        ⏰ 缓存时间: ${cache.cache_timestamp || '无'}<br>
+                        📅 缓存年龄: ${cache.cache_age_seconds ? formatTime(cache.cache_age_seconds) : '无'}<br>
+                        ✅ 缓存有效: ${cache.cache_valid ? '是' : '否'}<br>
+                        📊 缓存股票数: ${cache.cached_stocks_count}<br>
+                        ⏱️ 缓存时长: ${cache.cache_duration_minutes}分钟<br>
+                        🚀 查询耗时: ${formatTime(duration)}
+                    `;
+                    addResult('缓存状态查询', content, 'success');
+                } else {
+                    addResult('缓存状态查询', `❌ 失败: ${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                const endTime = performance.now();
+                const duration = (endTime - startTime) / 1000;
+                addResult('缓存状态查询', `❌ 请求失败: ${error.message} (耗时: ${formatTime(duration)})`, 'error');
+            }
+        }
+        
+        async function testOptimizedFlow() {
+            const startTime = performance.now();
+            
+            try {
+                addResult('完整优化流程', '🚀 开始完整测试流程...', 'info');
+                
+                // 1. 获取持仓
+                addResult('流程步骤 1/4', '获取持仓列表...', 'info');
+                await testGetHoldings();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // 2. 批量刷新
+                addResult('流程步骤 2/4', '批量刷新价格...', 'info');
+                await testBatchRefresh();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // 3. 查看缓存
+                addResult('流程步骤 3/4', '查看缓存状态...', 'info');
+                await testCacheInfo();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // 4. 再次获取（测试缓存效果）
+                addResult('流程步骤 4/4', '测试缓存效果...', 'info');
+                await testGetHoldings();
+                
+                const endTime = performance.now();
+                const duration = (endTime - startTime) / 1000;
+                
+                const content = `
+                    <strong>🎉 完整流程测试完成</strong><br>
+                    ⏱️ 总耗时: ${formatTime(duration)}<br>
+                    📈 优化效果: 后续请求明显加速<br>
+                    💡 缓存机制: 有效减少API调用
+                `;
+                addResult('完整优化流程', content, 'success');
+                
+            } catch (error) {
+                addResult('完整优化流程', `❌ 流程失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearResults() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = `
+                <div class="text-muted text-center py-4">
+                    <i class="fas fa-play-circle fa-2x mb-2"></i>
+                    <p>点击上方按钮开始测试</p>
+                </div>
+            `;
+        }
+        
+        // 页面加载完成后显示欢迎信息
+        document.addEventListener('DOMContentLoaded', function() {
+            addResult('系统就绪', '价格优化测试页面已加载，可以开始测试！', 'info');
+        });
+    </script>
+</body>
+</html>

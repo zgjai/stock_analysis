@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务9性能优化测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">任务9：性能优化测试</h1>
+        
+        <!-- 测试控制面板 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">性能优化测试控制面板</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>基础测试</h6>
+                        <button class="btn btn-primary btn-sm me-2 mb-2" onclick="testDebounce()">测试防抖机制</button>
+                        <button class="btn btn-primary btn-sm me-2 mb-2" onclick="testThrottle()">测试节流机制</button>
+                        <button class="btn btn-primary btn-sm me-2 mb-2" onclick="testSaveProgress()">测试保存进度</button>
+                        <button class="btn btn-primary btn-sm me-2 mb-2" onclick="testErrorHandling()">测试错误处理</button>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>性能监控</h6>
+                        <button class="btn btn-info btn-sm me-2 mb-2" onclick="showPerformanceReport()">性能报告</button>
+                        <button class="btn btn-info btn-sm me-2 mb-2" onclick="measurePagePerformance()">页面性能</button>
+                        <button class="btn btn-warning btn-sm me-2 mb-2" onclick="optimizePerformance()">执行优化</button>
+                        <button class="btn btn-success btn-sm me-2 mb-2" onclick="exportPerformanceData()">导出数据</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 测试结果显示区域 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">测试结果</h5>
+            </div>
+            <div class="card-body">
+                <div id="test-results">
+                    <p class="text-muted">点击上方按钮开始测试...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 模拟复盘表单 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">模拟复盘表单</h5>
+            </div>
+            <div class="card-body">
+                <form id="review-form">
+                    <input type="hidden" id="review-id">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">股票代码</label>
+                            <input type="text" class="form-control" id="review-stock-code" name="stock_code" placeholder="000001">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">复盘日期</label>
+                            <input type="date" class="form-control" id="review-date" name="review_date">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">持仓天数</label>
+                            <input type="number" class="form-control" id="holding-days" name="holding_days" min="1">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">当前价格</label>
+                            <input type="number" class="form-control" id="current-price-input" name="current_price" step="0.01">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">分析内容</label>
+                        <textarea class="form-control" id="analysis" name="analysis" rows="3" placeholder="输入分析内容..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">决策理由</label>
+                        <textarea class="form-control" id="reason" name="reason" rows="2" placeholder="输入决策理由..."></textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="save-status-indicator">
+                            <small class="text-muted">已保存</small>
+                        </div>
+                        <button type="button" class="btn btn-primary" id="save-review-btn" onclick="testSave()">保存复盘</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框用于测试 -->
+    <div class="modal fade" id="reviewModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">复盘评分</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 表单内容会被复制到这里 -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="modal-save-btn">保存复盘</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 加载项目脚本 -->
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/performance-optimizations.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/unified-message-system.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/review-save-manager.js') }}"></script>
+
+    <script>
+        // 全局变量
+        let reviewSaveManager = null;
+        let apiClient = null;
+        let testResults = [];
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 初始化性能优化测试页面');
+            
+            // 初始化API客户端
+            if (typeof ApiClient !== 'undefined') {
+                apiClient = new ApiClient();
+                console.log('✅ API客户端初始化成功');
+            }
+            
+            // 初始化保存管理器
+            if (typeof ReviewSaveManager !== 'undefined') {
+                reviewSaveManager = new ReviewSaveManager('#review-form');
+                console.log('✅ 保存管理器初始化成功');
+            }
+            
+            // 设置今天的日期
+            document.getElementById('review-date').value = new Date().toISOString().split('T')[0];
+            
+            console.log('🎉 测试页面初始化完成');
+        });
+
+        // 测试函数
+        function testDebounce() {
+            console.log('🧪 测试防抖机制');
+            addTestResult('防抖测试', '开始测试防抖机制...', 'info');
+            
+            let callCount = 0;
+            const debouncedFunction = debounce(() => {
+                callCount++;
+                console.log(`防抖函数被调用，第${callCount}次`);
+                addTestResult('防抖测试', `防抖函数执行完成，总调用次数: ${callCount}`, 'success');
+            }, 500);
+            
+            // 快速调用多次
+            for (let i = 0; i < 10; i++) {
+                setTimeout(() => {
+                    debouncedFunction();
+                    console.log(`第${i + 1}次调用防抖函数`);
+                }, i * 50);
+            }
+            
+            addTestResult('防抖测试', '已发起10次快速调用，预期只执行1次', 'warning');
+        }
+
+        function testThrottle() {
+            console.log('🧪 测试节流机制');
+            addTestResult('节流测试', '开始测试节流机制...', 'info');
+            
+            let callCount = 0;
+            const throttledFunction = throttle(() => {
+                callCount++;
+                console.log(`节流函数被调用，第${callCount}次`);
+                addTestResult('节流测试', `节流函数执行，第${callCount}次调用`, 'primary');
+            }, 200);
+            
+            // 快速调用多次
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    throttledFunction();
+                }, i * 50);
+            }
+            
+            addTestResult('节流测试', '已发起20次快速调用，预期执行约5-6次', 'warning');
+        }
+
+        function testSaveProgress() {
+            console.log('🧪 测试保存进度');
+            addTestResult('进度测试', '开始测试保存进度显示...', 'info');
+            
+            if (!reviewSaveManager) {
+                addTestResult('进度测试', '保存管理器未初始化', 'danger');
+                return;
+            }
+            
+            // 模拟保存进度
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 20;
+                reviewSaveManager.showSaveProgress(progress, `步骤${progress/20}: 处理中...`);
+                
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    addTestResult('进度测试', '保存进度测试完成', 'success');
+                    
+                    setTimeout(() => {
+                        reviewSaveManager.hideSaveProgress();
+                    }, 2000);
+                }
+            }, 500);
+        }
+
+        function testErrorHandling() {
+            console.log('🧪 测试错误处理');
+            addTestResult('错误处理测试', '开始测试错误处理机制...', 'info');
+            
+            if (!reviewSaveManager) {
+                addTestResult('错误处理测试', '保存管理器未初始化', 'danger');
+                return;
+            }
+            
+            // 测试不同类型的错误
+            const errorTypes = [
+                { message: 'Network error occurred', type: '网络错误' },
+                { message: 'Validation failed: required field missing', type: '验证错误' },
+                { message: 'Server internal error', type: '服务器错误' },
+                { message: 'Request timeout', type: '超时错误' }
+            ];
+            
+            errorTypes.forEach((error, index) => {
+                setTimeout(() => {
+                    const mockError = new Error(error.message);
+                    reviewSaveManager.handleSaveError(mockError);
+                    addTestResult('错误处理测试', `测试${error.type}: ${error.message}`, 'warning');
+                }, index * 2000);
+            });
+        }
+
+        function testSave() {
+            console.log('🧪 测试保存功能');
+            addTestResult('保存测试', '开始测试保存功能...', 'info');
+            
+            if (!reviewSaveManager) {
+                addTestResult('保存测试', '保存管理器未初始化', 'danger');
+                return;
+            }
+            
+            // 填充一些测试数据
+            document.getElementById('review-stock-code').value = '000001';
+            document.getElementById('holding-days').value = '5';
+            document.getElementById('current-price-input').value = '10.50';
+            document.getElementById('analysis').value = '测试分析内容';
+            document.getElementById('reason').value = '测试决策理由';
+            
+            // 触发变化检测
+            reviewSaveManager.detectChanges();
+            
+            // 模拟保存
+            setTimeout(() => {
+                reviewSaveManager.saveReview();
+                addTestResult('保存测试', '已触发保存操作', 'success');
+            }, 500);
+        }
+
+        function addTestResult(category, message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const result = {
+                timestamp,
+                category,
+                message,
+                type
+            };
+            
+            testResults.push(result);
+            
+            const resultsContainer = document.getElementById('test-results');
+            const alertClass = `alert-${type === 'primary' ? 'primary' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : type === 'danger' ? 'danger' : 'info'}`;
+            
+            const resultElement = document.createElement('div');
+            resultElement.className = `alert ${alertClass} alert-dismissible fade show`;
+            resultElement.innerHTML = `
+                <strong>[${timestamp}] ${category}:</strong> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            resultsContainer.appendChild(resultElement);
+            
+            // 自动滚动到底部
+            resultsContainer.scrollTop = resultsContainer.scrollHeight;
+        }
+
+        // 性能监控函数
+        function showPerformanceReport() {
+            if (reviewSaveManager && typeof reviewSaveManager.getPerformanceReport === 'function') {
+                const report = reviewSaveManager.getPerformanceReport();
+                addTestResult('性能报告', '性能报告已生成，请查看控制台', 'info');
+                console.table(report.metrics);
+                return report;
+            } else {
+                addTestResult('性能报告', '性能报告功能不可用', 'warning');
+                return null;
+            }
+        }
+
+        function measurePagePerformance() {
+            if ('performance' in window) {
+                const navigation = performance.getEntriesByType('navigation')[0];
+                const metrics = {
+                    'DNS查询': (navigation.domainLookupEnd - navigation.domainLookupStart).toFixed(2) + 'ms',
+                    'TCP连接': (navigation.connectEnd - navigation.connectStart).toFixed(2) + 'ms',
+                    '请求响应': (navigation.responseEnd - navigation.requestStart).toFixed(2) + 'ms',
+                    'DOM解析': (navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart).toFixed(2) + 'ms',
+                    '页面加载': (navigation.loadEventEnd - navigation.loadEventStart).toFixed(2) + 'ms'
+                };
+                
+                addTestResult('页面性能', '页面性能指标已生成，请查看控制台', 'info');
+                console.table(metrics);
+                return metrics;
+            } else {
+                addTestResult('页面性能', 'Performance API 不可用', 'warning');
+                return null;
+            }
+        }
+
+        function optimizePerformance() {
+            addTestResult('性能优化', '开始执行性能优化...', 'info');
+            
+            // 清理测试结果
+            const alerts = document.querySelectorAll('.alert:not(.show)');
+            alerts.forEach(alert => {
+                if (alert.parentNode) {
+                    alert.parentNode.removeChild(alert);
+                }
+            });
+            
+            // 清理缓存
+            if (reviewSaveManager && typeof reviewSaveManager.performMemoryCleanup === 'function') {
+                reviewSaveManager.performMemoryCleanup();
+            }
+            
+            addTestResult('性能优化', '性能优化完成', 'success');
+        }
+
+        function exportPerformanceData() {
+            if (reviewSaveManager && typeof reviewSaveManager.exportPerformanceData === 'function') {
+                reviewSaveManager.exportPerformanceData();
+                addTestResult('数据导出', '性能数据已导出', 'success');
+            } else {
+                addTestResult('数据导出', '数据导出功能不可用', 'warning');
+            }
+        }
+
+        // 暴露到全局作用域用于控制台调试
+        window.testDebounce = testDebounce;
+        window.testThrottle = testThrottle;
+        window.testSaveProgress = testSaveProgress;
+        window.testErrorHandling = testErrorHandling;
+        window.testSave = testSave;
+        window.showPerformanceReport = showPerformanceReport;
+        window.measurePagePerformance = measurePagePerformance;
+        window.optimizePerformance = optimizePerformance;
+        window.exportPerformanceData = exportPerformanceData;
+    </script>
+</body>
+</html>

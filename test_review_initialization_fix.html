@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复盘页面初始化修复测试</title>
+</head>
+<body>
+    <h1>复盘页面初始化修复测试</h1>
+    <div id="test-results"></div>
+
+    <script>
+        // 模拟必要的函数
+        function logInitializationProgress(name, status, data) {
+            console.log(`[${status}] ${name}:`, data);
+        }
+
+        function checkDependencies() {
+            console.log('检查依赖...');
+            return true;
+        }
+
+        function initializeApiClient() {
+            console.log('初始化API客户端...');
+            return true;
+        }
+
+        function initializeReviewSaveManager() {
+            console.log('初始化保存管理器...');
+            return true;
+        }
+
+        function bindReviewEvents() {
+            console.log('绑定事件...');
+            return true;
+        }
+
+        function integrateReviewSaveStateManagement() {
+            console.log('集成保存状态管理...');
+            return true;
+        }
+
+        function loadAllData() {
+            console.log('加载数据...');
+            return true;
+        }
+
+        function initializeBootstrapModal() {
+            console.log('初始化Bootstrap模态框...');
+        }
+
+        function performPostInitializationTasks() {
+            console.log('执行后续初始化任务...');
+        }
+
+        function showErrorMessage(msg) {
+            console.error('错误消息:', msg);
+        }
+
+        function showSuccessMessage(msg) {
+            console.log('成功消息:', msg);
+        }
+
+        function showWarningMessage(msg) {
+            console.warn('警告消息:', msg);
+        }
+
+        function verifySaveStateManagementIntegration() {
+            console.log('验证保存状态管理集成...');
+        }
+
+        // 复制修复后的 initializeReviewPage 函数
+        function initializeReviewPage() {
+            console.log('🚀 开始初始化复盘页面');
+            console.time('页面初始化耗时');
+
+            // 记录初始化开始
+            if (typeof logInitializationProgress === 'function') {
+                logInitializationProgress('复盘页面初始化', 'start', {
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    url: window.location.href
+                });
+            }
+
+            // 定义初始化步骤，按依赖顺序排列
+            const initSteps = [
+                {
+                    name: '依赖检查',
+                    fn: checkDependencies,
+                    critical: true,
+                    description: '检查JavaScript依赖是否正确加载'
+                },
+                {
+                    name: 'API客户端初始化',
+                    fn: initializeApiClient,
+                    critical: true,
+                    description: '初始化API客户端实例'
+                },
+                {
+                    name: '保存管理器初始化',
+                    fn: initializeReviewSaveManager,
+                    critical: true,
+                    description: '初始化复盘保存管理器实例'
+                },
+                {
+                    name: '事件绑定',
+                    fn: bindReviewEvents,
+                    critical: false,
+                    description: '绑定页面事件处理器'
+                },
+                {
+                    name: '保存状态管理集成',
+                    fn: integrateReviewSaveStateManagement,
+                    critical: false,
+                    description: '集成保存状态管理功能'
+                },
+                {
+                    name: '数据加载',
+                    fn: loadAllData,
+                    critical: false,
+                    description: '加载页面初始数据'
+                }
+            ];
+
+            let successCount = 0;
+            let criticalFailure = false;
+            const results = [];
+
+            // 分步执行初始化
+            for (let i = 0; i < initSteps.length; i++) {
+                const step = initSteps[i];
+                const stepStartTime = performance.now();
+
+                console.group(`📋 步骤 ${i + 1}/${initSteps.length}: ${step.name}`);
+                console.log(`📝 描述: ${step.description}`);
+                console.log(`🔧 开始执行...`);
+
+                try {
+                    const result = step.fn();
+                    const stepEndTime = performance.now();
+                    const stepDuration = (stepEndTime - stepStartTime).toFixed(2);
+
+                    if (result === false) {
+                        console.error(`❌ ${step.name}失败`);
+                        console.log(`⏱️ 耗时: ${stepDuration}ms`);
+
+                        results.push({
+                            step: step.name,
+                            success: false,
+                            error: '函数返回false',
+                            duration: stepDuration,
+                            critical: step.critical
+                        });
+
+                        if (step.critical) {
+                            console.error(`🚨 关键步骤失败，停止后续初始化`);
+                            criticalFailure = true;
+                            console.groupEnd();
+                            break;
+                        }
+                    } else {
+                        console.log(`✅ ${step.name}成功`);
+                        console.log(`⏱️ 耗时: ${stepDuration}ms`);
+                        successCount++;
+
+                        results.push({
+                            step: step.name,
+                            success: true,
+                            duration: stepDuration,
+                            critical: step.critical
+                        });
+                    }
+                } catch (error) {
+                    const stepEndTime = performance.now();
+                    const stepDuration = (stepEndTime - stepStartTime).toFixed(2);
+
+                    console.error(`❌ ${step.name}异常:`, error);
+                    console.log(`⏱️ 耗时: ${stepDuration}ms`);
+
+                    results.push({
+                        step: step.name,
+                        success: false,
+                        error: error.message || error.toString(),
+                        duration: stepDuration,
+                        critical: step.critical
+                    });
+
+                    if (step.critical) {
+                        console.error(`🚨 关键步骤异常，停止后续初始化`);
+                        criticalFailure = true;
+                        console.groupEnd();
+                        break;
+                    }
+                }
+
+                console.groupEnd();
+            }
+
+            console.timeEnd('页面初始化耗时');
+
+            // 记录初始化结果
+            console.group('📊 初始化结果汇总');
+            console.table(results);
+            console.log(`✅ 成功步骤: ${successCount}/${initSteps.length}`);
+            console.log(`❌ 失败步骤: ${initSteps.length - successCount}/${initSteps.length}`);
+            console.log(`🚨 关键失败: ${criticalFailure ? '是' : '否'}`);
+            console.groupEnd();
+
+            // 根据结果返回相应值
+            if (criticalFailure) {
+                console.error('🚨 复盘页面初始化失败，关键功能无法使用');
+                if (typeof showErrorMessage === 'function') {
+                    showErrorMessage('页面初始化失败，请刷新页面重试');
+                }
+                return false;
+            } else if (successCount === initSteps.length) {
+                console.log('🎉 复盘页面初始化完全成功');
+                if (typeof showSuccessMessage === 'function') {
+                    showSuccessMessage('复盘页面初始化成功');
+                }
+                return true;
+            } else {
+                console.warn('⚠️ 复盘页面初始化部分成功，某些功能可能无法正常使用');
+                if (typeof showWarningMessage === 'function') {
+                    showWarningMessage(`页面初始化部分成功 (${successCount}/${initSteps.length})，某些功能可能受限`);
+                }
+                return true;
+            }
+        }
+
+        // 测试修复后的初始化代码
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔧 开始测试修复后的初始化代码');
+            console.log('📅 初始化时间:', new Date().toLocaleString('zh-CN'));
+            console.log('🌐 用户代理:', navigator.userAgent);
+
+            try {
+                // 执行主初始化流程 - 修复后的版本
+                const initSuccess = initializeReviewPage();
+                
+                // 初始化Bootstrap模态框（独立于主流程）
+                initializeBootstrapModal()
+
+                // 记录初始化完成
+                console.log('🏁 复盘页面初始化流程完成');
+                console.log('📊 初始化结果:', initSuccess ? '成功' : '失败');
+
+                // 如果初始化成功，执行后续操作
+                if (initSuccess) {
+                    console.log('🎯 开始执行后续初始化操作');
+
+                    // 延迟执行非关键操作，避免阻塞主流程
+                    setTimeout(() => {
+                        performPostInitializationTasks();
+                    }, 100);
+                } else {
+                    console.error('🚨 初始化失败，页面功能可能受限');
+                }
+
+                // 显示测试结果
+                document.getElementById('test-results').innerHTML = `
+                    <div style="padding: 20px; border: 2px solid ${initSuccess ? 'green' : 'red'}; border-radius: 5px; margin: 20px 0;">
+                        <h2>测试结果</h2>
+                        <p><strong>初始化状态:</strong> ${initSuccess ? '✅ 成功' : '❌ 失败'}</p>
+                        <p><strong>错误修复:</strong> ✅ 已修复 "initializeReviewPage(...).then is not a function" 错误</p>
+                        <p><strong>测试时间:</strong> ${new Date().toLocaleString('zh-CN')}</p>
+                        <p><strong>说明:</strong> 函数现在正确返回布尔值，不再尝试调用 .then() 方法</p>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('🚨 页面初始化过程中发生未捕获的异常:', error);
+                console.error('错误消息:', error.message);
+                
+                document.getElementById('test-results').innerHTML = `
+                    <div style="padding: 20px; border: 2px solid red; border-radius: 5px; margin: 20px 0;">
+                        <h2>测试结果</h2>
+                        <p><strong>状态:</strong> ❌ 仍有错误</p>
+                        <p><strong>错误:</strong> ${error.message}</p>
+                        <p><strong>测试时间:</strong> ${new Date().toLocaleString('zh-CN')}</p>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

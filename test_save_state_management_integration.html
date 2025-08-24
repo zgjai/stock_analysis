@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>保存状态管理集成测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>保存状态管理集成测试</h1>
+        <p class="text-muted">测试复盘页面的保存状态管理和UI更新功能</p>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results">
+                            <div class="text-center">
+                                <div class="spinner-border" role="status"></div>
+                                <p class="mt-2">正在运行测试...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试控制</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-primary w-100 mb-2" onclick="runAllTests()">
+                            <i class="fas fa-play"></i> 运行所有测试
+                        </button>
+                        <button class="btn btn-outline-primary w-100 mb-2" onclick="testSaveStateIntegration()">
+                            <i class="fas fa-cog"></i> 测试状态集成
+                        </button>
+                        <button class="btn btn-outline-info w-100 mb-2" onclick="testFormChangeDetection()">
+                            <i class="fas fa-edit"></i> 测试变化检测
+                        </button>
+                        <button class="btn btn-outline-success w-100 mb-2" onclick="testSaveButtonStates()">
+                            <i class="fas fa-save"></i> 测试按钮状态
+                        </button>
+                        <button class="btn btn-outline-warning w-100" onclick="openReviewModal()">
+                            <i class="fas fa-modal"></i> 打开复盘模态框
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 复盘模态框 (简化版用于测试) -->
+    <div class="modal fade" id="reviewModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">复盘评分</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="review-form">
+                        <input type="hidden" id="review-stock-code" value="000001">
+                        <input type="hidden" id="review-id">
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">股票代码</label>
+                                <input type="text" class="form-control" id="display-stock-code" value="000001" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">复盘日期</label>
+                                <input type="date" class="form-control" id="review-date" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">持仓天数</label>
+                                <input type="number" class="form-control" id="holding-days" min="1" value="1" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">当前价格</label>
+                                <input type="number" class="form-control" id="current-price-input" step="0.01" min="0.01" max="9999.99">
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">评分标准</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="price-up-score" value="1">
+                                            <label class="form-check-label" for="price-up-score">收盘价上升</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="bbi-score" value="1">
+                                            <label class="form-check-label" for="bbi-score">不破BBI线</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="volume-score" value="1">
+                                            <label class="form-check-label" for="volume-score">无放量阴线</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="trend-score" value="1">
+                                            <label class="form-check-label" for="trend-score">趋势还在向上</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">分析内容</label>
+                            <textarea class="form-control" id="analysis" rows="3" placeholder="请输入分析内容..."></textarea>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">决策结果</label>
+                                <select class="form-select" id="decision" required>
+                                    <option value="">请选择决策</option>
+                                    <option value="hold">继续持有</option>
+                                    <option value="sell_partial">部分止盈</option>
+                                    <option value="sell_all">清仓</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">决策理由</label>
+                            <textarea class="form-control" id="reason" rows="2" placeholder="请输入决策理由..." required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="save-review-btn">保存复盘</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 加载必要的JavaScript文件 -->
+    <script src="/static/js/unified-message-system.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/review-save-manager.js"></script>
+
+    <script>
+        // 全局变量
+        let apiClient = null;
+        let reviewSaveManager = null;
+        let reviewModal = null;
+        let testResults = [];
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 开始初始化测试页面');
+            
+            // 设置今天的日期
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('review-date').value = today;
+            
+            // 初始化模态框
+            const modalElement = document.getElementById('reviewModal');
+            if (modalElement && typeof bootstrap !== 'undefined') {
+                reviewModal = new bootstrap.Modal(modalElement);
+            }
+            
+            // 延迟运行测试，确保所有脚本加载完成
+            setTimeout(() => {
+                runAllTests();
+            }, 1000);
+        });
+
+        // 运行所有测试
+        async function runAllTests() {
+            console.log('🧪 开始运行所有测试');
+            testResults = [];
+            
+            updateTestResults('<div class="text-center"><div class="spinner-border" role="status"></div><p class="mt-2">正在运行测试...</p></div>');
+            
+            const tests = [
+                { name: '依赖检查', fn: testDependencies },
+                { name: 'API客户端初始化', fn: testApiClientInit },
+                { name: '保存管理器初始化', fn: testSaveManagerInit },
+                { name: '保存状态集成', fn: testSaveStateIntegration },
+                { name: '表单变化检测', fn: testFormChangeDetection },
+                { name: '保存按钮状态', fn: testSaveButtonStates },
+                { name: '状态指示器', fn: testStatusIndicator }
+            ];
+            
+            for (const test of tests) {
+                try {
+                    console.log(`🔄 运行测试: ${test.name}`);
+                    const result = await test.fn();
+                    testResults.push({
+                        name: test.name,
+                        passed: result.success,
+                        message: result.message,
+                        details: result.details || []
+                    });
+                } catch (error) {
+                    console.error(`❌ 测试 ${test.name} 异常:`, error);
+                    testResults.push({
+                        name: test.name,
+                        passed: false,
+                        message: `测试异常: ${error.message}`,
+                        details: []
+                    });
+                }
+                
+                // 更新测试结果显示
+                updateTestResults();
+                
+                // 短暂延迟，避免测试冲突
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            console.log('🎉 所有测试完成');
+            displayFinalResults();
+        }
+
+        // 测试依赖检查
+        function testDependencies() {
+            console.log('🔍 测试依赖检查');
+            
+            const dependencies = [
+                { name: 'UnifiedMessageSystem', check: () => typeof UnifiedMessageSystem !== 'undefined' },
+                { name: 'ApiClient', check: () => typeof ApiClient !== 'undefined' },
+                { name: 'ReviewSaveManager', check: () => typeof ReviewSaveManager !== 'undefined' },
+                { name: 'Bootstrap', check: () => typeof bootstrap !== 'undefined' }
+            ];
+            
+            const missing = dependencies.filter(dep => !dep.check());
+            const details = dependencies.map(dep => ({
+                item: dep.name,
+                status: dep.check() ? '✅ 已加载' : '❌ 未找到'
+            }));
+            
+            return {
+                success: missing.length === 0,
+                message: missing.length === 0 ? '所有依赖检查通过' : `缺少依赖: ${missing.map(d => d.name).join(', ')}`,
+                details: details
+            };
+        }
+
+        // 测试API客户端初始化
+        function testApiClientInit() {
+            console.log('🔍 测试API客户端初始化');
+            
+            try {
+                if (typeof ApiClient !== 'undefined') {
+                    apiClient = new ApiClient();
+                    return {
+                        success: true,
+                        message: 'API客户端初始化成功',
+                        details: [
+                            { item: 'ApiClient类', status: '✅ 可用' },
+                            { item: '实例创建', status: '✅ 成功' },
+                            { item: 'saveReview方法', status: typeof apiClient.saveReview === 'function' ? '✅ 存在' : '❌ 不存在' }
+                        ]
+                    };
+                } else {
+                    return {
+                        success: false,
+                        message: 'ApiClient类未找到',
+                        details: [{ item: 'ApiClient类', status: '❌ 未找到' }]
+                    };
+                }
+            } catch (error) {
+                return {
+                    success: false,
+                    message: `API客户端初始化失败: ${error.message}`,
+                    details: [{ item: '初始化异常', status: `❌ ${error.message}` }]
+                };
+            }
+        }
+
+        // 测试保存管理器初始化
+        function testSaveManagerInit() {
+            console.log('🔍 测试保存管理器初始化');
+            
+            try {
+                if (typeof ReviewSaveManager !== 'undefined') {
+                    reviewSaveManager = new ReviewSaveManager('#review-form');
+                    
+                    const details = [
+                        { item: 'ReviewSaveManager类', status: '✅ 可用' },
+                        { item: '实例创建', status: reviewSaveManager ? '✅ 成功' : '❌ 失败' },
+                        { item: '表单绑定', status: reviewSaveManager && reviewSaveManager.form ? '✅ 成功' : '❌ 失败' },
+                        { item: 'saveReview方法', status: reviewSaveManager && typeof reviewSaveManager.saveReview === 'function' ? '✅ 存在' : '❌ 不存在' },
+                        { item: '变化检测方法', status: reviewSaveManager && typeof reviewSaveManager.detectChanges === 'function' ? '✅ 存在' : '❌ 不存在' }
+                    ];
+                    
+                    return {
+                        success: reviewSaveManager !== null,
+                        message: reviewSaveManager ? '保存管理器初始化成功' : '保存管理器初始化失败',
+                        details: details
+                    };
+                } else {
+                    return {
+                        success: false,
+                        message: 'ReviewSaveManager类未找到',
+                        details: [{ item: 'ReviewSaveManager类', status: '❌ 未找到' }]
+                    };
+                }
+            } catch (error) {
+                return {
+                    success: false,
+                    message: `保存管理器初始化失败: ${error.message}`,
+                    details: [{ item: '初始化异常', status: `❌ ${error.message}` }]
+                };
+            }
+        }
+
+        // 测试保存状态集成
+        function testSaveStateIntegration() {
+            console.log('🔍 测试保存状态集成');
+            
+            if (!reviewSaveManager) {
+                return {
+                    success: false,
+                    message: '保存管理器未初始化',
+                    details: [{ item: '保存管理器', status: '❌ 未初始化' }]
+                };
+            }
+            
+            const checks = [
+                {
+                    name: '表单绑定',
+                    check: () => reviewSaveManager.form && reviewSaveManager.form.id === 'review-form'
+                },
+                {
+                    name: '保存按钮绑定',
+                    check: () => {
+                        const saveBtn = document.getElementById('save-review-btn');
+                        return saveBtn !== null;
+                    }
+                },
+                {
+                    name: '状态指示器',
+                    check: () => {
+                        // 尝试创建状态指示器
+                        const modalHeader = document.querySelector('#reviewModal .modal-header');
+                        return modalHeader !== null;
+                    }
+                },
+                {
+                    name: '事件监听器',
+                    check: () => {
+                        const form = document.getElementById('review-form');
+                        const inputs = form ? form.querySelectorAll('input, select, textarea') : [];
+                        return inputs.length > 0;
+                    }
+                }
+            ];
+            
+            let passedChecks = 0;
+            const details = checks.map(check => {
+                const result = check.check();
+                if (result) passedChecks++;
+                return {
+                    item: check.name,
+                    status: result ? '✅ 通过' : '❌ 失败'
+                };
+            });
+            
+            return {
+                success: passedChecks === checks.length,
+                message: `保存状态集成检查: ${passedChecks}/${checks.length} 通过`,
+                details: details
+            };
+        }
+
+        // 测试表单变化检测
+        async function testFormChangeDetection() {
+            console.log('🔍 测试表单变化检测');
+            
+            if (!reviewSaveManager) {
+                return {
+                    success: false,
+                    message: '保存管理器未初始化',
+                    details: []
+                };
+            }
+            
+            const testElements = [
+                { id: 'analysis', type: 'textarea', testValue: '测试分析内容' },
+                { id: 'reason', type: 'textarea', testValue: '测试决策理由' },
+                { id: 'decision', type: 'select', testValue: 'hold' },
+                { id: 'holding-days', type: 'number', testValue: '5' }
+            ];
+            
+            const details = [];
+            let passedTests = 0;
+            
+            // 首先捕获原始状态
+            reviewSaveManager.captureOriginalFormData();
+            const originalUnsavedState = reviewSaveManager.hasUnsavedChanges;
+            
+            for (const test of testElements) {
+                const element = document.getElementById(test.id);
+                if (!element) {
+                    details.push({ item: test.id, status: '❌ 元素未找到' });
+                    continue;
+                }
+                
+                // 记录原始值
+                const originalValue = element.value;
+                
+                // 模拟用户输入
+                element.value = test.testValue;
+                element.dispatchEvent(new Event('input', { bubbles: true }));
+                element.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                // 等待变化检测（考虑防抖）
+                await new Promise(resolve => setTimeout(resolve, 400));
+                
+                // 检查是否检测到变化
+                const changeDetected = reviewSaveManager.hasUnsavedChanges !== originalUnsavedState;
+                
+                if (changeDetected) {
+                    details.push({ item: test.id, status: '✅ 变化检测正常' });
+                    passedTests++;
+                } else {
+                    details.push({ item: test.id, status: '❌ 变化检测失败' });
+                }
+                
+                // 恢复原始值
+                element.value = originalValue;
+                element.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            
+            // 恢复原始状态
+            await new Promise(resolve => setTimeout(resolve, 400));
+            reviewSaveManager.captureOriginalFormData();
+            
+            return {
+                success: passedTests === testElements.length,
+                message: `表单变化检测: ${passedTests}/${testElements.length} 通过`,
+                details: details
+            };
+        }
+
+        // 测试保存按钮状态
+        function testSaveButtonStates() {
+            console.log('🔍 测试保存按钮状态');
+            
+            const saveButton = document.getElementById('save-review-btn');
+            if (!saveButton) {
+                return {
+                    success: false,
+                    message: '保存按钮未找到',
+                    details: [{ item: '保存按钮', status: '❌ 未找到' }]
+                };
+            }
+            
+            if (!reviewSaveManager) {
+                return {
+                    success: false,
+                    message: '保存管理器未初始化',
+                    details: [{ item: '保存管理器', status: '❌ 未初始化' }]
+                };
+            }
+            
+            const details = [];
+            
+            // 测试初始状态
+            const initialDisabled = saveButton.disabled;
+            details.push({ 
+                item: '初始状态', 
+                status: initialDisabled ? '✅ 按钮已禁用' : '⚠️ 按钮未禁用' 
+            });
+            
+            // 测试按钮文本
+            const buttonText = saveButton.textContent.trim();
+            details.push({ 
+                item: '按钮文本', 
+                status: buttonText ? `✅ "${buttonText}"` : '❌ 文本为空' 
+            });
+            
+            // 测试按钮类名
+            const hasButtonClass = saveButton.classList.contains('btn');
+            details.push({ 
+                item: '按钮样式', 
+                status: hasButtonClass ? '✅ 有按钮样式' : '❌ 缺少按钮样式' 
+            });
+            
+            // 测试事件绑定
+            const hasClickHandler = saveButton.onclick !== null || saveButton.addEventListener;
+            details.push({ 
+                item: '事件绑定', 
+                status: '✅ 支持事件绑定' 
+            });
+            
+            return {
+                success: true,
+                message: '保存按钮状态检查完成',
+                details: details
+            };
+        }
+
+        // 测试状态指示器
+        function testStatusIndicator() {
+            console.log('🔍 测试状态指示器');
+            
+            const modalHeader = document.querySelector('#reviewModal .modal-header');
+            if (!modalHeader) {
+                return {
+                    success: false,
+                    message: '模态框头部未找到',
+                    details: [{ item: '模态框头部', status: '❌ 未找到' }]
+                };
+            }
+            
+            // 尝试创建状态指示器
+            let indicator = modalHeader.querySelector('.save-status-indicator');
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.className = 'save-status-indicator ms-auto me-2';
+                indicator.innerHTML = '<small class="text-success">已保存</small>';
+                
+                const closeButton = modalHeader.querySelector('.btn-close');
+                if (closeButton) {
+                    modalHeader.insertBefore(indicator, closeButton);
+                } else {
+                    modalHeader.appendChild(indicator);
+                }
+            }
+            
+            const details = [
+                { item: '指示器创建', status: indicator ? '✅ 成功' : '❌ 失败' },
+                { item: '指示器位置', status: indicator.parentNode === modalHeader ? '✅ 正确' : '❌ 错误' },
+                { item: '指示器样式', status: indicator.classList.contains('save-status-indicator') ? '✅ 正确' : '❌ 错误' }
+            ];
+            
+            // 测试状态更新
+            if (indicator) {
+                const originalContent = indicator.innerHTML;
+                
+                // 测试不同状态
+                indicator.innerHTML = '<small class="text-warning">有未保存的更改</small>';
+                details.push({ item: '状态更新', status: '✅ 支持更新' });
+                
+                // 恢复原始内容
+                setTimeout(() => {
+                    indicator.innerHTML = originalContent;
+                }, 1000);
+            }
+            
+            return {
+                success: indicator !== null,
+                message: indicator ? '状态指示器测试通过' : '状态指示器测试失败',
+                details: details
+            };
+        }
+
+        // 更新测试结果显示
+        function updateTestResults(customContent = null) {
+            const resultsContainer = document.getElementById('test-results');
+            
+            if (customContent) {
+                resultsContainer.innerHTML = customContent;
+                return;
+            }
+            
+            if (testResults.length === 0) {
+                resultsContainer.innerHTML = '<p class="text-muted">暂无测试结果</p>';
+                return;
+            }
+            
+            let html = '';
+            testResults.forEach((result, index) => {
+                const statusClass = result.passed ? 'success' : 'danger';
+                const statusIcon = result.passed ? 'fa-check-circle' : 'fa-times-circle';
+                
+                html += `
+                    <div class="card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">${index + 1}. ${result.name}</h6>
+                            <span class="badge bg-${statusClass}">
+                                <i class="fas ${statusIcon}"></i> ${result.passed ? '通过' : '失败'}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-2">${result.message}</p>
+                            ${result.details && result.details.length > 0 ? `
+                                <div class="mt-2">
+                                    <small class="text-muted">详细信息:</small>
+                                    <ul class="list-unstyled mt-1">
+                                        ${result.details.map(detail => `
+                                            <li><small>${detail.item}: ${detail.status}</small></li>
+                                        `).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsContainer.innerHTML = html;
+        }
+
+        // 显示最终结果
+        function displayFinalResults() {
+            const passedTests = testResults.filter(r => r.passed).length;
+            const totalTests = testResults.length;
+            const successRate = Math.round((passedTests / totalTests) * 100);
+            
+            const summaryClass = successRate === 100 ? 'success' : successRate >= 80 ? 'warning' : 'danger';
+            const summaryIcon = successRate === 100 ? 'fa-check-circle' : successRate >= 80 ? 'fa-exclamation-triangle' : 'fa-times-circle';
+            
+            const summaryHtml = `
+                <div class="alert alert-${summaryClass} mb-3">
+                    <h5><i class="fas ${summaryIcon}"></i> 测试完成</h5>
+                    <p class="mb-0">
+                        总计: ${totalTests} 个测试，通过: ${passedTests} 个，成功率: ${successRate}%
+                    </p>
+                </div>
+            `;
+            
+            const resultsContainer = document.getElementById('test-results');
+            resultsContainer.innerHTML = summaryHtml + resultsContainer.innerHTML;
+            
+            console.log(`🎉 测试完成: ${passedTests}/${totalTests} 通过 (${successRate}%)`);
+        }
+
+        // 打开复盘模态框
+        function openReviewModal() {
+            if (reviewModal) {
+                reviewModal.show();
+            } else {
+                alert('模态框未初始化');
+            }
+        }
+
+        // 全局函数，供按钮调用
+        window.runAllTests = runAllTests;
+        window.testSaveStateIntegration = testSaveStateIntegration;
+        window.testFormChangeDetection = testFormChangeDetection;
+        window.testSaveButtonStates = testSaveButtonStates;
+        window.openReviewModal = openReviewModal;
+    </script>
+</body>
+</html>

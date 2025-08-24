@@ -372,12 +372,121 @@ class TestHoldingService:
         review = ReviewService.get_review_by_stock_and_date(stock_code, today)
         assert review.holding_days == new_holding_days
     
-    def test_update_holding_days_invalid(self, app, db_session):
-        """测试更新无效的持仓天数"""
+    def test_update_holding_days_invalid_negative(self, app, db_session):
+        """测试更新无效的持仓天数（负数）"""
         with pytest.raises(ValidationError) as exc_info:
             HoldingService.update_holding_days('000001', -1)
         
-        assert "持仓天数不能为负数" in str(exc_info.value)
+        assert "持仓天数必须是正整数" in str(exc_info.value)
+    
+    def test_update_holding_days_invalid_zero(self, app, db_session):
+        """测试更新无效的持仓天数（零）"""
+        with pytest.raises(ValidationError) as exc_info:
+            HoldingService.update_holding_days('000001', 0)
+        
+        assert "持仓天数必须是正整数" in str(exc_info.value)
+    
+    def test_get_holding_days_from_review(self, app, db_session):
+        """测试从复盘记录获取持仓天数"""
+        stock_code = '000001'
+        holding_days = 15
+        
+        # 创建复盘记录
+        review_data = {
+            'stock_code': stock_code,
+            'review_date': date.today(),
+            'holding_days': holding_days,
+            'price_up_score': 1
+        }
+        ReviewService.create_review(review_data)
+        
+        # 获取持仓天数
+        result = HoldingService.get_holding_days(stock_code)
+        assert result == holding_days
+    
+    def test_get_holding_days_not_found(self, app, db_session):
+        """测试获取不存在的持仓天数"""
+        result = HoldingService.get_holding_days('999999')
+        assert result is None
+    
+    def test_create_holding_days_success(self, app, db_session):
+        """测试成功创建持仓天数"""
+        stock_code = '000001'
+        holding_days = 10
+        
+        result = HoldingService.create_holding_days(stock_code, holding_days)
+        
+        assert result['stock_code'] == stock_code
+        assert result['holding_days'] == holding_days
+        assert result['review_date'] == date.today().isoformat()
+        
+        # 验证数据库中的记录
+        review = ReviewService.get_review_by_stock_and_date(stock_code, date.today())
+        assert review is not None
+        assert review.holding_days == holding_days
+    
+    def test_create_holding_days_invalid_negative(self, app, db_session):
+        """测试创建无效的持仓天数（负数）"""
+        with pytest.raises(ValidationError) as exc_info:
+            HoldingService.create_holding_days('000001', -1)
+        
+        assert "持仓天数必须是正整数" in str(exc_info.value)
+    
+    def test_create_holding_days_invalid_zero(self, app, db_session):
+        """测试创建无效的持仓天数（零）"""
+        with pytest.raises(ValidationError) as exc_info:
+            HoldingService.create_holding_days('000001', 0)
+        
+        assert "持仓天数必须是正整数" in str(exc_info.value)
+    
+    def test_create_holding_days_already_exists(self, app, db_session):
+        """测试创建已存在的持仓天数记录"""
+        stock_code = '000001'
+        today = date.today()
+        
+        # 创建现有复盘记录
+        review_data = {
+            'stock_code': stock_code,
+            'review_date': today,
+            'holding_days': 5,
+            'price_up_score': 1
+        }
+        ReviewService.create_review(review_data)
+        
+        # 尝试再次创建应该失败
+        with pytest.raises(ValidationError) as exc_info:
+            HoldingService.create_holding_days(stock_code, 10)
+        
+        assert "已存在复盘记录" in str(exc_info.value)
+    
+    def test_delete_holding_days_success(self, app, db_session):
+        """测试成功删除持仓天数"""
+        stock_code = '000001'
+        today = date.today()
+        
+        # 创建复盘记录
+        review_data = {
+            'stock_code': stock_code,
+            'review_date': today,
+            'holding_days': 10,
+            'price_up_score': 1
+        }
+        review = ReviewService.create_review(review_data)
+        
+        # 删除持仓天数
+        result = HoldingService.delete_holding_days(stock_code)
+        assert result is True
+        
+        # 验证持仓天数被设为None
+        updated_review = ReviewService.get_by_id(review.id)
+        assert updated_review.holding_days is None
+    
+    def test_delete_holding_days_not_found(self, app, db_session):
+        """测试删除不存在的持仓天数"""
+        with pytest.raises(NotFoundError) as exc_info:
+            HoldingService.delete_holding_days('999999')
+        
+        assert "没有复盘记录" in str(exc_info.value)
     
     def test_calculate_holding_days_manual(self, app, db_session):
         """测试计算持仓天数（手动设置）"""

@@ -342,7 +342,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // 全局工具函数
-function showMessage(message, type = 'info', duration = 5000) {
+function showMessage(message, type = 'info', config = {}) {
+    // 如果config是数字，说明是旧的duration参数，转换为配置对象
+    if (typeof config === 'number') {
+        config = { duration: config };
+    }
+    
+    const duration = config.duration || 5000;
     UXUtils.showToast(message, type, duration);
 }
 

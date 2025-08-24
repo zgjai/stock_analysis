@@ -62,13 +62,15 @@ def create_error_response(error_code, message, status_code=400, details=None):
         }
     }), status_code
 
-def create_success_response(data=None, message=None):
+def create_success_response(data=None, message=None, warning=None):
     """创建标准成功响应"""
     response = {'success': True}
     if data is not None:
         response['data'] = data
     if message:
         response['message'] = message
+    if warning:
+        response['warning'] = warning
     return jsonify(response)
 
 def register_error_handlers(app):

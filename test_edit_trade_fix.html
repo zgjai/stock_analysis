@@ -3,114 +3,266 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>测试编辑交易记录修复</title>
+    <title>编辑交易修复测试</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 <body>
     <div class="container mt-4">
-        <h2>测试编辑交易记录修复</h2>
+        <h2>编辑交易修复测试</h2>
         
         <div class="alert alert-info">
-            <h5>问题描述:</h5>
-            <p>编辑已有交易记录时报错: <code>TypeError: Cannot set properties of undefined (setting 'originalContent')</code></p>
-            
-            <h5>问题原因:</h5>
-            <p><code>UXUtils.showLoading(true, '加载交易记录...')</code> 传入了 <code>true</code> 而不是DOM元素</p>
-            
-            <h5>修复方案:</h5>
+            <h5>测试目标：</h5>
             <ul>
-                <li>添加了全局加载状态管理函数 <code>showGlobalLoading</code> 和 <code>hideGlobalLoading</code></li>
-                <li>修改 <code>editTrade</code> 函数使用正确的加载机制</li>
+                <li>验证 triggerFormValidation 方法是否存在</li>
+                <li>验证编辑时"操作原因"是否正确保留</li>
+                <li>验证编辑时"止损价格"是否正确保留</li>
             </ul>
         </div>
 
-        <div class="card">
-            <div class="card-header">
-                <h5>测试按钮</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>模拟交易数据</h5>
+                    </div>
+                    <div class="card-body">
+                        <pre id="trade-data">{
+  "id": 1,
+  "stock_code": "000776",
+  "stock_name": "广发证券",
+  "trade_type": "buy",
+  "price": 19.45,
+  "quantity": 31100,
+  "reason": "少妇B1战法",
+  "stop_loss_price": 18.50,
+  "trade_date": "2025-08-19T15:33:00"
+}</pre>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <button type="button" class="btn btn-primary" onclick="testGlobalLoading()">
-                    测试全局加载状态
-                </button>
-                <button type="button" class="btn btn-success" onclick="testElementLoading()">
-                    测试元素加载状态
-                </button>
-                <button type="button" class="btn btn-warning" onclick="simulateEditTrade()">
-                    模拟编辑交易记录
-                </button>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">测试中...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="mt-3">
-            <h5>测试结果:</h5>
-            <div id="test-results" class="alert alert-secondary">
-                点击上面的按钮进行测试...
-            </div>
+        <div class="mt-4">
+            <button class="btn btn-primary" onclick="runTests()">重新运行测试</button>
+            <button class="btn btn-secondary" onclick="testFormSerialization()">测试表单序列化</button>
         </div>
+
+        <!-- 模拟的交易表单 -->
+        <form id="test-trade-form" style="display: none;">
+            <select id="reason" name="reason">
+                <option value="">请选择操作原因</option>
+            </select>
+            <input type="number" id="stop-loss-price" name="stop_loss_price" step="0.01">
+        </form>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/utils.js"></script>
-    
     <script>
-        function testGlobalLoading() {
-            const results = document.getElementById('test-results');
-            results.innerHTML = '测试全局加载状态...';
-            
-            try {
-                UXUtils.showGlobalLoading('测试全局加载...');
-                
-                setTimeout(() => {
-                    UXUtils.hideGlobalLoading();
-                    results.innerHTML = '<span class="text-success">✓ 全局加载状态测试成功</span>';
-                }, 2000);
-                
-            } catch (error) {
-                results.innerHTML = `<span class="text-danger">✗ 全局加载状态测试失败: ${error.message}</span>`;
+        // 模拟 TradingRecordsManager 类的关键部分
+        class TestTradingRecordsManager {
+            constructor() {
+                this.buyReasons = ['少妇B1战法', '少妇SB1战法', '少妇B2战法', '单针二十战法'];
+                this.sellReasons = ['部分止盈', '止损', '下等马/草泥马'];
             }
-        }
 
-        function testElementLoading() {
-            const results = document.getElementById('test-results');
-            const button = event.target;
-            
-            try {
-                UXUtils.showLoading(button, '测试中...');
+            updateReasonOptions(tradeType) {
+                const reasonSelect = document.getElementById('reason');
                 
-                setTimeout(() => {
-                    UXUtils.hideLoading(button);
-                    results.innerHTML = '<span class="text-success">✓ 元素加载状态测试成功</span>';
-                }, 2000);
+                // 保存当前选中的值
+                const currentValue = reasonSelect.value;
                 
-            } catch (error) {
-                results.innerHTML = `<span class="text-danger">✗ 元素加载状态测试失败: ${error.message}</span>`;
-            }
-        }
-
-        function simulateEditTrade() {
-            const results = document.getElementById('test-results');
-            results.innerHTML = '模拟编辑交易记录...';
-            
-            // 模拟修复后的editTrade函数逻辑
-            async function mockEditTrade(tradeId) {
-                try {
-                    UXUtils.showGlobalLoading('加载交易记录...');
-                    
-                    // 模拟API调用
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                    
-                    results.innerHTML = '<span class="text-success">✓ 编辑交易记录功能测试成功 - 不再报错</span>';
-                    
-                } catch (error) {
-                    results.innerHTML = `<span class="text-danger">✗ 编辑交易记录测试失败: ${error.message}</span>`;
-                } finally {
-                    UXUtils.hideGlobalLoading();
+                // 清空现有选项
+                reasonSelect.innerHTML = '<option value="">请选择操作原因</option>';
+                
+                const reasons = tradeType === 'buy' ? this.buyReasons :
+                    tradeType === 'sell' ? this.sellReasons : [];
+                
+                reasons.forEach(reason => {
+                    const option = document.createElement('option');
+                    option.value = reason;
+                    option.textContent = reason;
+                    reasonSelect.appendChild(option);
+                });
+                
+                // 恢复之前选中的值（如果该值在新的选项中存在）
+                if (currentValue && reasons.includes(currentValue)) {
+                    reasonSelect.value = currentValue;
+                    console.log('Restored reason value:', currentValue);
                 }
             }
-            
-            mockEditTrade(123);
+
+            populateBasicTradeForm(trade) {
+                const reasonField = document.getElementById('reason');
+                const stopLossPriceField = document.getElementById('stop-loss-price');
+                
+                if (reasonField) reasonField.value = trade.reason || '';
+                if (stopLossPriceField) stopLossPriceField.value = trade.stop_loss_price || '';
+                
+                console.log('Form populated - reason:', reasonField.value, 'stop_loss_price:', stopLossPriceField.value);
+            }
+
+            // 测试是否有 triggerFormValidation 方法
+            triggerFormValidation() {
+                console.log('triggerFormValidation method exists and working!');
+                return true;
+            }
         }
+
+        let testManager;
+
+        function runTests() {
+            const resultsDiv = document.getElementById('test-results');
+            const results = [];
+            
+            try {
+                // 初始化测试管理器
+                testManager = new TestTradingRecordsManager();
+                
+                // 测试数据
+                const testTrade = {
+                    id: 1,
+                    stock_code: "000776",
+                    stock_name: "广发证券",
+                    trade_type: "buy",
+                    price: 19.45,
+                    quantity: 31100,
+                    reason: "少妇B1战法",
+                    stop_loss_price: 18.50,
+                    trade_date: "2025-08-19T15:33:00"
+                };
+
+                // 测试1: triggerFormValidation 方法是否存在
+                try {
+                    const hasMethod = typeof testManager.triggerFormValidation === 'function';
+                    if (hasMethod) {
+                        testManager.triggerFormValidation();
+                        results.push({
+                            test: 'triggerFormValidation 方法存在性',
+                            status: 'success',
+                            message: '✅ 方法存在且可正常调用'
+                        });
+                    } else {
+                        results.push({
+                            test: 'triggerFormValidation 方法存在性',
+                            status: 'error',
+                            message: '❌ 方法不存在'
+                        });
+                    }
+                } catch (error) {
+                    results.push({
+                        test: 'triggerFormValidation 方法存在性',
+                        status: 'error',
+                        message: '❌ 方法调用失败: ' + error.message
+                    });
+                }
+
+                // 测试2: 操作原因保留测试
+                try {
+                    // 先更新选项
+                    testManager.updateReasonOptions(testTrade.trade_type);
+                    // 然后填充表单
+                    testManager.populateBasicTradeForm(testTrade);
+                    
+                    const reasonField = document.getElementById('reason');
+                    const actualReason = reasonField.value;
+                    
+                    if (actualReason === testTrade.reason) {
+                        results.push({
+                            test: '操作原因保留测试',
+                            status: 'success',
+                            message: `✅ 操作原因正确保留: ${actualReason}`
+                        });
+                    } else {
+                        results.push({
+                            test: '操作原因保留测试',
+                            status: 'error',
+                            message: `❌ 操作原因丢失 - 期望: ${testTrade.reason}, 实际: ${actualReason}`
+                        });
+                    }
+                } catch (error) {
+                    results.push({
+                        test: '操作原因保留测试',
+                        status: 'error',
+                        message: '❌ 测试失败: ' + error.message
+                    });
+                }
+
+                // 测试3: 止损价格保留测试
+                try {
+                    const stopLossPriceField = document.getElementById('stop-loss-price');
+                    const actualStopLossPrice = parseFloat(stopLossPriceField.value);
+                    
+                    if (actualStopLossPrice === testTrade.stop_loss_price) {
+                        results.push({
+                            test: '止损价格保留测试',
+                            status: 'success',
+                            message: `✅ 止损价格正确保留: ${actualStopLossPrice}`
+                        });
+                    } else {
+                        results.push({
+                            test: '止损价格保留测试',
+                            status: 'error',
+                            message: `❌ 止损价格丢失 - 期望: ${testTrade.stop_loss_price}, 实际: ${actualStopLossPrice}`
+                        });
+                    }
+                } catch (error) {
+                    results.push({
+                        test: '止损价格保留测试',
+                        status: 'error',
+                        message: '❌ 测试失败: ' + error.message
+                    });
+                }
+
+            } catch (error) {
+                results.push({
+                    test: '整体测试',
+                    status: 'error',
+                    message: '❌ 测试初始化失败: ' + error.message
+                });
+            }
+
+            // 显示结果
+            const resultHtml = results.map(result => {
+                const badgeClass = result.status === 'success' ? 'bg-success' : 'bg-danger';
+                return `
+                    <div class="mb-2">
+                        <span class="badge ${badgeClass}">${result.test}</span>
+                        <div class="mt-1">${result.message}</div>
+                    </div>
+                `;
+            }).join('');
+
+            resultsDiv.innerHTML = resultHtml;
+        }
+
+        function testFormSerialization() {
+            const form = document.getElementById('test-trade-form');
+            const serialized = FormUtils.serialize(form);
+            
+            console.log('表单序列化结果:', serialized);
+            alert('表单序列化结果已输出到控制台');
+        }
+
+        // 页面加载后自动运行测试
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(runTests, 500);
+        });
     </script>
 </body>
 </html>

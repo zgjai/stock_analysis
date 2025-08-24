@@ -56,12 +56,42 @@ class ProfitTakingService(BaseService):
             created_targets = []
             
             for i, target_data in enumerate(targets):
-                # 设置交易记录ID和序列顺序
-                target_data['trade_record_id'] = trade_id
-                target_data['sequence_order'] = i + 1
+                # 标准化字段名格式（前端格式 → 数据库格式）
+                normalized_data = {
+                    'trade_record_id': trade_id,
+                    'sequence_order': i + 1
+                }
+                
+                # 处理止盈价格
+                target_price = target_data.get('target_price') or target_data.get('targetPrice')
+                if target_price is not None:
+                    normalized_data['target_price'] = target_price
+                
+                # 处理止盈比例
+                profit_ratio = target_data.get('profit_ratio') or target_data.get('profitRatio')
+                if profit_ratio is not None:
+                    # 如果是百分比格式（>1），转换为小数格式
+                    if float(profit_ratio) > 1:
+                        normalized_data['profit_ratio'] = float(profit_ratio) / 100
+                    else:
+                        normalized_data['profit_ratio'] = float(profit_ratio)
+                
+                # 处理卖出比例
+                sell_ratio = target_data.get('sell_ratio') or target_data.get('sellRatio')
+                if sell_ratio is not None:
+                    # 如果是百分比格式（>1），转换为小数格式
+                    if float(sell_ratio) > 1:
+                        normalized_data['sell_ratio'] = float(sell_ratio) / 100
+                    else:
+                        normalized_data['sell_ratio'] = float(sell_ratio)
+                
+                # 处理序列顺序
+                sequence_order = target_data.get('sequence_order') or target_data.get('sequenceOrder')
+                if sequence_order is not None:
+                    normalized_data['sequence_order'] = int(sequence_order)
                 
                 # 创建止盈目标
-                target = ProfitTakingTarget(**target_data)
+                target = ProfitTakingTarget(**normalized_data)
                 
                 # 验证相对于买入价格的合理性（模型级别验证）
                 target.validate_against_buy_price(buy_price)
@@ -198,7 +228,7 @@ class ProfitTakingService(BaseService):
             ValidationError: 验证失败
         """
         if not targets:
-            raise ValidationError("至少需要设置一个止盈目标", "targets")
+            return True  # 允许空目标，不强制要求
         
         total_sell_ratio = Decimal('0')
         validation_errors = {}
@@ -206,48 +236,56 @@ class ProfitTakingService(BaseService):
         for i, target in enumerate(targets):
             target_errors = {}
             
-            # 验证必需字段
-            if 'sell_ratio' not in target or target['sell_ratio'] is None:
+            # 验证必需字段 - 支持多种字段名
+            sell_ratio_value = target.get('sell_ratio') or target.get('sellRatio')
+            if sell_ratio_value is None or sell_ratio_value == '':
                 target_errors['sell_ratio'] = "卖出比例不能为空"
             else:
                 try:
-                    sell_ratio = Decimal(str(target['sell_ratio']))
+                    sell_ratio = Decimal(str(sell_ratio_value))
                     
-                    # 验证卖出比例范围
+                    # 验证卖出比例范围 - 智能识别百分比和小数格式
                     if sell_ratio <= 0:
                         target_errors['sell_ratio'] = "卖出比例必须大于0"
-                    elif sell_ratio > 1:
+                    elif sell_ratio > 100:  # 百分比格式最大100
                         target_errors['sell_ratio'] = "卖出比例不能超过100%"
                     else:
-                        total_sell_ratio += sell_ratio
+                        # 如果是百分比格式（>1），转换为小数格式进行累计
+                        if sell_ratio > 1:
+                            total_sell_ratio += sell_ratio / 100
+                        else:
+                            total_sell_ratio += sell_ratio
                         
                 except (ValueError, TypeError, Exception):
                     target_errors['sell_ratio'] = "卖出比例格式无效"
             
             # 验证止盈价格（如果提供）
-            if 'target_price' in target and target['target_price'] is not None:
+            target_price_value = target.get('target_price') or target.get('targetPrice')
+            if target_price_value is not None and target_price_value != '':
                 try:
-                    target_price = Decimal(str(target['target_price']))
+                    target_price = Decimal(str(target_price_value))
                     if target_price <= 0:
                         target_errors['target_price'] = "止盈价格必须大于0"
                 except (ValueError, TypeError, Exception):
                     target_errors['target_price'] = "止盈价格格式无效"
             
             # 验证止盈比例（如果提供）
-            if 'profit_ratio' in target and target['profit_ratio'] is not None:
+            profit_ratio_value = target.get('profit_ratio') or target.get('profitRatio')
+            if profit_ratio_value is not None and profit_ratio_value != '':
                 try:
-                    profit_ratio = Decimal(str(target['profit_ratio']))
+                    profit_ratio = Decimal(str(profit_ratio_value))
                     if profit_ratio < 0:
                         target_errors['profit_ratio'] = "止盈比例不能为负数"
-                    elif profit_ratio > 10:  # 1000%
+                    elif profit_ratio > 1000:  # 支持百分比格式，最大1000%
                         target_errors['profit_ratio'] = "止盈比例不能超过1000%"
                 except (ValueError, TypeError, Exception):
                     target_errors['profit_ratio'] = "止盈比例格式无效"
             
             # 验证序列顺序（如果提供）
-            if 'sequence_order' in target and target['sequence_order'] is not None:
+            sequence_order_value = target.get('sequence_order') or target.get('sequenceOrder')
+            if sequence_order_value is not None and sequence_order_value != '':
                 try:
-                    sequence_order = int(target['sequence_order'])
+                    sequence_order = int(sequence_order_value)
                     if sequence_order <= 0:
                         target_errors['sequence_order'] = "序列顺序必须是正整数"
                 except (ValueError, TypeError):
@@ -256,9 +294,12 @@ class ProfitTakingService(BaseService):
             if target_errors:
                 validation_errors[f'targets[{i}]'] = target_errors
         
-        # 验证总卖出比例不能超过100%
-        if total_sell_ratio > Decimal('1'):
-            validation_errors['total_sell_ratio'] = f"所有止盈目标的卖出比例总和不能超过100%，当前为{float(total_sell_ratio)*100:.2f}%"
+        # 验证总卖出比例不能超过100% - 智能处理百分比和小数格式
+        max_ratio = Decimal('1')  # 小数格式的100%
+        display_ratio = float(total_sell_ratio) * 100
+        
+        if total_sell_ratio > max_ratio:
+            validation_errors['total_sell_ratio'] = f"所有止盈目标的卖出比例总和不能超过100%，当前为{display_ratio:.2f}%"
         
         # 如果有验证错误，抛出详细的错误信息
         if validation_errors:
@@ -293,9 +334,10 @@ class ProfitTakingService(BaseService):
             target_errors = {}
             
             # 验证止盈价格必须大于买入价格
-            if 'target_price' in target and target['target_price'] is not None:
+            target_price_value = target.get('target_price') or target.get('targetPrice')
+            if target_price_value is not None and target_price_value != '':
                 try:
-                    target_price = Decimal(str(target['target_price']))
+                    target_price = Decimal(str(target_price_value))
                     if target_price <= buy_price_decimal:
                         target_errors['target_price'] = f"止盈价格({target_price})必须大于买入价格({buy_price})"
                     elif target_price > buy_price_decimal * Decimal('10'):  # 防止设置过高的止盈价格
@@ -375,13 +417,20 @@ class ProfitTakingService(BaseService):
         
         for i, target in enumerate(targets):
             try:
-                sell_ratio = Decimal(str(target.get('sell_ratio', 0)))
+                # 支持多种字段名和格式
+                sell_ratio_value = target.get('sell_ratio') or target.get('sellRatio', 0)
+                sell_ratio = Decimal(str(sell_ratio_value))
+                
+                # 如果是百分比格式（>1），转换为小数格式
+                if sell_ratio > 1:
+                    sell_ratio = sell_ratio / 100
                 
                 # 计算止盈比例
                 profit_ratio = Decimal('0')
-                if 'target_price' in target and target['target_price']:
+                target_price_value = target.get('target_price') or target.get('targetPrice')
+                if target_price_value:
                     try:
-                        target_price = Decimal(str(target['target_price']))
+                        target_price = Decimal(str(target_price_value))
                         if target_price > buy_price_decimal:
                             profit_ratio = (target_price - buy_price_decimal) / buy_price_decimal
                     except (ValueError, TypeError, Exception):
@@ -492,18 +541,15 @@ class ProfitTakingService(BaseService):
             if not trade_record:
                 raise NotFoundError(f"交易记录 {trade_id} 不存在")
             
-            # 获取所有止盈目标
-            targets = ProfitTakingTarget.query.filter_by(trade_record_id=trade_id).all()
+            # 直接删除所有相关的止盈目标记录
+            deleted_count = ProfitTakingTarget.query.filter_by(trade_record_id=trade_id).delete()
             
-            # 删除所有止盈目标
-            deleted_count = 0
-            for target in targets:
-                db.session.delete(target)
-                deleted_count += 1
-            
+            # 更新交易记录的分批止盈标志
             if deleted_count > 0:
-                db.session.commit()
+                trade_record.use_batch_profit_taking = False
+                trade_record.save()
             
+            db.session.commit()
             return True
             
         except Exception as e:

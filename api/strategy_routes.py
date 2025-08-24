@@ -6,7 +6,10 @@ from datetime import datetime, date
 from . import api_bp
 from extensions import db
 from services.strategy_service import StrategyService, StrategyEvaluator, HoldingAlertService
-from error_handlers import create_success_response, ValidationError, NotFoundError
+from error_handlers import create_success_response, ValidationError, NotFoundError, DatabaseError
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @api_bp.route('/strategies', methods=['GET'])
@@ -219,8 +222,19 @@ def get_holding_alerts():
             message='获取持仓提醒成功'
         )
     
-    except Exception as e:
+    except ValidationError as e:
         raise e
+    except NotFoundError as e:
+        raise e
+    except DatabaseError as e:
+        raise e
+    except Exception as e:
+        logger.error(f"获取持仓提醒时发生未知错误: {e}")
+        return create_success_response(
+            data=[],
+            message='获取提醒数据时遇到问题，但系统仍可正常使用',
+            warning=str(e)
+        )
 
 
 @api_bp.route('/holdings/alerts/summary', methods=['GET'])

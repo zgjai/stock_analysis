@@ -1,6 +1,7 @@
 """
 复盘记录和持仓管理服务
 """
+import logging
 from datetime import date, datetime, timedelta
 from typing import List, Dict, Optional, Any
 from sqlalchemy import func, and_, or_, desc, asc
@@ -9,6 +10,8 @@ from services.base_service import BaseService
 from models.review_record import ReviewRecord
 from models.trade_record import TradeRecord
 from error_handlers import ValidationError, NotFoundError, DatabaseError
+
+logger = logging.getLogger(__name__)
 
 
 class ReviewService(BaseService):
@@ -41,6 +44,9 @@ class ReviewService(BaseService):
             
             if existing:
                 raise ValidationError(f"股票{data['stock_code']}在{data['review_date']}已存在复盘记录")
+            
+            # 数据完整性检查和处理
+            cls._process_floating_profit_data(data)
             
             # 创建复盘记录
             review = ReviewRecord(**data)
@@ -79,6 +85,9 @@ class ReviewService(BaseService):
                 
                 if existing:
                     raise ValidationError(f"股票{stock_code}在{review_date}已存在复盘记录")
+            
+            # 数据完整性检查和处理
+            cls._process_floating_profit_data(data, existing_review=review)
             
             # 更新字段
             for key, value in data.items():
@@ -193,13 +202,251 @@ class ReviewService(BaseService):
                 .order_by(ReviewRecord.review_date.desc()).first()
         except Exception as e:
             raise DatabaseError(f"获取最新复盘记录失败: {str(e)}")
+    
+    @classmethod
+    def get_buy_price_for_stock(cls, stock_code: str) -> Optional[float]:
+        """获取股票的成本价（平均买入价格）"""
+        try:
+            from sqlalchemy import func
+            
+            # 查询该股票所有未被订正的买入记录
+            buy_records = db.session.query(
+                func.sum(TradeRecord.quantity * TradeRecord.price).label('total_cost'),
+                func.sum(TradeRecord.quantity).label('total_quantity')
+            ).filter(
+                and_(
+                    TradeRecord.stock_code == stock_code,
+                    TradeRecord.trade_type == 'buy',
+                    TradeRecord.is_corrected == False
+                )
+            ).first()
+            
+            if not buy_records or not buy_records.total_quantity or buy_records.total_quantity == 0:
+                return None
+            
+            # 计算加权平均成本价
+            avg_buy_price = float(buy_records.total_cost) / float(buy_records.total_quantity)
+            return round(avg_buy_price, 2)
+            
+        except Exception as e:
+            raise DatabaseError(f"获取股票成本价失败: {str(e)}")
+    
+    @classmethod
+    def calculate_floating_profit(cls, stock_code: str, current_price: float) -> Dict[str, Any]:
+        """计算浮盈相关数据"""
+        try:
+            # 获取成本价
+            buy_price = cls.get_buy_price_for_stock(stock_code)
+            
+            if buy_price is None:
+                return {
+                    'stock_code': stock_code,
+                    'current_price': current_price,
+                    'buy_price': None,
+                    'floating_profit_ratio': None,
+                    'floating_profit_amount': None,
+                    'formatted_ratio': '无法计算',
+                    'color_class': 'text-muted',
+                    'is_profit': False,
+                    'is_loss': False,
+                    'message': '未找到买入记录'
+                }
+            
+            # 计算浮盈比例和金额
+            profit_ratio = (current_price - buy_price) / buy_price
+            profit_amount = current_price - buy_price
+            
+            # 格式化显示
+            if profit_ratio > 0:
+                formatted_ratio = f'+{profit_ratio * 100:.2f}%'
+                color_class = 'text-success'
+                is_profit = True
+                is_loss = False
+            elif profit_ratio < 0:
+                formatted_ratio = f'{profit_ratio * 100:.2f}%'
+                color_class = 'text-danger'
+                is_profit = False
+                is_loss = True
+            else:
+                formatted_ratio = '0.00%'
+                color_class = 'text-muted'
+                is_profit = False
+                is_loss = False
+            
+            return {
+                'stock_code': stock_code,
+                'buy_price': buy_price,
+                'current_price': current_price,
+                'floating_profit_ratio': profit_ratio,
+                'floating_profit_amount': profit_amount,
+                'formatted_ratio': formatted_ratio,
+                'color_class': color_class,
+                'is_profit': is_profit,
+                'is_loss': is_loss,
+                'message': '计算成功'
+            }
+            
+        except Exception as e:
+            raise DatabaseError(f"计算浮盈失败: {str(e)}")
+    
+    @classmethod
+    def _process_floating_profit_data(cls, data: Dict[str, Any], existing_review: Optional[ReviewRecord] = None) -> None:
+        """处理浮盈相关数据的完整性检查"""
+        try:
+            stock_code = data.get('stock_code')
+            if existing_review:
+                stock_code = stock_code or existing_review.stock_code
+            
+            # 如果没有提供买入价格，尝试从交易记录中获取
+            if ('buy_price' not in data or data['buy_price'] is None) and stock_code:
+                buy_price = cls.get_buy_price_for_stock(stock_code)
+                if buy_price is not None:
+                    data['buy_price'] = buy_price
+            
+            # 如果提供了当前价格但没有浮盈比例，自动计算
+            if ('current_price' in data and data['current_price'] is not None and
+                ('floating_profit_ratio' not in data or data['floating_profit_ratio'] is None)):
+                
+                current_price = float(data['current_price'])
+                buy_price = data.get('buy_price')
+                
+                # 如果没有买入价格，尝试从现有记录或交易记录获取
+                if buy_price is None:
+                    if existing_review and existing_review.buy_price:
+                        buy_price = float(existing_review.buy_price)
+                    elif stock_code:
+                        buy_price = cls.get_buy_price_for_stock(stock_code)
+                
+                if buy_price is not None and buy_price > 0:
+                    buy_price = float(buy_price)
+                    floating_profit_ratio = (current_price - buy_price) / buy_price
+                    data['floating_profit_ratio'] = floating_profit_ratio
+                    if 'buy_price' not in data:
+                        data['buy_price'] = buy_price
+            
+            # 验证数据一致性：如果同时提供了当前价格、买入价格和浮盈比例，检查计算是否一致
+            current_price = data.get('current_price')
+            buy_price = data.get('buy_price')
+            floating_profit_ratio = data.get('floating_profit_ratio')
+            
+            # 如果从现有记录获取买入价格
+            if existing_review and buy_price is None:
+                buy_price = existing_review.buy_price
+            
+            if (current_price is not None and buy_price is not None and floating_profit_ratio is not None):
+                current_price = float(current_price)
+                buy_price = float(buy_price)
+                provided_ratio = float(floating_profit_ratio)
+                
+                if buy_price > 0:
+                    calculated_ratio = (current_price - buy_price) / buy_price
+                    # 允许小的浮点数误差
+                    if abs(provided_ratio - calculated_ratio) > 0.001:
+                        raise ValidationError(
+                            f"浮盈比例与当前价格和买入价格不一致。"
+                            f"计算值: {calculated_ratio:.4f}, 提供值: {provided_ratio:.4f}"
+                        )
+        
+        except Exception as e:
+            if isinstance(e, ValidationError):
+                raise e
+            raise DatabaseError(f"处理浮盈数据失败: {str(e)}")
+    
+    @classmethod
+    def validate_review_data_integrity(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+        """验证复盘数据完整性并返回验证结果"""
+        validation_result = {
+            'is_valid': True,
+            'errors': [],
+            'warnings': [],
+            'auto_corrections': []
+        }
+        
+        try:
+            # 检查必填字段
+            required_fields = ['stock_code', 'review_date']
+            for field in required_fields:
+                if field not in data or data[field] is None or data[field] == '':
+                    validation_result['errors'].append(f"{field}不能为空")
+                    validation_result['is_valid'] = False
+            
+            # 检查评分字段范围
+            score_fields = ['price_up_score', 'bbi_score', 'volume_score', 'trend_score', 'j_score']
+            for field in score_fields:
+                if field in data and data[field] is not None:
+                    try:
+                        score = int(data[field])
+                        if score not in [0, 1]:
+                            validation_result['errors'].append(f"{field}必须是0或1")
+                            validation_result['is_valid'] = False
+                    except (ValueError, TypeError):
+                        validation_result['errors'].append(f"{field}必须是整数")
+                        validation_result['is_valid'] = False
+            
+            # 检查浮盈相关字段
+            if 'current_price' in data and data['current_price'] is not None:
+                try:
+                    current_price = float(data['current_price'])
+                    if current_price < 0:
+                        validation_result['errors'].append("当前价格不能为负数")
+                        validation_result['is_valid'] = False
+                except (ValueError, TypeError):
+                    validation_result['errors'].append("当前价格必须是有效数字")
+                    validation_result['is_valid'] = False
+            
+            if 'buy_price' in data and data['buy_price'] is not None:
+                try:
+                    buy_price = float(data['buy_price'])
+                    if buy_price < 0:
+                        validation_result['errors'].append("买入价格不能为负数")
+                        validation_result['is_valid'] = False
+                except (ValueError, TypeError):
+                    validation_result['errors'].append("买入价格必须是有效数字")
+                    validation_result['is_valid'] = False
+            
+            # 检查数据一致性
+            if (all(key in data and data[key] is not None for key in ['current_price', 'buy_price'])):
+                try:
+                    current_price = float(data['current_price'])
+                    buy_price = float(data['buy_price'])
+                    
+                    if buy_price > 0:
+                        calculated_ratio = (current_price - buy_price) / buy_price
+                        
+                        if 'floating_profit_ratio' in data and data['floating_profit_ratio'] is not None:
+                            provided_ratio = float(data['floating_profit_ratio'])
+                            if abs(provided_ratio - calculated_ratio) > 0.001:
+                                validation_result['warnings'].append(
+                                    f"浮盈比例将被自动修正为计算值: {calculated_ratio:.4f}"
+                                )
+                                validation_result['auto_corrections'].append({
+                                    'field': 'floating_profit_ratio',
+                                    'old_value': provided_ratio,
+                                    'new_value': calculated_ratio
+                                })
+                        else:
+                            validation_result['auto_corrections'].append({
+                                'field': 'floating_profit_ratio',
+                                'old_value': None,
+                                'new_value': calculated_ratio
+                            })
+                
+                except (ValueError, TypeError, ZeroDivisionError):
+                    validation_result['errors'].append("浮盈计算失败")
+                    validation_result['is_valid'] = False
+            
+        except Exception as e:
+            validation_result['errors'].append(f"数据验证失败: {str(e)}")
+            validation_result['is_valid'] = False
+        
+        return validation_result
 
 
 class HoldingService:
     """持仓管理服务"""
     
     @classmethod
-    def get_current_holdings(cls) -> List[Dict[str, Any]]:
+    def get_current_holdings(cls, force_refresh_prices: bool = False) -> List[Dict[str, Any]]:
         """获取当前持仓列表"""
         try:
             # 查询所有买入记录，按股票代码分组
@@ -207,7 +454,7 @@ class HoldingService:
                 TradeRecord.stock_code,
                 TradeRecord.stock_name,
                 func.sum(TradeRecord.quantity).label('total_buy_quantity'),
-                func.avg(TradeRecord.price).label('avg_buy_price'),
+                (func.sum(TradeRecord.price * TradeRecord.quantity) / func.sum(TradeRecord.quantity)).label('avg_buy_price'),
                 func.min(TradeRecord.trade_date).label('first_buy_date'),
                 func.max(TradeRecord.trade_date).label('last_buy_date')
             ).filter(
@@ -249,6 +496,9 @@ class HoldingService:
                         latest_review.holding_days if latest_review else None
                     )
                     
+                    # 获取当前价格
+                    current_price = cls._get_current_price(stock_code, force_refresh_prices)
+                    
                     holding = {
                         'stock_code': stock_code,
                         'stock_name': buy_record.stock_name,
@@ -256,6 +506,8 @@ class HoldingService:
                         'total_buy_quantity': total_buy,
                         'total_sell_quantity': total_sell,
                         'avg_buy_price': float(buy_record.avg_buy_price),
+                        'avg_price': float(buy_record.avg_buy_price),  # 兼容字段
+                        'current_price': current_price,
                         'first_buy_date': buy_record.first_buy_date.isoformat(),
                         'last_buy_date': buy_record.last_buy_date.isoformat(),
                         'holding_days': holding_days,
@@ -285,11 +537,64 @@ class HoldingService:
             raise DatabaseError(f"获取股票持仓信息失败: {str(e)}")
     
     @classmethod
+    def get_holding_days(cls, stock_code: str) -> Optional[int]:
+        """获取持仓天数"""
+        try:
+            # 首先尝试从最新的复盘记录中获取手动设置的持仓天数
+            latest_review = ReviewService.get_latest_review_by_stock(stock_code)
+            if latest_review and latest_review.holding_days is not None:
+                return latest_review.holding_days
+            
+            # 如果没有手动设置，则从交易记录计算
+            holding = cls.get_holding_by_stock(stock_code)
+            if holding:
+                return holding['holding_days']
+            
+            return None
+            
+        except Exception as e:
+            raise DatabaseError(f"获取持仓天数失败: {str(e)}")
+    
+    @classmethod
+    def create_holding_days(cls, stock_code: str, holding_days: int) -> Dict[str, Any]:
+        """创建持仓天数记录"""
+        try:
+            if holding_days <= 0:
+                raise ValidationError("持仓天数必须是正整数")
+            
+            # 检查今日是否已有复盘记录
+            today = date.today()
+            existing_review = ReviewService.get_review_by_stock_and_date(stock_code, today)
+            
+            if existing_review:
+                raise ValidationError(f"股票{stock_code}在{today}已存在复盘记录，请使用更新操作")
+            
+            # 创建新的复盘记录，只设置持仓天数
+            review_data = {
+                'stock_code': stock_code,
+                'review_date': today,
+                'holding_days': holding_days,
+                'price_up_score': 0,
+                'bbi_score': 0,
+                'volume_score': 0,
+                'trend_score': 0,
+                'j_score': 0
+            }
+            review = ReviewService.create_review(review_data)
+            
+            return review.to_dict()
+            
+        except Exception as e:
+            if isinstance(e, (ValidationError, DatabaseError)):
+                raise e
+            raise DatabaseError(f"创建持仓天数失败: {str(e)}")
+    
+    @classmethod
     def update_holding_days(cls, stock_code: str, holding_days: int) -> Dict[str, Any]:
         """更新持仓天数（通过创建或更新复盘记录）"""
         try:
-            if holding_days < 0:
-                raise ValidationError("持仓天数不能为负数")
+            if holding_days <= 0:
+                raise ValidationError("持仓天数必须是正整数")
             
             # 获取今日复盘记录，如果不存在则创建
             today = date.today()
@@ -321,6 +626,27 @@ class HoldingService:
             raise DatabaseError(f"更新持仓天数失败: {str(e)}")
     
     @classmethod
+    def delete_holding_days(cls, stock_code: str) -> bool:
+        """删除/重置持仓天数（将今日复盘记录的持仓天数设为None）"""
+        try:
+            today = date.today()
+            review = ReviewService.get_review_by_stock_and_date(stock_code, today)
+            
+            if not review:
+                raise NotFoundError(f"股票{stock_code}在{today}没有复盘记录")
+            
+            # 将持仓天数设为None，表示使用自动计算
+            review.holding_days = None
+            review.save()
+            
+            return True
+            
+        except Exception as e:
+            if isinstance(e, (ValidationError, NotFoundError, DatabaseError)):
+                raise e
+            raise DatabaseError(f"删除持仓天数失败: {str(e)}")
+    
+    @classmethod
     def _calculate_holding_days(cls, first_buy_date: datetime, manual_holding_days: Optional[int]) -> int:
         """计算持仓天数"""
         if manual_holding_days is not None:
@@ -332,6 +658,99 @@ class HoldingService:
         
         return (date.today() - first_buy_date).days + 1
     
+    # 价格缓存，避免重复调用
+    _price_cache = {}
+    _cache_timestamp = None
+    
+    @classmethod
+    def _get_current_price(cls, stock_code: str, force_refresh: bool = False) -> Optional[float]:
+        """获取股票当前价格（带缓存优化）"""
+        try:
+            from services.price_service import PriceService
+            from datetime import datetime, timedelta
+            
+            # 检查内存缓存（1分钟内有效）
+            now = datetime.now()
+            if (not force_refresh and 
+                cls._cache_timestamp and 
+                now - cls._cache_timestamp < timedelta(minutes=1) and
+                stock_code in cls._price_cache):
+                logger.debug(f"使用内存缓存价格: {stock_code}")
+                return cls._price_cache[stock_code]
+            
+            price_service = PriceService()
+            
+            # 如果不强制刷新，检查数据库缓存是否足够新（5分钟内）
+            if not force_refresh:
+                price_data = price_service.get_latest_price(stock_code)
+                if price_data and price_data.get('current_price'):
+                    # 检查价格更新时间
+                    if 'updated_at' in price_data:
+                        try:
+                            updated_time = datetime.fromisoformat(price_data['updated_at'].replace('Z', '+00:00'))
+                            if datetime.now() - updated_time.replace(tzinfo=None) < timedelta(minutes=5):
+                                price = float(price_data['current_price'])
+                                # 更新内存缓存
+                                cls._price_cache[stock_code] = price
+                                cls._cache_timestamp = now
+                                return price
+                        except:
+                            pass
+            
+            # 强制刷新或缓存过期，从AKShare获取实时价格
+            try:
+                result = price_service.refresh_stock_price(stock_code, force_refresh=True)
+                if result.get('success') and result.get('data'):
+                    price = float(result['data'].get('current_price', 0))
+                    # 更新内存缓存
+                    cls._price_cache[stock_code] = price
+                    cls._cache_timestamp = now
+                    return price
+            except Exception as e:
+                logger.warning(f"获取股票 {stock_code} 实时价格失败: {e}")
+                
+                # 如果实时获取失败，返回缓存价格（如果有的话）
+                price_data = price_service.get_latest_price(stock_code)
+                if price_data and price_data.get('current_price'):
+                    price = float(price_data['current_price'])
+                    # 更新内存缓存
+                    cls._price_cache[stock_code] = price
+                    cls._cache_timestamp = now
+                    return price
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"获取股票 {stock_code} 当前价格时发生错误: {e}")
+            return None
+    
+    @classmethod
+    
+    @classmethod
+    def refresh_all_holdings_prices(cls, stock_codes: List[str]) -> Dict[str, Any]:
+        """批量刷新所有持仓股票价格"""
+        try:
+            from services.price_service import PriceService
+            price_service = PriceService()
+            
+            # 使用批量刷新方法
+            result = price_service.refresh_multiple_stocks(stock_codes, force_refresh=True)
+            
+            # 清空内存缓存，强制重新获取
+            cls._price_cache.clear()
+            cls._cache_timestamp = None
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"批量刷新价格失败: {e}")
+            return {
+                'success_count': 0,
+                'failed_count': len(stock_codes),
+                'results': [],
+                'errors': [{'error': str(e)}]
+            }
+
     @classmethod
     def get_holding_stats(cls) -> Dict[str, Any]:
         """获取持仓统计信息"""

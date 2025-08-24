@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时价格刷新测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>实时价格刷新功能测试</h2>
+        
+        <div class="alert alert-info">
+            <h5>测试目标：</h5>
+            <ul>
+                <li>验证价格缓存机制（5分钟内使用缓存）</li>
+                <li>验证强制刷新功能</li>
+                <li>验证自动刷新功能</li>
+                <li>验证价格更新时间显示</li>
+            </ul>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5>价格刷新控制</h5>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="testNormalRefresh()">
+                            <i class="fas fa-sync-alt"></i> 普通刷新
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="testForceRefresh()">
+                            <i class="fas fa-dollar-sign"></i> 强制刷新
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="toggleAutoTest()" id="auto-test-btn">
+                            <i class="fas fa-play"></i> 自动测试
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <i class="fas fa-clock"></i> 最后测试时间: <span id="last-test-time">--</span>
+                    </small>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="test-results"></div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>价格缓存测试</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="test-stock-code" placeholder="股票代码" value="000776">
+                    </div>
+                    <div class="col-md-6">
+                        <button class="btn btn-primary" onclick="testPriceCache()">测试价格缓存</button>
+                    </div>
+                </div>
+                <div id="cache-test-results" class="mt-3"></div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>实时价格对比</h5>
+            </div>
+            <div class="card-body">
+                <div id="price-comparison"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoTestInterval = null;
+        let isAutoTestEnabled = false;
+
+        async function testNormalRefresh() {
+            const resultDiv = document.getElementById('test-results');
+            updateTestTime();
+            
+            resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>测试普通刷新...';
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch('/api/holdings');
+                const endTime = Date.now();
+                const data = await response.json();
+                
+                if (data.success) {
+                    let html = `<div class="alert alert-success">✅ 普通刷新成功 (${endTime - startTime}ms)</div>`;
+                    html += '<h6>持仓数据：</h6>';
+                    
+                    if (data.data && data.data.length > 0) {
+                        data.data.forEach(holding => {
+                            html += `<div class="mb-2">`;
+                            html += `<strong>${holding.stock_code}</strong>: `;
+                            html += `成本价 ¥${holding.avg_buy_price ? holding.avg_buy_price.toFixed(2) : '--'}, `;
+                            html += `当前价 ¥${holding.current_price ? holding.current_price.toFixed(2) : '--'}`;
+                            html += `</div>`;
+                        });
+                    }
+                    
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">❌ 普通刷新失败</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger">❌ 请求失败: ${error.message}</div>`;
+            }
+        }
+
+        async function testForceRefresh() {
+            const resultDiv = document.getElementById('test-results');
+            updateTestTime();
+            
+            resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>测试强制刷新价格...';
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch('/api/holdings?force_refresh=true');
+                const endTime = Date.now();
+                const data = await response.json();
+                
+                if (data.success) {
+                    let html = `<div class="alert alert-success">✅ 强制刷新成功 (${endTime - startTime}ms)</div>`;
+                    html += '<div class="alert alert-info"><i class="fas fa-info-circle"></i> 此次请求强制从AKShare获取最新价格</div>';
+                    html += '<h6>最新价格数据：</h6>';
+                    
+                    if (data.data && data.data.length > 0) {
+                        data.data.forEach(holding => {
+                            html += `<div class="mb-2">`;
+                            html += `<strong>${holding.stock_code}</strong>: `;
+                            html += `成本价 ¥${holding.avg_buy_price ? holding.avg_buy_price.toFixed(2) : '--'}, `;
+                            html += `<span class="text-success">当前价 ¥${holding.current_price ? holding.current_price.toFixed(2) : '--'}</span>`;
+                            html += `</div>`;
+                        });
+                    }
+                    
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">❌ 强制刷新失败</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger">❌ 请求失败: ${error.message}</div>`;
+            }
+        }
+
+        function toggleAutoTest() {
+            const btn = document.getElementById('auto-test-btn');
+            
+            if (isAutoTestEnabled) {
+                // 停止自动测试
+                if (autoTestInterval) {
+                    clearInterval(autoTestInterval);
+                    autoTestInterval = null;
+                }
+                isAutoTestEnabled = false;
+                btn.innerHTML = '<i class="fas fa-play"></i> 自动测试';
+                btn.className = 'btn btn-sm btn-outline-info';
+                console.log('自动测试已停止');
+            } else {
+                // 开始自动测试
+                isAutoTestEnabled = true;
+                btn.innerHTML = '<i class="fas fa-pause"></i> 停止测试';
+                btn.className = 'btn btn-sm btn-warning';
+                
+                // 每10秒测试一次
+                autoTestInterval = setInterval(() => {
+                    console.log('自动测试价格刷新...');
+                    testForceRefresh();
+                }, 10000);
+                
+                console.log('自动测试已启动，每10秒测试一次');
+            }
+        }
+
+        async function testPriceCache() {
+            const stockCode = document.getElementById('test-stock-code').value;
+            const resultDiv = document.getElementById('cache-test-results');
+            
+            if (!stockCode) {
+                resultDiv.innerHTML = '<div class="alert alert-warning">请输入股票代码</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>测试价格缓存机制...';
+            
+            try {
+                // 第一次请求（可能使用缓存）
+                const start1 = Date.now();
+                const response1 = await fetch(`/api/prices/${stockCode}/latest`);
+                const end1 = Date.now();
+                const data1 = await response1.json();
+                
+                // 等待1秒
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // 第二次请求（应该使用缓存）
+                const start2 = Date.now();
+                const response2 = await fetch(`/api/prices/${stockCode}/latest`);
+                const end2 = Date.now();
+                const data2 = await response2.json();
+                
+                // 强制刷新请求
+                const start3 = Date.now();
+                const response3 = await fetch('/api/prices/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stock_codes: [stockCode] })
+                });
+                const end3 = Date.now();
+                const data3 = await response3.json();
+                
+                let html = '<h6>缓存测试结果：</h6>';
+                html += `<div class="row">`;
+                html += `<div class="col-md-4">`;
+                html += `<div class="card">`;
+                html += `<div class="card-header">第一次请求</div>`;
+                html += `<div class="card-body">`;
+                html += `<p>响应时间: ${end1 - start1}ms</p>`;
+                html += `<p>价格: ${data1.data ? '¥' + data1.data.current_price : '无数据'}</p>`;
+                html += `</div></div></div>`;
+                
+                html += `<div class="col-md-4">`;
+                html += `<div class="card">`;
+                html += `<div class="card-header">第二次请求 (缓存)</div>`;
+                html += `<div class="card-body">`;
+                html += `<p>响应时间: ${end2 - start2}ms</p>`;
+                html += `<p>价格: ${data2.data ? '¥' + data2.data.current_price : '无数据'}</p>`;
+                html += `<p class="small ${(end2 - start2) < (end1 - start1) ? 'text-success' : 'text-warning'}">`;
+                html += `${(end2 - start2) < (end1 - start1) ? '✅ 使用缓存' : '⚠️ 可能未使用缓存'}`;
+                html += `</p>`;
+                html += `</div></div></div>`;
+                
+                html += `<div class="col-md-4">`;
+                html += `<div class="card">`;
+                html += `<div class="card-header">强制刷新</div>`;
+                html += `<div class="card-body">`;
+                html += `<p>响应时间: ${end3 - start3}ms</p>`;
+                html += `<p>状态: ${data3.success_count > 0 ? '✅ 成功' : '❌ 失败'}</p>`;
+                html += `</div></div></div>`;
+                html += `</div>`;
+                
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger">❌ 测试失败: ${error.message}</div>`;
+            }
+        }
+
+        function updateTestTime() {
+            const timeEl = document.getElementById('last-test-time');
+            if (timeEl) {
+                const now = new Date();
+                timeEl.textContent = now.toLocaleTimeString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            }
+        }
+
+        // 页面加载时自动测试
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('实时价格刷新测试页面已加载');
+            testNormalRefresh();
+        });
+    </script>
+</body>
+</html>

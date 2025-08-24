@@ -1,0 +1,931 @@
+{% extends "base.html" %}
+
+{% block title %}复盘分析 - 股票交易记录系统{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">复盘分析</li>
+{% endblock %}
+
+{% block page_title %}复盘分析{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-optimizations.css') }}">
+<style>
+body {
+    background-color: #f8f9fa;
+}
+
+/* 浮盈计算器样式 */
+.floating-profit-container {
+    position: relative;
+}
+
+.floating-profit-container.profit {
+    background-color: rgba(25, 135, 84, 0.1);
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+.floating-profit-container.loss {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+.floating-profit-container.neutral {
+    background-color: rgba(108, 117, 125, 0.1);
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+#floating-profit-ratio {
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+/* 持仓列表增强样式 */
+.holding-item {
+    transition: all 0.2s ease;
+    border: 1px solid #dee2e6;
+    background-color: #fff;
+}
+
+.holding-item:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    border-color: #007bff;
+}
+
+.holding-item .fw-bold {
+    font-size: 1.1rem;
+}
+
+.holding-item .text-success {
+    color: #28a745 !important;
+    font-weight: 600;
+}
+
+.holding-item .text-danger {
+    color: #dc3545 !important;
+    font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="review-page">
+<div class="row">
+    <!-- 当前持仓列表 -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">当前持仓</h5>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshHoldings()">
+                            <i class="fas fa-sync-alt"></i> 刷新
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="refreshHoldingsWithPrices()">
+                            <i class="fas fa-dollar-sign"></i> 刷新价格
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="toggleAutoRefresh()" id="auto-refresh-btn">
+                            <i class="fas fa-play"></i> 自动刷新
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted" id="price-update-status">
+                        <i class="fas fa-clock"></i> 价格更新时间: <span id="last-price-update">--</span>
+                    </small>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="holdings-list">
+                    <div class="text-center text-muted">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 复盘记录历史 -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">复盘记录</h5>
+            </div>
+            <div class="card-body">
+                <div id="reviews-list">
+                    <div class="text-center text-muted">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 持仓提醒和操作面板 -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">持仓策略提醒</h5>
+            </div>
+            <div class="card-body">
+                <div id="holding-alerts">
+                    <div class="text-center text-muted">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快速复盘面板 -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">快速复盘</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">选择股票</label>
+                    <select class="form-select" id="quick-review-stock">
+                        <option value="">请选择持仓股票</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary w-100" onclick="openQuickReview()">开始复盘</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 复盘评分模态框 -->
+<div class="modal fade" id="reviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">复盘评分</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="review-form">
+                    <input type="hidden" id="review-stock-code">
+                    <input type="hidden" id="review-id">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">股票代码</label>
+                            <input type="text" class="form-control" id="display-stock-code" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">复盘日期</label>
+                            <input type="date" class="form-control" id="review-date" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">持仓天数</label>
+                            <input type="number" class="form-control" id="holding-days" min="1" required>
+                        </div>
+                    </div>
+
+                    <!-- 当前价格和浮盈计算 -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">浮盈计算</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label class="form-label">当前价格</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        <input type="number" class="form-control" id="current-price-input" 
+                                               placeholder="输入当前价格" step="0.01" min="0.01" max="9999.99">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">成本价</label>
+                                    <div class="form-control-plaintext" id="buy-price-display">--</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">浮盈比例</label>
+                                    <div class="floating-profit-container">
+                                        <div class="form-control-plaintext fw-bold" id="floating-profit-ratio">--</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">评分标准 (每项1分，总分5分)</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="price-up-score" value="1">
+                                        <label class="form-check-label" for="price-up-score">收盘价上升</label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="bbi-score" value="1">
+                                        <label class="form-check-label" for="bbi-score">不破BBI线</label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="volume-score" value="1">
+                                        <label class="form-check-label" for="volume-score">无放量阴线</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="trend-score" value="1">
+                                        <label class="form-check-label" for="trend-score">趋势还在向上</label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="j-score" value="1">
+                                        <label class="form-check-label" for="j-score">J没死叉</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <strong>总分: <span id="total-score" class="text-primary">0</span>/5</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">分析内容</label>
+                        <textarea class="form-control" id="analysis" rows="3" placeholder="请输入分析内容..."></textarea>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">决策结果</label>
+                            <select class="form-select" id="decision" required>
+                                <option value="">请选择决策</option>
+                                <option value="hold">继续持有</option>
+                                <option value="sell_partial">部分止盈</option>
+                                <option value="sell_all">清仓</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">决策理由</label>
+                        <textarea class="form-control" id="reason" rows="2" placeholder="请输入决策理由..." required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="save-review-btn" onclick="saveReview()">保存复盘</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- 紧急修复脚本 - 必须最先加载 -->
+<script src="{{ url_for('static', filename='js/review-emergency-fix.js') }}"></script>
+<script>
+// 简化的复盘分析页面管理
+let reviewModal = null;
+let currentHoldings = [];
+let currentReviews = [];
+
+// 页面初始化
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM加载完成，初始化复盘页面');
+    
+    // 初始化reviewModal
+    const modalElement = document.getElementById('reviewModal');
+    if (modalElement) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            try {
+                reviewModal = new bootstrap.Modal(modalElement);
+                console.log('✅ reviewModal初始化成功');
+            } catch (error) {
+                console.error('❌ reviewModal初始化失败:', error);
+            }
+        }
+    }
+    
+    // 绑定评分复选框事件
+    bindScoreCheckboxes();
+    
+    // 加载所有数据
+    loadAllData();
+});
+
+function bindScoreCheckboxes() {
+    const checkboxes = ['price-up-score', 'bbi-score', 'volume-score', 'trend-score', 'j-score'];
+    checkboxes.forEach(id => {
+        const checkbox = document.getElementById(id);
+        if (checkbox) {
+            checkbox.addEventListener('change', calculateTotalScore);
+        }
+    });
+}
+
+function calculateTotalScore() {
+    const checkboxes = ['price-up-score', 'bbi-score', 'volume-score', 'trend-score', 'j-score'];
+    let total = 0;
+    checkboxes.forEach(id => {
+        const checkbox = document.getElementById(id);
+        if (checkbox && checkbox.checked) {
+            total += 1;
+        }
+    });
+    const totalScoreEl = document.getElementById('total-score');
+    if (totalScoreEl) {
+        totalScoreEl.textContent = total;
+    }
+}
+
+async function loadAllData() {
+    try {
+        await Promise.allSettled([
+            loadHoldings(),
+            loadReviews(),
+            loadHoldingAlerts()
+        ]);
+    } catch (error) {
+        console.error('加载数据时出错:', error);
+    }
+}
+
+async function loadHoldings(forceRefreshPrices = false) {
+    console.log('📊 开始加载持仓数据', forceRefreshPrices ? '(强制刷新价格)' : '');
+    const holdingsList = document.getElementById('holdings-list');
+
+    if (!holdingsList) {
+        console.error('持仓列表容器不存在');
+        return;
+    }
+
+    try {
+        holdingsList.innerHTML = `
+            <div class="text-center py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                ${forceRefreshPrices ? '正在刷新价格数据...' : '正在加载持仓数据...'}
+            </div>
+        `;
+
+        const url = forceRefreshPrices ? '/api/holdings?force_refresh=true' : '/api/holdings';
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success && data.data && data.data.length > 0) {
+            currentHoldings = data.data;
+            displayHoldings(data.data);
+            updateQuickReviewOptions(data.data);
+            
+            // 更新价格更新时间
+            updatePriceUpdateTime(forceRefreshPrices);
+        } else {
+            showEmptyHoldings();
+        }
+
+    } catch (error) {
+        console.error('加载持仓数据失败:', error);
+        showHoldingsError(error.message);
+    }
+}
+
+function displayHoldings(holdings) {
+    const holdingsList = document.getElementById('holdings-list');
+    if (!holdingsList) return;
+
+    if (!holdings || holdings.length === 0) {
+        showEmptyHoldings();
+        return;
+    }
+
+    const holdingsHtml = holdings.map(holding => `
+        <div class="holding-item card mb-3">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        <div class="fw-bold">${holding.stock_code}</div>
+                        <div class="text-muted small">${holding.stock_name || '--'}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="small text-muted">成本价</div>
+                        <div class="fw-bold">¥${holding.avg_buy_price ? holding.avg_buy_price.toFixed(2) : (holding.avg_price ? holding.avg_price.toFixed(2) : '--')}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="small text-muted">当前价</div>
+                        <div class="fw-bold">¥${holding.current_price ? holding.current_price.toFixed(2) : '--'}</div>
+                        <div class="small text-muted">${getPriceUpdateTime()}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="small text-muted">持仓量</div>
+                        <div class="fw-bold">${holding.current_quantity || holding.total_quantity || 0}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="small text-muted">浮盈比例</div>
+                        <div class="fw-bold ${getProfitClass(holding)}">${calculateProfitRatio(holding)}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-primary btn-sm w-100" onclick="openReviewModal('${holding.stock_code}')">
+                            <i class="fas fa-chart-line"></i> 复盘分析
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    holdingsList.innerHTML = holdingsHtml;
+}
+
+function calculateProfitRatio(holding) {
+    if (!holding.avg_buy_price || !holding.current_price) {
+        return '--';
+    }
+    const ratio = ((holding.current_price - holding.avg_buy_price) / holding.avg_buy_price * 100).toFixed(2);
+    return ratio + '%';
+}
+
+function getProfitClass(holding) {
+    if (!holding.avg_buy_price || !holding.current_price) {
+        return 'text-muted';
+    }
+    const ratio = (holding.current_price - holding.avg_buy_price) / holding.avg_buy_price;
+    return ratio > 0 ? 'text-danger' : ratio < 0 ? 'text-success' : 'text-muted';
+}
+
+function getPriceUpdateTime() {
+    const now = new Date();
+    return now.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
+function updatePriceUpdateTime(wasForceRefresh = false) {
+    const statusEl = document.getElementById('last-price-update');
+    if (statusEl) {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('zh-CN', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        statusEl.textContent = timeStr;
+        
+        // 如果是强制刷新，显示特殊标识
+        if (wasForceRefresh) {
+            statusEl.parentElement.innerHTML = `
+                <i class="fas fa-sync-alt text-success"></i> 
+                价格已刷新: <span class="text-success">${timeStr}</span>
+            `;
+            
+            // 3秒后恢复正常显示
+            setTimeout(() => {
+                statusEl.parentElement.innerHTML = `
+                    <i class="fas fa-clock"></i> 
+                    价格更新时间: <span id="last-price-update">${timeStr}</span>
+                `;
+            }, 3000);
+        }
+    }
+}
+
+function showEmptyHoldings() {
+    const holdingsList = document.getElementById('holdings-list');
+    if (holdingsList) {
+        holdingsList.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-briefcase fa-3x mb-3 text-muted"></i>
+                <div class="h5 mb-2">暂无持仓数据</div>
+                <p class="mb-3">您当前没有持仓股票</p>
+                <a href="/trading-records" class="btn btn-outline-primary">
+                    <i class="fas fa-plus"></i> 添加交易记录
+                </a>
+            </div>
+        `;
+    }
+}
+
+function showHoldingsError(message) {
+    const holdingsList = document.getElementById('holdings-list');
+    if (holdingsList) {
+        holdingsList.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                <div class="h5 mb-2">加载失败</div>
+                <p class="mb-3">${message}</p>
+                <button class="btn btn-outline-primary" onclick="loadHoldings()">
+                    <i class="fas fa-redo"></i> 重新加载
+                </button>
+            </div>
+        `;
+    }
+}
+
+async function loadReviews() {
+    console.log('📝 开始加载复盘记录');
+    const reviewsList = document.getElementById('reviews-list');
+
+    if (!reviewsList) return;
+
+    try {
+        reviewsList.innerHTML = `
+            <div class="text-center py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                正在加载复盘记录...
+            </div>
+        `;
+
+        const response = await fetch('/api/reviews');
+        const data = await response.json();
+
+        if (data.success && data.data && data.data.length > 0) {
+            currentReviews = data.data;
+            displayReviews(data.data);
+        } else {
+            showEmptyReviews();
+        }
+
+    } catch (error) {
+        console.error('加载复盘记录失败:', error);
+        showReviewsError(error.message);
+    }
+}
+
+function displayReviews(reviews) {
+    const reviewsList = document.getElementById('reviews-list');
+    if (!reviewsList) return;
+
+    if (!reviews || reviews.length === 0) {
+        showEmptyReviews();
+        return;
+    }
+
+    const reviewsHtml = reviews.map(review => `
+        <div class="review-item card mb-2">
+            <div class="card-body py-2">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        <div class="fw-bold">${review.stock_code}</div>
+                        <div class="small text-muted">${review.review_date || '--'}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="small text-muted">评分</div>
+                        <div class="fw-bold">${review.total_score || 0}/5</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="small text-muted">决策</div>
+                        <div class="fw-bold">${getDecisionText(review.decision)}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted">分析内容</div>
+                        <div class="small">${review.analysis ? review.analysis.substring(0, 50) + '...' : '--'}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="editReview(${review.id})">
+                            <i class="fas fa-edit"></i> 编辑
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    reviewsList.innerHTML = reviewsHtml;
+}
+
+function showEmptyReviews() {
+    const reviewsList = document.getElementById('reviews-list');
+    if (reviewsList) {
+        reviewsList.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-journal-whills fa-3x mb-3 text-muted"></i>
+                <div class="h5 mb-2">暂无复盘记录</div>
+                <p class="mb-3">开始您的第一次复盘分析</p>
+            </div>
+        `;
+    }
+}
+
+function showReviewsError(message) {
+    const reviewsList = document.getElementById('reviews-list');
+    if (reviewsList) {
+        reviewsList.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                <div class="h5 mb-2">加载失败</div>
+                <p class="mb-3">${message}</p>
+                <button class="btn btn-outline-primary" onclick="loadReviews()">
+                    <i class="fas fa-redo"></i> 重新加载
+                </button>
+            </div>
+        `;
+    }
+}
+
+async function loadHoldingAlerts() {
+    console.log('🔔 开始加载持仓提醒');
+    const holdingAlerts = document.getElementById('holding-alerts');
+
+    if (!holdingAlerts) return;
+
+    try {
+        holdingAlerts.innerHTML = `
+            <div class="text-center py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                正在加载提醒...
+            </div>
+        `;
+
+        const response = await fetch('/api/holdings/alerts');
+        const data = await response.json();
+
+        if (data.success && data.data && data.data.length > 0) {
+            displayHoldingAlerts(data.data);
+        } else {
+            showEmptyAlerts();
+        }
+
+    } catch (error) {
+        console.error('加载持仓提醒失败:', error);
+        showAlertsError(error.message);
+    }
+}
+
+function displayHoldingAlerts(alerts) {
+    const holdingAlerts = document.getElementById('holding-alerts');
+    if (!holdingAlerts) return;
+
+    const alertsHtml = alerts.map(alert => `
+        <div class="alert alert-${alert.type || 'info'} alert-dismissible fade show">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-bell me-2"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold">${alert.stock_code}</div>
+                    <div class="small">${alert.message}</div>
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `).join('');
+
+    holdingAlerts.innerHTML = alertsHtml;
+}
+
+function showEmptyAlerts() {
+    const holdingAlerts = document.getElementById('holding-alerts');
+    if (holdingAlerts) {
+        holdingAlerts.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+                <div class="h5 mb-2">暂无提醒</div>
+                <p class="mb-0">当前持仓状态良好</p>
+            </div>
+        `;
+    }
+}
+
+function showAlertsError(message) {
+    const holdingAlerts = document.getElementById('holding-alerts');
+    if (holdingAlerts) {
+        holdingAlerts.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                <div class="h5 mb-2">加载失败</div>
+                <p class="mb-3">${message}</p>
+                <button class="btn btn-outline-primary" onclick="loadHoldingAlerts()">
+                    <i class="fas fa-redo"></i> 重新加载
+                </button>
+            </div>
+        `;
+    }
+}
+
+function updateQuickReviewOptions(holdings) {
+    const select = document.getElementById('quick-review-stock');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">请选择持仓股票</option>';
+
+    if (holdings && holdings.length > 0) {
+        holdings.forEach(holding => {
+            const option = document.createElement('option');
+            option.value = holding.stock_code;
+            option.textContent = `${holding.stock_code} - ${holding.stock_name || ''}`;
+            select.appendChild(option);
+        });
+    }
+}
+
+function getDecisionText(decision) {
+    const decisions = {
+        'hold': '继续持有',
+        'sell_partial': '部分止盈',
+        'sell_all': '清仓',
+        '': '--'
+    };
+    return decisions[decision] || decision || '--';
+}
+
+// 全局变量
+let autoRefreshInterval = null;
+let isAutoRefreshEnabled = false;
+
+// 全局函数
+function refreshHoldings() {
+    console.log('刷新持仓数据');
+    loadHoldings();
+}
+
+function refreshHoldingsWithPrices() {
+    console.log('强制刷新持仓数据和价格');
+    loadHoldings(true); // 传入true表示强制刷新价格
+}
+
+function toggleAutoRefresh() {
+    const btn = document.getElementById('auto-refresh-btn');
+    
+    if (isAutoRefreshEnabled) {
+        // 停止自动刷新
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+        isAutoRefreshEnabled = false;
+        btn.innerHTML = '<i class="fas fa-play"></i> 自动刷新';
+        btn.className = 'btn btn-sm btn-outline-info';
+        console.log('自动刷新已停止');
+    } else {
+        // 开始自动刷新
+        isAutoRefreshEnabled = true;
+        btn.innerHTML = '<i class="fas fa-pause"></i> 停止刷新';
+        btn.className = 'btn btn-sm btn-warning';
+        
+        // 每30秒刷新一次价格
+        autoRefreshInterval = setInterval(() => {
+            console.log('自动刷新价格...');
+            loadHoldings(true);
+        }, 30000); // 30秒
+        
+        console.log('自动刷新已启动，每30秒刷新一次');
+    }
+}
+
+function openQuickReview() {
+    const select = document.getElementById('quick-review-stock');
+    if (!select || !select.value) {
+        alert('请先选择股票');
+        return;
+    }
+    openReviewModal(select.value);
+}
+
+function openReviewModal(stockCode) {
+    console.log('🔧 打开复盘模态框:', stockCode);
+
+    if (!reviewModal) {
+        console.error('❌ 复盘模态框未初始化');
+        alert('复盘模态框未初始化，请刷新页面重试');
+        return;
+    }
+
+    try {
+        // 重置表单
+        const form = document.getElementById('review-form');
+        if (form) form.reset();
+
+        // 设置股票代码
+        const stockCodeInput = document.getElementById('review-stock-code');
+        const displayStockCode = document.getElementById('display-stock-code');
+
+        if (stockCodeInput) stockCodeInput.value = stockCode;
+        if (displayStockCode) displayStockCode.value = stockCode;
+
+        // 设置当前日期
+        const reviewDate = document.getElementById('review-date');
+        if (reviewDate) {
+            reviewDate.value = new Date().toISOString().split('T')[0];
+        }
+
+        // 查找持仓信息并填充数据
+        const holding = currentHoldings.find(h => h.stock_code === stockCode);
+        if (holding) {
+            console.log('✅ 找到持仓信息:', holding);
+            populateModalWithHoldingData(stockCode, holding);
+        } else {
+            console.warn('⚠️ 未找到持仓信息，尝试从API获取:', stockCode);
+            loadHoldingInfo(stockCode).then(holdingData => {
+                if (holdingData) {
+                    populateModalWithHoldingData(stockCode, holdingData);
+                }
+            });
+        }
+
+        // 显示模态框
+        reviewModal.show();
+        console.log('✅ 模态框显示成功');
+
+    } catch (error) {
+        console.error('❌ openReviewModal失败:', error);
+        alert('打开复盘模态框失败: ' + error.message);
+    }
+}
+
+async function loadHoldingInfo(stockCode) {
+    try {
+        const response = await fetch('/api/holdings');
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+            currentHoldings = data.data;
+            const holding = data.data.find(h => h.stock_code === stockCode);
+            return holding;
+        }
+        return null;
+    } catch (error) {
+        console.error('获取持仓信息失败:', error);
+        return null;
+    }
+}
+
+function populateModalWithHoldingData(stockCode, holding) {
+    console.log('🔧 填充模态框数据:', stockCode, holding);
+    
+    // 设置持仓天数
+    const holdingDays = document.getElementById('holding-days');
+    if (holdingDays) {
+        holdingDays.value = holding.holding_days || 1;
+    }
+
+    // 设置成本价
+    const buyPriceDisplay = document.getElementById('buy-price-display');
+    if (buyPriceDisplay) {
+        const buyPrice = holding.avg_buy_price || holding.avg_price;
+        buyPriceDisplay.textContent = buyPrice ? `¥${buyPrice.toFixed(2)}` : '--';
+        console.log('✅ 成本价已设置:', buyPrice);
+    }
+
+    // 设置当前价格
+    const currentPriceInput = document.getElementById('current-price-input');
+    if (currentPriceInput && holding.current_price) {
+        currentPriceInput.value = holding.current_price.toFixed(2);
+        console.log('✅ 当前价格已设置:', holding.current_price);
+        
+        // 计算并显示浮盈
+        calculateAndDisplayProfit(holding);
+    }
+}
+
+function calculateAndDisplayProfit(holding) {
+    const buyPrice = holding.avg_buy_price || holding.avg_price;
+    const currentPrice = holding.current_price;
+    
+    if (buyPrice && currentPrice) {
+        const profitRatio = ((currentPrice - buyPrice) / buyPrice * 100).toFixed(2);
+        const profitRatioEl = document.getElementById('floating-profit-ratio');
+        
+        if (profitRatioEl) {
+            profitRatioEl.textContent = profitRatio + '%';
+            
+            // 设置颜色
+            const container = profitRatioEl.closest('.floating-profit-container');
+            if (container) {
+                container.className = 'floating-profit-container';
+                if (profitRatio > 0) {
+                    container.classList.add('profit');
+                    profitRatioEl.style.color = '#dc3545'; // 红色
+                } else if (profitRatio < 0) {
+                    container.classList.add('loss');
+                    profitRatioEl.style.color = '#28a745'; // 绿色
+                } else {
+                    container.classList.add('neutral');
+                    profitRatioEl.style.color = '#6c757d'; // 灰色
+                }
+            }
+        }
+    }
+}
+
+function saveReview() {
+    console.log('保存复盘记录');
+    // 这里可以添加保存逻辑
+    alert('复盘记录保存功能待实现');
+}
+
+function editReview(reviewId) {
+    console.log('编辑复盘记录:', reviewId);
+    // 这里可以添加编辑逻辑
+    alert('编辑复盘记录功能待实现');
+}
+
+</script>
+{% endblock %}

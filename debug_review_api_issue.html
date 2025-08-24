@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复盘API调试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>复盘API调试工具</h2>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试数据</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="test-form">
+                            <div class="mb-3">
+                                <label class="form-label">股票代码</label>
+                                <input type="text" class="form-control" id="stock_code" value="000001">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">复盘日期</label>
+                                <input type="date" class="form-control" id="review_date" value="2025-01-21">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">持仓天数</label>
+                                <input type="number" class="form-control" id="holding_days" value="5">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">当前价格</label>
+                                <input type="number" class="form-control" id="current_price" value="10.50" step="0.01">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">决策</label>
+                                <select class="form-control" id="decision">
+                                    <option value="">请选择</option>
+                                    <option value="hold">继续持有</option>
+                                    <option value="sell">卖出</option>
+                                    <option value="add">加仓</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">决策理由</label>
+                                <textarea class="form-control" id="reason" rows="3">测试理由</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">分析</label>
+                                <textarea class="form-control" id="analysis" rows="3">测试分析</textarea>
+                            </div>
+                        </form>
+                        
+                        <button class="btn btn-primary" onclick="testCreateReview()">测试创建复盘</button>
+                        <button class="btn btn-secondary" onclick="testValidateData()">测试数据验证</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>调试信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="debug-output" style="height: 400px; overflow-y: auto; background: #f8f9fa; padding: 10px; font-family: monospace; font-size: 12px;">
+                            等待测试...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const output = document.getElementById('debug-output');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'black';
+            output.innerHTML += `<div style="color: ${color};">[${timestamp}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function collectFormData() {
+            const data = {
+                stock_code: document.getElementById('stock_code').value,
+                review_date: document.getElementById('review_date').value,
+                holding_days: parseInt(document.getElementById('holding_days').value) || 0,
+                current_price: parseFloat(document.getElementById('current_price').value) || null,
+                decision: document.getElementById('decision').value,
+                reason: document.getElementById('reason').value,
+                analysis: document.getElementById('analysis').value,
+                price_up_score: 1,
+                bbi_score: 1,
+                volume_score: 0,
+                trend_score: 1,
+                j_score: 0
+            };
+            
+            data.total_score = data.price_up_score + data.bbi_score + data.volume_score + 
+                              data.trend_score + data.j_score;
+            
+            return data;
+        }
+
+        async function testCreateReview() {
+            log('开始测试创建复盘记录...');
+            
+            const data = collectFormData();
+            log('收集的数据: ' + JSON.stringify(data, null, 2));
+            
+            try {
+                const response = await axios.post('http://localhost:5002/api/reviews', data, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                log('✅ 请求成功!', 'success');
+                log('响应状态: ' + response.status, 'success');
+                log('响应数据: ' + JSON.stringify(response.data, null, 2), 'success');
+                
+            } catch (error) {
+                log('❌ 请求失败!', 'error');
+                log('错误状态: ' + (error.response?.status || 'N/A'), 'error');
+                log('错误信息: ' + (error.response?.data?.error?.message || error.message), 'error');
+                
+                if (error.response?.data) {
+                    log('完整错误响应: ' + JSON.stringify(error.response.data, null, 2), 'error');
+                }
+            }
+        }
+
+        async function testValidateData() {
+            log('开始测试数据验证...');
+            
+            const data = collectFormData();
+            log('验证数据: ' + JSON.stringify(data, null, 2));
+            
+            // 前端验证
+            const errors = [];
+            
+            if (!data.stock_code) {
+                errors.push('股票代码不能为空');
+            }
+            
+            if (!data.review_date) {
+                errors.push('复盘日期不能为空');
+            }
+            
+            if (!data.holding_days || data.holding_days < 1) {
+                errors.push('持仓天数必须大于0');
+            }
+            
+            if (!data.decision) {
+                errors.push('请选择决策结果');
+            }
+            
+            if (!data.reason.trim()) {
+                errors.push('决策理由不能为空');
+            }
+            
+            if (data.current_price !== null && (data.current_price <= 0 || data.current_price > 9999.99)) {
+                errors.push('当前价格必须在0.01-9999.99之间');
+            }
+            
+            if (errors.length === 0) {
+                log('✅ 前端验证通过', 'success');
+            } else {
+                log('❌ 前端验证失败: ' + errors.join('；'), 'error');
+            }
+            
+            // 测试后端验证API
+            try {
+                const response = await axios.post('http://localhost:5001/api/reviews/validate', data, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                log('✅ 后端验证成功!', 'success');
+                log('验证结果: ' + JSON.stringify(response.data, null, 2), 'success');
+                
+            } catch (error) {
+                log('❌ 后端验证失败!', 'error');
+                log('错误信息: ' + (error.response?.data?.error?.message || error.message), 'error');
+            }
+        }
+
+        // 页面加载时清空调试输出
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('debug-output').innerHTML = '调试工具已准备就绪...\n';
+        });
+    </script>
+</body>
+</html>
