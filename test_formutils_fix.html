@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FormUtils 修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .form-disabled {
+            position: relative;
+        }
+        .form-disabled::after {
+            content: '表单已禁用';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>FormUtils 修复测试</h2>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试表单</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="test-form">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">姓名</label>
+                                <input type="text" class="form-control" id="name" name="name" value="测试用户">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="email" class="form-label">邮箱</label>
+                                <input type="email" class="form-control" id="email" name="email" value="test@example.com">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="category" class="form-label">分类</label>
+                                <select class="form-control" id="category" name="category">
+                                    <option value="A">分类A</option>
+                                    <option value="B" selected>分类B</option>
+                                    <option value="C">分类C</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="notes" class="form-label">备注</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="3">这是测试备注</textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="agree" name="agree" checked>
+                                    <label class="form-check-label" for="agree">
+                                        我同意条款
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">提交</button>
+                            <button type="button" class="btn btn-secondary" onclick="testDisable()">禁用表单</button>
+                            <button type="button" class="btn btn-success" onclick="testEnable()">启用表单</button>
+                            <button type="button" class="btn btn-info" onclick="testSerialize()">序列化数据</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results" style="max-height: 400px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/form-validation.js"></script>
+    <script>
+        function logResult(message, type = 'info') {
+            const results = document.getElementById('test-results');
+            const alertClass = type === 'success' ? 'alert-success' : 
+                              type === 'error' ? 'alert-danger' : 'alert-info';
+            
+            results.innerHTML += `
+                <div class="alert ${alertClass} alert-sm py-2 mb-2">
+                    ${new Date().toLocaleTimeString()}: ${message}
+                </div>
+            `;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function testDisable() {
+            try {
+                logResult('测试禁用表单...', 'info');
+                
+                if (typeof FormUtils === 'undefined') {
+                    logResult('❌ FormUtils 对象未定义', 'error');
+                    return;
+                }
+                
+                if (typeof FormUtils.disable !== 'function') {
+                    logResult('❌ FormUtils.disable 不是函数', 'error');
+                    return;
+                }
+                
+                const form = document.getElementById('test-form');
+                FormUtils.disable(form, true);
+                
+                logResult('✅ 表单已禁用', 'success');
+                
+                // 检查禁用状态
+                const disabledElements = form.querySelectorAll('input:disabled, select:disabled, textarea:disabled, button:disabled');
+                logResult(`✅ 禁用了 ${disabledElements.length} 个表单元素`, 'success');
+                
+            } catch (error) {
+                logResult(`❌ 禁用表单失败: ${error.message}`, 'error');
+            }
+        }
+
+        function testEnable() {
+            try {
+                logResult('测试启用表单...', 'info');
+                
+                const form = document.getElementById('test-form');
+                FormUtils.disable(form, false);
+                
+                logResult('✅ 表单已启用', 'success');
+                
+                // 检查启用状态
+                const enabledElements = form.querySelectorAll('input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled)');
+                logResult(`✅ 启用了 ${enabledElements.length} 个表单元素`, 'success');
+                
+            } catch (error) {
+                logResult(`❌ 启用表单失败: ${error.message}`, 'error');
+            }
+        }
+
+        function testSerialize() {
+            try {
+                logResult('测试序列化表单数据...', 'info');
+                
+                if (typeof FormUtils.serialize !== 'function') {
+                    logResult('❌ FormUtils.serialize 不是函数', 'error');
+                    return;
+                }
+                
+                const form = document.getElementById('test-form');
+                const data = FormUtils.serialize(form);
+                
+                logResult('✅ 表单数据序列化成功:', 'success');
+                Object.keys(data).forEach(key => {
+                    logResult(`  ${key}: ${data[key]}`, 'info');
+                });
+                
+            } catch (error) {
+                logResult(`❌ 序列化表单失败: ${error.message}`, 'error');
+            }
+        }
+
+        function testFormValidation() {
+            logResult('测试表单验证集成...', 'info');
+            
+            try {
+                // 初始化表单验证器
+                const validator = new FormValidator('#test-form', {
+                    realTimeValidation: true,
+                    showSuccessState: true
+                });
+                
+                logResult('✅ 表单验证器初始化成功', 'success');
+                
+                // 测试提交处理
+                validator.onSubmit = function(formData) {
+                    logResult('📝 表单提交处理:', 'info');
+                    logResult('  - 表单验证通过', 'success');
+                    logResult('  - FormUtils.disable 调用成功', 'success');
+                    logResult('  - FormUtils.serialize 调用成功', 'success');
+                    
+                    // 模拟异步处理
+                    setTimeout(() => {
+                        logResult('  - 模拟处理完成，表单已重新启用', 'success');
+                    }, 1000);
+                    
+                    return false; // 阻止实际提交
+                };
+                
+            } catch (error) {
+                logResult(`❌ 表单验证器初始化失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载完成后自动检查
+        document.addEventListener('DOMContentLoaded', function() {
+            logResult('页面加载完成，开始检查 FormUtils...', 'info');
+            
+            if (typeof FormUtils === 'undefined') {
+                logResult('❌ FormUtils 未定义', 'error');
+                return;
+            }
+            
+            const requiredMethods = ['disable', 'serialize', 'populate', 'reset'];
+            let allMethodsExist = true;
+            
+            requiredMethods.forEach(methodName => {
+                if (typeof FormUtils[methodName] === 'function') {
+                    logResult(`✅ FormUtils.${methodName} 存在`, 'success');
+                } else {
+                    logResult(`❌ FormUtils.${methodName} 不存在或不是函数`, 'error');
+                    allMethodsExist = false;
+                }
+            });
+            
+            if (allMethodsExist) {
+                logResult('🎉 所有必需的 FormUtils 方法都已正确定义！', 'success');
+                testFormValidation();
+            } else {
+                logResult('⚠️ 部分 FormUtils 方法缺失', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

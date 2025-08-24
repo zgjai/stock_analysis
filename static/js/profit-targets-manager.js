@@ -13,12 +13,12 @@ class ProfitTargetsManager {
             onValidationChange: null,
             ...options
         };
-        
+
         this.targets = [];
         this.nextId = 1;
         this.isValid = true;
         this.validationErrors = {};
-        
+
         this.init();
     }
 
@@ -27,10 +27,10 @@ class ProfitTargetsManager {
             console.error('ProfitTargetsManager: Container not found');
             return;
         }
-        
+
         this.render();
         this.setupEventListeners();
-        
+
         // 添加默认的第一个止盈目标，但不触发通知
         if (this.targets.length === 0) {
             this.addTarget(null, false); // 第二个参数表示不触发通知
@@ -39,24 +39,32 @@ class ProfitTargetsManager {
 
     render() {
         this.container.innerHTML = `
-            <div class="profit-targets-manager">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="mb-0">止盈目标设置</h6>
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="add-target-btn">
-                        <i class="bi bi-plus-circle"></i>
-                        添加止盈目标
+            <div class="profit-targets-manager" style="max-width: 800px;">
+                <!-- 标题区域 -->
+                <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-gradient rounded-3 shadow-sm" 
+                     style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-bullseye text-white fs-4 me-3"></i>
+                        <h5 class="mb-0 text-white fw-bold">止盈目标设置</h5>
+                    </div>
+                    <button type="button" class="btn btn-light btn-lg shadow-sm" id="add-target-btn">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        <span class="fw-semibold">添加止盈目标</span>
                     </button>
                 </div>
                 
-                <div class="targets-container" id="targets-container">
+                <!-- 目标列表容器 -->
+                <div class="targets-container mb-4" id="targets-container">
                     <!-- 止盈目标列表将在这里渲染 -->
                 </div>
                 
-                <div class="targets-summary mt-3 p-3 bg-light rounded" id="targets-summary">
+                <!-- 汇总信息 -->
+                <div class="targets-summary mb-3" id="targets-summary">
                     <!-- 汇总信息将在这里显示 -->
                 </div>
                 
-                <div class="validation-messages mt-2" id="validation-messages">
+                <!-- 验证消息 -->
+                <div class="validation-messages" id="validation-messages">
                     <!-- 验证错误信息将在这里显示 -->
                 </div>
             </div>
@@ -69,7 +77,7 @@ class ProfitTargetsManager {
         if (addBtn) {
             addBtn.addEventListener('click', () => this.addTarget());
         }
-        
+
         // 使用事件委托处理动态添加的元素
         this.container.addEventListener('click', (e) => {
             if (e.target.matches('.remove-target-btn')) {
@@ -77,13 +85,13 @@ class ProfitTargetsManager {
                 this.removeTarget(targetId);
             }
         });
-        
+
         this.container.addEventListener('input', (e) => {
             if (e.target.matches('.target-input')) {
                 this.handleTargetInputChange(e.target);
             }
         });
-        
+
         this.container.addEventListener('blur', (e) => {
             if (e.target.matches('.target-input')) {
                 this.validateTarget(e.target);
@@ -96,7 +104,7 @@ class ProfitTargetsManager {
             UXUtils.showWarning(`最多只能添加${this.options.maxTargets}个止盈目标`);
             return;
         }
-        
+
         const target = {
             id: this.nextId++,
             targetPrice: data?.targetPrice || '',
@@ -105,16 +113,16 @@ class ProfitTargetsManager {
             expectedProfitRatio: data?.expectedProfitRatio || 0,
             sequenceOrder: this.targets.length + 1
         };
-        
+
         this.targets.push(target);
         this.renderTargets();
         this.updateSummary();
         this.validateAllTargets();
-        
+
         if (notify) {
             this.notifyChange();
         }
-        
+
         // 聚焦到新添加的止盈比例输入框
         setTimeout(() => {
             const newTargetInput = this.container.querySelector(`[data-target-id="${target.id}"] .profit-ratio-input`);
@@ -129,14 +137,14 @@ class ProfitTargetsManager {
             UXUtils.showWarning(`至少需要保留${this.options.minTargets}个止盈目标`);
             return;
         }
-        
+
         this.targets = this.targets.filter(target => target.id !== targetId);
-        
+
         // 重新排序
         this.targets.forEach((target, index) => {
             target.sequenceOrder = index + 1;
         });
-        
+
         this.renderTargets();
         this.updateSummary();
         this.validateAllTargets();
@@ -146,9 +154,9 @@ class ProfitTargetsManager {
     renderTargets() {
         const container = this.container.querySelector('#targets-container');
         if (!container) return;
-        
+
         container.innerHTML = this.targets.map(target => this.renderTarget(target)).join('');
-        
+
         // 更新添加按钮状态
         const addBtn = this.container.querySelector('#add-target-btn');
         if (addBtn) {
@@ -158,12 +166,39 @@ class ProfitTargetsManager {
 
     renderTarget(target) {
         const canRemove = this.targets.length > this.options.minTargets;
-        
+
         return `
-            <div class="target-row mb-3 p-3 border rounded" data-target-id="${target.id}">
-                <div class="row align-items-center">
-                    <div class="col-md-3">
-                        <label class="form-label small">止盈比例 <span class="text-danger">*</span></label>
+            <div class="target-row mb-4 p-4 border rounded-3 shadow-sm bg-white position-relative" 
+                 data-target-id="${target.id}" 
+                 style="border: 2px solid #e9ecef !important; transition: all 0.3s ease;">
+                
+                <!-- 目标序号标识 -->
+                <div class="position-absolute top-0 start-0 translate-middle">
+                    <span class="badge bg-primary rounded-pill px-3 py-2 fs-6 shadow-sm">
+                        #${target.sequenceOrder}
+                    </span>
+                </div>
+                
+                <!-- 删除按钮 -->
+                ${canRemove ? `
+                    <div class="position-absolute top-0 end-0 translate-middle">
+                        <button type="button" 
+                                class="btn btn-danger btn-sm rounded-circle remove-target-btn shadow-sm" 
+                                data-target-id="${target.id}"
+                                title="删除此止盈目标"
+                                style="width: 32px; height: 32px; padding: 0;">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                ` : ''}
+                
+                <!-- 平衡宽度的单行布局 -->
+                <div class="d-flex align-items-end gap-2" style="flex-wrap: wrap;">
+                    <!-- 止盈比例 -->
+                    <div style="width: 150px; flex-shrink: 0;">
+                        <label class="form-label text-primary mb-1" style="font-size: 0.75rem; font-weight: 600;">
+                            止盈比例 <span class="text-danger">*</span>
+                        </label>
                         <div class="input-group input-group-sm">
                             <input type="number" 
                                    class="form-control target-input profit-ratio-input" 
@@ -175,15 +210,18 @@ class ProfitTargetsManager {
                                    min="0.01" 
                                    max="1000"
                                    placeholder="20.00"
-                                   style="min-width: 120px;">
-                            <span class="input-group-text">%</span>
+                                   style="font-weight: 600; font-size: 0.85rem;">
+                            <span class="input-group-text bg-primary text-white fw-bold" style="font-size: 0.75rem;">%</span>
                         </div>
                     </div>
                     
-                    <div class="col-md-2">
-                        <label class="form-label small">止盈价格</label>
+                    <!-- 止盈价格 -->
+                    <div style="width: 150px; flex-shrink: 0;">
+                        <label class="form-label text-success mb-1" style="font-size: 0.75rem; font-weight: 600;">
+                            止盈价格
+                        </label>
                         <div class="input-group input-group-sm">
-                            <span class="input-group-text">¥</span>
+                            <span class="input-group-text bg-success text-white fw-bold" style="font-size: 0.75rem;">¥</span>
                             <input type="number" 
                                    class="form-control target-input target-price-input" 
                                    name="target_price_${target.id}"
@@ -193,12 +231,16 @@ class ProfitTargetsManager {
                                    step="0.01" 
                                    min="0.01" 
                                    placeholder="0.00"
-                                   readonly>
+                                   readonly
+                                   style="font-weight: 600; background-color: #f8f9fa; font-size: 0.85rem;">
                         </div>
                     </div>
                     
-                    <div class="col-md-3">
-                        <label class="form-label small">卖出比例 <span class="text-danger">*</span></label>
+                    <!-- 卖出比例 -->
+                    <div style="width: 150px; flex-shrink: 0;">
+                        <label class="form-label text-warning mb-1" style="font-size: 0.75rem; font-weight: 600;">
+                            卖出比例 <span class="text-danger">*</span>
+                        </label>
                         <div class="input-group input-group-sm">
                             <input type="number" 
                                    class="form-control target-input sell-ratio-input" 
@@ -210,35 +252,27 @@ class ProfitTargetsManager {
                                    min="0.01" 
                                    max="100" 
                                    placeholder="30.00"
-                                   style="min-width: 120px;">
-                            <span class="input-group-text">%</span>
+                                   style="font-weight: 600; font-size: 0.85rem;">
+                            <span class="input-group-text bg-warning text-dark fw-bold" style="font-size: 0.75rem;">%</span>
                         </div>
                     </div>
                     
-                    <div class="col-md-2">
-                        <label class="form-label small">预期收益率</label>
-                        <div class="form-control-plaintext small">
-                            <span class="expected-profit-ratio fw-bold ${target.expectedProfitRatio > 0 ? 'text-success' : ''}" 
-                                  data-target-id="${target.id}">
+                    <!-- 预期收益率 -->
+                    <div style="width: 160px; flex-shrink: 0;">
+                        <label class="form-label text-info mb-1" style="font-size: 0.75rem; font-weight: 600;">
+                            预期收益率
+                        </label>
+                        <div class="bg-light rounded text-center align-items-center justify-content-center border" style="height: 40px; width: 100px; border-color: #17a2b8 !important;display: flex;align-items: center;justify-content: center;">
+                            <span class="expected-profit-ratio fw-bold ${target.expectedProfitRatio > 0 ? 'text-success' : 'text-muted'}" 
+                                  data-target-id="${target.id}"
+                                  style="font-size: 0.8rem;">
                                 ${this.formatPercent(target.expectedProfitRatio)}
                             </span>
                         </div>
                     </div>
-                    
-                    <div class="col-md-2 text-end">
-                        <span class="badge bg-secondary me-2">#${target.sequenceOrder}</span>
-                        ${canRemove ? `
-                            <button type="button" 
-                                    class="btn btn-sm btn-outline-danger remove-target-btn" 
-                                    data-target-id="${target.id}"
-                                    title="删除此止盈目标">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        ` : ''}
-                    </div>
                 </div>
                 
-                <div class="target-validation-messages mt-2" data-target-id="${target.id}">
+                <div class="target-validation-messages mt-3" data-target-id="${target.id}">
                     <!-- 目标验证错误信息 -->
                 </div>
             </div>
@@ -249,20 +283,20 @@ class ProfitTargetsManager {
         const targetId = parseInt(input.dataset.targetId);
         const field = input.dataset.field;
         const value = input.value;
-        
+
         const target = this.targets.find(t => t.id === targetId);
         if (!target) return;
-        
+
         target[field] = value;
-        
+
         // 如果是止盈比例变化，自动计算止盈价格
         if (field === 'profitRatio' && value && this.options.buyPrice > 0) {
             const profitRatio = parseFloat(value);
             const buyPrice = this.options.buyPrice;
-            
+
             if (profitRatio > 0) {
                 target.targetPrice = (buyPrice * (1 + profitRatio / 100)).toFixed(2);
-                
+
                 // 更新界面上的止盈价格显示
                 const targetPriceInput = this.container.querySelector(`[data-target-id="${targetId}"][data-field="targetPrice"]`);
                 if (targetPriceInput) {
@@ -270,7 +304,7 @@ class ProfitTargetsManager {
                 }
             }
         }
-        
+
         // 实时计算预期收益率
         this.calculateExpectedProfit(target);
         this.updateTargetDisplay(target);
@@ -282,7 +316,7 @@ class ProfitTargetsManager {
     calculateExpectedProfit(target) {
         const sellRatio = parseFloat(target.sellRatio) || 0;
         const profitRatio = parseFloat(target.profitRatio) || 0;
-        
+
         // 预期收益率 = 卖出比例 × 止盈比例
         target.expectedProfitRatio = (sellRatio / 100) * (profitRatio / 100);
     }
@@ -298,35 +332,92 @@ class ProfitTargetsManager {
     updateSummary() {
         const summaryContainer = this.container.querySelector('#targets-summary');
         if (!summaryContainer) return;
-        
+
         const totalSellRatio = this.targets.reduce((sum, target) => {
             return sum + (parseFloat(target.sellRatio) || 0);
         }, 0);
-        
+
         const totalExpectedProfit = this.targets.reduce((sum, target) => {
             return sum + (target.expectedProfitRatio || 0);
         }, 0);
-        
+
         const isOverSold = totalSellRatio > 100;
-        const sellRatioClass = isOverSold ? 'text-danger' : totalSellRatio > 0 ? 'text-primary' : '';
-        const profitClass = totalExpectedProfit > 0 ? 'text-success' : '';
-        
+        const sellRatioClass = isOverSold ? 'text-danger' : totalSellRatio > 0 ? 'text-primary' : 'text-muted';
+        const profitClass = totalExpectedProfit > 0 ? 'text-success' : 'text-muted';
+
+        // 计算进度条宽度
+        const sellRatioProgress = Math.min(totalSellRatio, 100);
+        const progressBarClass = isOverSold ? 'bg-danger' : totalSellRatio > 80 ? 'bg-warning' : 'bg-primary';
+
         summaryContainer.innerHTML = `
-            <div class="row">
-                <div class="col-md-4">
-                    <small class="text-muted">止盈目标数量:</small>
-                    <div class="fw-bold">${this.targets.length} 个</div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark">
+                        <i class="bi bi-bar-chart-line me-2"></i>
+                        汇总统计
+                    </h6>
                 </div>
-                <div class="col-md-4">
-                    <small class="text-muted">总卖出比例:</small>
-                    <div class="fw-bold ${sellRatioClass}">
-                        ${totalSellRatio.toFixed(2)}%
-                        ${isOverSold ? '<i class="bi bi-exclamation-triangle text-danger ms-1" title="卖出比例超过100%"></i>' : ''}
+                <div class="card-body p-4">
+                    <div class="row g-4">
+                        <!-- 目标数量 -->
+                        <div class="col-lg-4">
+                            <div class="text-center p-3 bg-light rounded-3">
+                                <div class="mb-2">
+                                    <i class="bi bi-bullseye fs-2 text-info"></i>
+                                </div>
+                                <div class="fs-3 fw-bold text-dark">${this.targets.length}</div>
+                                <div class="small text-muted">止盈目标数量</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 总卖出比例 -->
+                        <div class="col-lg-4">
+                            <div class="text-center p-3 bg-light rounded-3">
+                                <div class="mb-2">
+                                    <i class="bi bi-pie-chart fs-2 ${sellRatioClass}"></i>
+                                </div>
+                                <div class="fs-3 fw-bold ${sellRatioClass}">
+                                    ${totalSellRatio.toFixed(1)}%
+                                    ${isOverSold ? '<i class="bi bi-exclamation-triangle text-danger ms-1" title="卖出比例超过100%"></i>' : ''}
+                                </div>
+                                <div class="small text-muted mb-2">总卖出比例</div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar ${progressBarClass}" 
+                                         role="progressbar" 
+                                         style="width: ${sellRatioProgress}%" 
+                                         aria-valuenow="${sellRatioProgress}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 总预期收益率 -->
+                        <div class="col-lg-4">
+                            <div class="text-center p-3 bg-light rounded-3">
+                                <div class="mb-2">
+                                    <i class="bi bi-graph-up-arrow fs-2 ${profitClass}"></i>
+                                </div>
+                                <div class="fs-3 fw-bold ${profitClass}">
+                                    ${this.formatPercent(totalExpectedProfit)}
+                                </div>
+                                <div class="small text-muted">总预期收益率</div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="col-md-4">
-                    <small class="text-muted">总预期收益率:</small>
-                    <div class="fw-bold ${profitClass}">${this.formatPercent(totalExpectedProfit)}</div>
+                    
+                    <!-- 状态提示 -->
+                    <div class="mt-3 text-center">
+                        ${totalSellRatio === 100 ?
+                '<span class="badge bg-success fs-6 px-3 py-2"><i class="bi bi-check-circle me-1"></i>完美配置</span>' :
+                totalSellRatio > 100 ?
+                    '<span class="badge bg-danger fs-6 px-3 py-2"><i class="bi bi-exclamation-triangle me-1"></i>超出限制</span>' :
+                    totalSellRatio > 80 ?
+                        '<span class="badge bg-warning fs-6 px-3 py-2"><i class="bi bi-info-circle me-1"></i>接近满额</span>' :
+                        '<span class="badge bg-secondary fs-6 px-3 py-2"><i class="bi bi-clock me-1"></i>还有空间</span>'
+            }
+                    </div>
                 </div>
             </div>
         `;
@@ -336,16 +427,16 @@ class ProfitTargetsManager {
         const targetId = parseInt(input.dataset.targetId);
         const field = input.dataset.field;
         const value = input.value;
-        
+
         const target = this.targets.find(t => t.id === targetId);
         if (!target) return;
-        
+
         let isValid = true;
         let errorMessage = '';
-        
+
         // 清除之前的验证状态
         input.classList.remove('is-invalid', 'is-valid');
-        
+
         // 验证规则
         switch (field) {
             case 'profitRatio':
@@ -363,7 +454,7 @@ class ProfitTargetsManager {
                     }
                 }
                 break;
-                
+
             case 'targetPrice':
                 // 止盈价格现在是自动计算的，不需要验证用户输入
                 if (value && value !== '') {
@@ -377,7 +468,7 @@ class ProfitTargetsManager {
                     }
                 }
                 break;
-                
+
             case 'sellRatio':
                 if (!value || value === '') {
                     isValid = false;
@@ -397,7 +488,7 @@ class ProfitTargetsManager {
                 }
                 break;
         }
-        
+
         // 更新验证状态
         if (isValid) {
             input.classList.add('is-valid');
@@ -406,12 +497,12 @@ class ProfitTargetsManager {
             input.classList.add('is-invalid');
             this.showTargetError(targetId, field, errorMessage);
         }
-        
+
         // 更新目标的验证状态
         if (!this.validationErrors[targetId]) {
             this.validationErrors[targetId] = {};
         }
-        
+
         if (isValid) {
             delete this.validationErrors[targetId][field];
             if (Object.keys(this.validationErrors[targetId]).length === 0) {
@@ -420,13 +511,13 @@ class ProfitTargetsManager {
         } else {
             this.validationErrors[targetId][field] = errorMessage;
         }
-        
+
         this.updateValidationState();
     }
 
     validateAllTargets() {
         this.validationErrors = {};
-        
+
         // 验证每个目标
         this.targets.forEach(target => {
             const targetRow = this.container.querySelector(`[data-target-id="${target.id}"]`);
@@ -435,10 +526,10 @@ class ProfitTargetsManager {
                 inputs.forEach(input => this.validateTarget(input));
             }
         });
-        
+
         // 验证总卖出比例
         this.validateTotalSellRatio();
-        
+
         this.updateValidationState();
     }
 
@@ -446,11 +537,11 @@ class ProfitTargetsManager {
         const totalSellRatio = this.targets.reduce((sum, target) => {
             return sum + (parseFloat(target.sellRatio) || 0);
         }, 0);
-        
+
         // 清除之前的总比例错误
         delete this.validationErrors.totalSellRatio;
         delete this.validationErrors.totalSellRatioWarning;
-        
+
         if (totalSellRatio > 100) {
             this.validationErrors.totalSellRatio = `所有止盈目标的卖出比例总和不能超过100%，当前为${totalSellRatio.toFixed(2)}%`;
         } else if (totalSellRatio > 90 && totalSellRatio <= 100) {
@@ -465,16 +556,16 @@ class ProfitTargetsManager {
     showTargetError(targetId, field, message) {
         const targetRow = this.container.querySelector(`[data-target-id="${targetId}"]`);
         if (!targetRow) return;
-        
+
         const messagesContainer = targetRow.querySelector('.target-validation-messages');
         if (!messagesContainer) return;
-        
+
         // 移除现有的错误信息
         const existingError = messagesContainer.querySelector(`[data-field="${field}"]`);
         if (existingError) {
             existingError.remove();
         }
-        
+
         // 添加新的错误信息
         const errorDiv = document.createElement('div');
         errorDiv.className = 'invalid-feedback d-block small';
@@ -486,10 +577,10 @@ class ProfitTargetsManager {
     clearTargetError(targetId, field) {
         const targetRow = this.container.querySelector(`[data-target-id="${targetId}"]`);
         if (!targetRow) return;
-        
+
         const messagesContainer = targetRow.querySelector('.target-validation-messages');
         if (!messagesContainer) return;
-        
+
         const errorDiv = messagesContainer.querySelector(`[data-field="${field}"]`);
         if (errorDiv) {
             errorDiv.remove();
@@ -498,16 +589,16 @@ class ProfitTargetsManager {
 
     updateValidationState() {
         // 区分错误和警告
-        const errorKeys = Object.keys(this.validationErrors).filter(key => 
+        const errorKeys = Object.keys(this.validationErrors).filter(key =>
             key !== 'totalSellRatioWarning' && !key.endsWith('Warning')
         );
         const hasErrors = errorKeys.length > 0;
         const wasValid = this.isValid;
         this.isValid = !hasErrors;
-        
+
         // 显示全局验证消息
         this.showValidationMessages();
-        
+
         // 如果验证状态发生变化，通知外部
         if (wasValid !== this.isValid && this.options.onValidationChange) {
             this.options.onValidationChange(this.isValid, this.validationErrors);
@@ -517,9 +608,9 @@ class ProfitTargetsManager {
     showValidationMessages() {
         const messagesContainer = this.container.querySelector('#validation-messages');
         if (!messagesContainer) return;
-        
+
         messagesContainer.innerHTML = '';
-        
+
         // 显示严重错误（阻止保存）
         if (this.validationErrors.totalSellRatio) {
             const errorDiv = document.createElement('div');
@@ -530,7 +621,7 @@ class ProfitTargetsManager {
             `;
             messagesContainer.appendChild(errorDiv);
         }
-        
+
         // 显示警告信息（不阻止保存）
         if (this.validationErrors.totalSellRatioWarning) {
             const warningDiv = document.createElement('div');
@@ -541,11 +632,11 @@ class ProfitTargetsManager {
             `;
             messagesContainer.appendChild(warningDiv);
         }
-        
+
         // 显示一般性提示
         const targetCount = this.targets.length;
         const validTargets = this.targets.filter(t => t.targetPrice && t.sellRatio).length;
-        
+
         if (targetCount > 0 && validTargets < targetCount) {
             const infoDiv = document.createElement('div');
             infoDiv.className = 'alert alert-info alert-sm';
@@ -562,7 +653,7 @@ class ProfitTargetsManager {
         return this.targets.map(target => {
             let sellRatio = parseFloat(target.sellRatio) || 0;
             let profitRatio = parseFloat(target.profitRatio) || 0;
-            
+
             // 如果是百分比格式（>1），转换为小数格式供后端使用
             if (sellRatio > 1) {
                 sellRatio = sellRatio / 100;
@@ -570,7 +661,7 @@ class ProfitTargetsManager {
             if (profitRatio > 1) {
                 profitRatio = profitRatio / 100;
             }
-            
+
             return {
                 targetPrice: parseFloat(target.targetPrice) || 0,
                 profitRatio: profitRatio,
@@ -584,13 +675,13 @@ class ProfitTargetsManager {
     setTargets(targets) {
         this.targets = [];
         this.nextId = 1;
-        
+
         if (targets && targets.length > 0) {
             targets.forEach((targetData, index) => {
                 // 处理从后端获取的数据格式转换
                 let sellRatio = targetData.sellRatio || targetData.sell_ratio || '';
                 let profitRatio = targetData.profitRatio || targetData.profit_ratio || '';
-                
+
                 // 如果是小数格式（从数据库获取），转换为百分比格式供前端使用
                 if (sellRatio && parseFloat(sellRatio) <= 1) {
                     sellRatio = (parseFloat(sellRatio) * 100).toString();
@@ -598,7 +689,7 @@ class ProfitTargetsManager {
                 if (profitRatio && parseFloat(profitRatio) <= 1) {
                     profitRatio = (parseFloat(profitRatio) * 100).toString();
                 }
-                
+
                 const target = {
                     id: this.nextId++,
                     targetPrice: targetData.targetPrice || targetData.target_price || '',
@@ -614,7 +705,7 @@ class ProfitTargetsManager {
             this.addTarget();
             return;
         }
-        
+
         this.renderTargets();
         this.updateSummary();
         this.validateAllTargets();
@@ -622,20 +713,20 @@ class ProfitTargetsManager {
 
     setBuyPrice(buyPrice) {
         this.options.buyPrice = parseFloat(buyPrice) || 0;
-        
+
         // 重新计算所有目标的止盈价格
         this.targets.forEach(target => {
             if (target.profitRatio && this.options.buyPrice > 0) {
                 const profitRatio = parseFloat(target.profitRatio);
                 const buyPrice = this.options.buyPrice;
-                
+
                 if (profitRatio > 0) {
                     target.targetPrice = (buyPrice * (1 + profitRatio / 100)).toFixed(2);
                 }
             }
             this.calculateExpectedProfit(target);
         });
-        
+
         this.renderTargets();
         this.updateSummary();
         this.validateAllTargets();
@@ -644,12 +735,12 @@ class ProfitTargetsManager {
     isValidTargets() {
         return this.isValid;
     }
-    
+
     // 执行完整验证（包括后端验证）
     async performFullValidation() {
         // 先执行前端验证
         this.validateAllTargets();
-        
+
         if (!this.isValid) {
             return {
                 isValid: false,
@@ -657,10 +748,10 @@ class ProfitTargetsManager {
                 source: 'frontend'
             };
         }
-        
+
         // 如果前端验证通过，执行后端验证
         const backendResult = await this.validateWithBackend();
-        
+
         if (!backendResult.isValid) {
             this.showBackendValidationErrors(backendResult.errors);
             return {
@@ -669,7 +760,7 @@ class ProfitTargetsManager {
                 source: 'backend'
             };
         }
-        
+
         return {
             isValid: true,
             validationResult: backendResult.validationResult,
@@ -686,11 +777,11 @@ class ProfitTargetsManager {
         this.nextId = 1;
         this.validationErrors = {};
         this.isValid = true;
-        
+
         this.renderTargets();
         this.updateSummary();
         this.showValidationMessages();
-        
+
         // 添加默认目标
         this.addTarget();
     }
@@ -703,14 +794,14 @@ class ProfitTargetsManager {
                 errors: { buyPrice: '买入价格无效，无法进行后端验证' }
             };
         }
-        
+
         const targets = this.getTargets().map(target => ({
             target_price: target.targetPrice,
             profit_ratio: target.profitRatio / 100, // 转换为小数
             sell_ratio: target.sellRatio / 100, // 转换为小数
             sequence_order: target.sequenceOrder
         }));
-        
+
         try {
             const response = await fetch('/api/trades/validate-profit-targets', {
                 method: 'POST',
@@ -722,9 +813,9 @@ class ProfitTargetsManager {
                     profit_targets: targets
                 })
             });
-            
+
             const result = await response.json();
-            
+
             if (result.success) {
                 return {
                     isValid: result.data.is_valid,
@@ -745,12 +836,12 @@ class ProfitTargetsManager {
             };
         }
     }
-    
+
     // 显示后端验证错误
     showBackendValidationErrors(errors) {
         // 清除现有的后端验证错误
         this.container.querySelectorAll('.backend-validation-error').forEach(el => el.remove());
-        
+
         if (errors.general) {
             const messagesContainer = this.container.querySelector('#validation-messages');
             if (messagesContainer) {
@@ -763,7 +854,7 @@ class ProfitTargetsManager {
                 messagesContainer.appendChild(errorDiv);
             }
         }
-        
+
         // 显示具体字段的后端验证错误
         Object.keys(errors).forEach(key => {
             if (key.startsWith('targets[')) {
@@ -781,7 +872,7 @@ class ProfitTargetsManager {
             }
         });
     }
-    
+
     // 工具方法
     formatPercent(value) {
         if (!value || value === 0) return '0.00%';

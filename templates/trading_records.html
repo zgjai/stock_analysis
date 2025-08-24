@@ -1357,6 +1357,28 @@
                     }
                 }
 
+                // 特殊处理交易日期 - 确保交易日期被正确收集
+                if (!formData.trade_date || formData.trade_date.trim() === '') {
+                    const tradeDateElement = document.getElementById('trade-date');
+                    if (tradeDateElement && tradeDateElement.value) {
+                        formData.trade_date = tradeDateElement.value.trim();
+                        console.log('[DEBUG] 从DOM获取交易日期:', formData.trade_date);
+                    }
+                } else {
+                    console.log('[DEBUG] 表单中已有交易日期:', formData.trade_date);
+                }
+
+                // 特殊处理交易日期 - 确保交易日期被正确收集
+                if (!formData.trade_date || formData.trade_date.trim() === '') {
+                    const tradeDateElement = document.getElementById('trade-date');
+                    if (tradeDateElement && tradeDateElement.value) {
+                        formData.trade_date = tradeDateElement.value.trim();
+                        console.log('[DEBUG] 从DOM获取交易日期:', formData.trade_date);
+                    }
+                } else {
+                    console.log('[DEBUG] 表单中已有交易日期:', formData.trade_date);
+                }
+
                 const saveBtn = document.getElementById('save-trade-btn');
                 UXUtils.showLoading(saveBtn, '保存中...');
 

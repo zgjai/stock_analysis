@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>止盈目标设置 - 样式优化测试</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- 自定义样式 -->
+    <link href="static/css/components.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .page-title {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #495057;
+            font-weight: 700;
+        }
+        
+        .demo-info {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border: 2px solid #e1f5fe;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .demo-info h5 {
+            color: #1976d2;
+            margin-bottom: 1rem;
+        }
+        
+        .demo-info p {
+            color: #666;
+            margin-bottom: 0;
+        }
+        
+        /* 演示页面特殊样式 */
+        .demo-highlight {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border: 2px solid #ffc107;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .improvement-note {
+            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+            border-left: 4px solid #17a2b8;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="page-title">
+            <i class="bi bi-bullseye me-3"></i>
+            止盈目标设置 - 样式优化版
+        </h1>
+        
+        <div class="demo-info">
+            <h5><i class="bi bi-palette me-2"></i>样式优化说明</h5>
+            <p>全新设计的止盈目标管理界面，采用现代化渐变设计、增强的交互效果和更清晰的视觉层次</p>
+        </div>
+        
+        <div class="improvement-note">
+            <h6><i class="bi bi-lightbulb me-2"></i>本次优化重点</h6>
+            <ul class="mb-0">
+                <li><strong>水平布局修复</strong> - 输入框和单位符号必须在同一行</li>
+                <li><strong>input-group强制水平</strong> - 添加CSS确保不会垂直排列</li>
+                <li><strong>紧凑设计</strong> - 所有字段在一行内显示</li>
+                <li><strong>调试信息</strong> - 检查Bootstrap input-group行为</li>
+            </ul>
+        </div>
+        
+        <div class="demo-highlight">
+            <h6>🔧 调试信息</h6>
+            <p>如果输入框和单位符号仍然不在同一行，请检查：</p>
+            <ul class="mb-0">
+                <li>Bootstrap版本是否正确加载</li>
+                <li>是否有其他CSS覆盖了input-group样式</li>
+                <li>浏览器开发者工具中input-group的flex-direction属性</li>
+            </ul>
+        </div>
+        
+        <!-- 止盈目标管理组件容器 -->
+        <div id="profit-targets-container"></div>
+        
+        <!-- 测试按钮 -->
+        <div class="text-center mt-4">
+            <button class="btn btn-primary btn-lg me-3" onclick="addTestData()">
+                <i class="bi bi-plus-circle me-2"></i>
+                添加测试数据
+            </button>
+            <button class="btn btn-secondary btn-lg me-3" onclick="clearAllTargets()">
+                <i class="bi bi-trash me-2"></i>
+                清空所有目标
+            </button>
+            <button class="btn btn-info btn-lg" onclick="validateTargets()">
+                <i class="bi bi-check-circle me-2"></i>
+                验证数据
+            </button>
+        </div>
+        
+        <!-- 结果显示 -->
+        <div id="result-display" class="mt-4" style="display: none;">
+            <div class="alert alert-info">
+                <h6><i class="bi bi-info-circle me-2"></i>操作结果</h6>
+                <pre id="result-content"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 工具类 -->
+    <script src="static/js/utils.js"></script>
+    
+    <!-- 止盈目标管理组件 -->
+    <script src="static/js/profit-targets-manager.js"></script>
+    
+    <script>
+        let profitTargetsManager;
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化止盈目标管理组件
+            profitTargetsManager = new ProfitTargetsManager('#profit-targets-container', {
+                maxTargets: 5,
+                minTargets: 1,
+                buyPrice: 10.50,
+                onTargetsChange: function(targets, isValid) {
+                    console.log('目标变化:', targets, '有效性:', isValid);
+                },
+                onValidationChange: function(isValid, errors) {
+                    console.log('验证状态变化:', isValid, errors);
+                }
+            });
+            
+            // 添加一些示例数据
+            setTimeout(() => {
+                addTestData();
+            }, 500);
+        });
+        
+        // 添加测试数据
+        function addTestData() {
+            profitTargetsManager.clear();
+            
+            // 添加第一个目标
+            profitTargetsManager.addTarget({
+                profitRatio: '10',
+                sellRatio: '30'
+            });
+            
+            // 添加第二个目标
+            setTimeout(() => {
+                profitTargetsManager.addTarget({
+                    profitRatio: '20',
+                    sellRatio: '30'
+                });
+            }, 200);
+            
+            // 添加第三个目标
+            setTimeout(() => {
+                profitTargetsManager.addTarget({
+                    profitRatio: '30',
+                    sellRatio: '20'
+                });
+            }, 400);
+            
+            showResult('已添加测试数据');
+        }
+        
+        // 清空所有目标
+        function clearAllTargets() {
+            profitTargetsManager.clear();
+            showResult('已清空所有目标');
+        }
+        
+        // 验证目标
+        function validateTargets() {
+            const targets = profitTargetsManager.getTargets();
+            const isValid = profitTargetsManager.isValidTargets();
+            const errors = profitTargetsManager.getValidationErrors();
+            
+            const result = {
+                targets: targets,
+                isValid: isValid,
+                errors: errors
+            };
+            
+            showResult(JSON.stringify(result, null, 2));
+        }
+        
+        // 显示结果
+        function showResult(content) {
+            const resultDisplay = document.getElementById('result-display');
+            const resultContent = document.getElementById('result-content');
+            
+            resultContent.textContent = content;
+            resultDisplay.style.display = 'block';
+            
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                resultDisplay.style.display = 'none';
+            }, 3000);
+        }
+        
+        // 模拟UXUtils（如果不存在）
+        if (typeof UXUtils === 'undefined') {
+            window.UXUtils = {
+                showWarning: function(message) {
+                    alert('警告: ' + message);
+                },
+                showError: function(message) {
+                    alert('错误: ' + message);
+                },
+                showSuccess: function(message) {
+                    alert('成功: ' + message);
+                }
+            };
+        }
+    </script>
+</body>
+</html>

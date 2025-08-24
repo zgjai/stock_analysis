@@ -1879,6 +1879,127 @@
         console.log('[DEBUG] 复盘记录HTML已生成并插入到页面');
     }
 
+    // 编辑复盘记录函数
+    window.editReview = function (reviewId) {
+        console.log('编辑复盘记录:', reviewId);
+
+        // 显示加载状态
+        if (typeof showInfoMessage === 'function') {
+            showInfoMessage('正在加载复盘记录...', { duration: 2000 });
+        }
+
+        // 使用fetch API获取复盘记录数据
+        fetch(`/api/reviews/${reviewId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.data) {
+                    const review = data.data;
+
+                    // 填充表单数据
+                    document.getElementById('review-id').value = reviewId;
+                    document.getElementById('review-stock-code').value = review.stock_code || '';
+                    document.getElementById('display-stock-code').value = review.stock_code || '';
+                    document.getElementById('review-date').value = review.review_date || '';
+                    document.getElementById('holding-days').value = review.holding_days || '';
+                    document.getElementById('current-price-input').value = review.current_price || '';
+                    document.getElementById('analysis').value = review.analysis || '';
+                    document.getElementById('decision').value = review.decision || '';
+                    document.getElementById('reason').value = review.reason || '';
+
+                    // 设置评分复选框
+                    document.getElementById('price-up-score').checked = review.price_up_score === 1;
+                    document.getElementById('bbi-score').checked = review.bbi_score === 1;
+                    document.getElementById('volume-score').checked = review.volume_score === 1;
+                    document.getElementById('trend-score').checked = review.trend_score === 1;
+                    document.getElementById('j-score').checked = review.j_score === 1;
+
+                    // 计算总分
+                    if (typeof calculateTotalScore === 'function') {
+                        calculateTotalScore();
+                    }
+
+                    // 显示模态框
+                    const modal = document.getElementById('reviewModal');
+                    if (modal) {
+                        const bsModal = new bootstrap.Modal(modal);
+                        bsModal.show();
+                    }
+
+                    if (typeof showSuccessMessage === 'function') {
+                        showSuccessMessage('复盘记录加载成功');
+                    }
+                } else {
+                    throw new Error(data.error?.message || data.message || '获取复盘记录失败');
+                }
+            })
+            .catch(error => {
+                console.error('获取复盘记录失败:', error);
+                if (typeof showErrorMessage === 'function') {
+                    showErrorMessage('获取复盘记录失败: ' + error.message);
+                } else {
+                    alert('获取复盘记录失败: ' + error.message);
+                }
+            });
+    };
+
+    // 删除复盘记录函数
+    window.deleteReview = function (reviewId) {
+        console.log('删除复盘记录:', reviewId);
+
+        // 确认删除
+        if (!confirm('确定要删除这条复盘记录吗？此操作不可恢复。')) {
+            return;
+        }
+
+        // 显示加载状态
+        if (typeof showInfoMessage === 'function') {
+            showInfoMessage('正在删除复盘记录...', { duration: 2000 });
+        }
+
+        // 使用fetch API删除复盘记录
+        fetch(`/api/reviews/${reviewId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    if (typeof showSuccessMessage === 'function') {
+                        showSuccessMessage('复盘记录删除成功');
+                    }
+
+                    // 重新加载复盘记录列表
+                    if (typeof loadReviews === 'function') {
+                        setTimeout(() => {
+                            loadReviews();
+                        }, 500);
+                    }
+                } else {
+                    throw new Error(data.error?.message || data.message || '删除复盘记录失败');
+                }
+            })
+            .catch(error => {
+                console.error('删除复盘记录失败:', error);
+                if (typeof showErrorMessage === 'function') {
+                    showErrorMessage('删除复盘记录失败: ' + error.message);
+                } else {
+                    alert('删除复盘记录失败: ' + error.message);
+                }
+            });
+    };
+
     function showEmptyReviews() {
         const reviewsList = document.getElementById('reviews-list');
         if (reviewsList) {

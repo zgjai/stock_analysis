@@ -129,9 +129,14 @@ class TradingService(BaseService):
                 cls._validate_trade_reason(trade_type, data.get('reason'))
             
             # 过滤掉None值和空字符串，避免覆盖必填字段
+            # 但保留交易日期字段，即使它可能是空字符串
             filtered_data = {}
             for key, value in data.items():
-                if value is not None and value != '':
+                if key == 'trade_date':
+                    # 交易日期字段特殊处理，允许更新
+                    if value is not None:
+                        filtered_data[key] = value
+                elif value is not None and value != '':
                     filtered_data[key] = value
             
             # 处理分批止盈数据

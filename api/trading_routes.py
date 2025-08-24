@@ -1,7 +1,7 @@
 """
 交易记录管理API路由
 """
-from flask import request, jsonify
+from flask import request, jsonify, current_app
 from datetime import datetime
 from . import api_bp
 from extensions import db
@@ -207,11 +207,25 @@ def update_trade(trade_id):
         validate_numeric_field('quantity', 'int')
         
         # 处理交易日期
-        if 'trade_date' in data and isinstance(data['trade_date'], str):
-            try:
-                data['trade_date'] = datetime.fromisoformat(data['trade_date'].replace('Z', '+00:00'))
-            except ValueError:
-                raise ValidationError("交易日期格式不正确")
+        if 'trade_date' in data and data['trade_date'] is not None:
+            if isinstance(data['trade_date'], str):
+                try:
+                    # 处理多种日期格式
+                    trade_date_str = data['trade_date'].strip()
+                    if trade_date_str:
+                        # 处理datetime-local格式 (YYYY-MM-DDTHH:MM)
+                        if 'T' in trade_date_str and len(trade_date_str) == 16:
+                            data['trade_date'] = datetime.fromisoformat(trade_date_str)
+                        # 处理ISO格式
+                        elif 'T' in trade_date_str:
+                            data['trade_date'] = datetime.fromisoformat(trade_date_str.replace('Z', '+00:00'))
+                        else:
+                            # 尝试其他格式
+                            data['trade_date'] = datetime.fromisoformat(trade_date_str)
+                    else:
+                        raise ValidationError("交易日期不能为空")
+                except ValueError:
+                    raise ValidationError(f"交易日期格式不正确: {data['trade_date']}")
         
         # 更新交易记录（支持分批止盈）
         trade = TradingService.update_trade(trade_id, data)

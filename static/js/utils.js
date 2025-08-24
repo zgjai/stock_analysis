@@ -66,6 +66,15 @@
 
     // 数据验证工具
     const Validators = {
+        // 必填验证
+        required: (value) => {
+            if (value === null || value === undefined) return false;
+            if (typeof value === 'string') return value.trim().length > 0;
+            if (typeof value === 'number') return !isNaN(value);
+            if (typeof value === 'boolean') return true;
+            return !!value;
+        },
+
         // 股票代码验证
         stockCode: (code) => {
             if (!code || typeof code !== 'string') return false;
@@ -368,6 +377,28 @@
             if (form && typeof form.reset === 'function') {
                 form.reset();
             }
+        },
+
+        // 禁用/启用表单
+        disable: (form, disabled = true) => {
+            if (!form) return;
+            
+            // 禁用/启用所有表单控件
+            const formElements = form.querySelectorAll('input, select, textarea, button');
+            formElements.forEach(element => {
+                element.disabled = disabled;
+            });
+            
+            // 添加/移除视觉样式
+            if (disabled) {
+                form.classList.add('form-disabled');
+                form.style.opacity = '0.6';
+                form.style.pointerEvents = 'none';
+            } else {
+                form.classList.remove('form-disabled');
+                form.style.opacity = '';
+                form.style.pointerEvents = '';
+            }
         }
     };
 
@@ -476,6 +507,84 @@
                 const result = prompt(`${title}\n\n${message}`, defaultValue);
                 resolve(result);
             });
+        },
+
+        // 全局加载状态管理
+        showGlobalLoading: (message = '加载中...') => {
+            // 移除现有的全局加载
+            UXUtils.hideGlobalLoading();
+            
+            // 创建全局加载遮罩
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.id = 'global-loading-overlay';
+            loadingOverlay.className = 'position-fixed w-100 h-100 d-flex align-items-center justify-content-center';
+            loadingOverlay.style.cssText = `
+                top: 0;
+                left: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 9999;
+                backdrop-filter: blur(2px);
+            `;
+            
+            loadingOverlay.innerHTML = `
+                <div class="bg-white rounded p-4 text-center shadow">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div class="text-muted">${message}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(loadingOverlay);
+            
+            // 记录显示时间戳，用于超时处理
+            loadingOverlay.dataset.showTime = Date.now();
+            
+            // 15秒自动超时隐藏
+            setTimeout(() => {
+                const overlay = document.getElementById('global-loading-overlay');
+                if (overlay && overlay.dataset.showTime === loadingOverlay.dataset.showTime) {
+                    console.warn('Global loading timeout, auto hiding...');
+                    UXUtils.hideGlobalLoading();
+                }
+            }, 15000);
+        },
+
+        // 隐藏全局加载状态
+        hideGlobalLoading: () => {
+            const overlay = document.getElementById('global-loading-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
+        },
+
+        // 强制隐藏所有加载状态
+        forceHideAllLoading: () => {
+            // 隐藏全局加载
+            UXUtils.hideGlobalLoading();
+            
+            // 隐藏所有按钮加载状态
+            document.querySelectorAll('[data-original-text]').forEach(btn => {
+                UXUtils.hideLoading(btn);
+            });
+            
+            // 隐藏所有spinner
+            document.querySelectorAll('.spinner-border, .spinner-grow').forEach(spinner => {
+                const parent = spinner.closest('.btn, .card, .modal');
+                if (parent) {
+                    spinner.remove();
+                }
+            });
+            
+            // 移除所有加载相关的类
+            document.querySelectorAll('.loading, .is-loading').forEach(el => {
+                el.classList.remove('loading', 'is-loading');
+                if (el.tagName === 'BUTTON') {
+                    el.disabled = false;
+                }
+            });
+            
+            console.log('All loading states forcefully cleared');
         }
     };
 
