@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Form Validator Fix Test</title>
+    <meta charset="utf-8">
+</head>
+
+<body>
+    <h1>测试表单验证修复</h1>
+
+    <div id="test-results">
+        <h2>测试结果:</h2>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // 模拟测试
+        function testFormValidatorFix() {
+            const results = document.getElementById('results');
+
+            // 测试1: 检查FormValidator类是否存在
+            if (typeof FormValidator !== 'undefined') {
+                results.innerHTML += '<p style="color: green;">✅ FormValidator 类已定义</p>';
+            } else {
+                results.innerHTML += '<p style="color: red;">❌ FormValidator 类未定义</p>';
+            }
+
+            // 测试2: 检查window.tradingManager是否存在
+            if (typeof window.tradingManager !== 'undefined') {
+                results.innerHTML += '<p style="color: green;">✅ window.tradingManager 已定义</p>';
+
+                // 测试3: 检查formValidator是否存在
+                if (window.tradingManager.formValidator) {
+                    results.innerHTML += '<p style="color: green;">✅ formValidator 实例存在</p>';
+                } else {
+                    results.innerHTML += '<p style="color: red;">❌ formValidator 实例不存在</p>';
+                }
+            } else {
+                results.innerHTML += '<p style="color: red;">❌ window.tradingManager 未定义</p>';
+            }
+        }
+
+        // 页面加载完成后运行测试
+        document.addEventListener('DOMContentLoaded', function () {
+            // 等待一段时间让trading records页面初始化
+            setTimeout(testFormValidatorFix, 1000);
+        });
+    </script>
+
+    <p><strong>修复说明:</strong></p>
+    <ul>
+        <li><strong>问题1:</strong> 表单验证调试代码找不到 FormValidator 实例</li>
+        <li><strong>原因1:</strong> tradingManager 只是局部变量，没有赋值给 window.tradingManager</li>
+        <li><strong>解决1:</strong> 在 initTradingRecords() 函数中添加 window.tradingManager = tradingManager</li>
+        <li><strong>问题2:</strong> FormValidator 类未定义</li>
+        <li><strong>原因2:</strong> form-validation.js 文件没有被加载</li>
+        <li><strong>解决2:</strong> 在模板中添加 form-validation.js 脚本引用</li>
+    </ul>
+
+    <p><strong>测试步骤:</strong></p>
+    <ol>
+        <li>打开交易记录页面</li>
+        <li>填写表单信息 (股票代码: 000776, 股票名称: 广发证券, 等等)</li>
+        <li>点击保存按钮</li>
+        <li>检查控制台是否还显示 "❌ 找不到FormValidator实例"</li>
+        <li>表单应该能够正常提交</li>
+    </ol>
+
+    <p><strong>预期结果:</strong></p>
+    <ul>
+        <li>不再显示 "❌ 找不到FormValidator实例" 错误</li>
+        <li>表单验证正常工作</li>
+        <li>表单能够成功提交</li>
+    </ul>
+</body>
+
+</html>

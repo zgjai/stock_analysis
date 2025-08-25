@@ -30,7 +30,7 @@ def validate_price(price):
     except (ValueError, TypeError):
         raise ValidationError("价格格式不正确", "price")
 
-def validate_quantity(quantity):
+def validate_quantity(quantity, stock_code=None):
     """验证数量格式"""
     if quantity is None:
         raise ValidationError("数量不能为空", "quantity")
@@ -41,6 +41,18 @@ def validate_quantity(quantity):
             raise ValidationError("数量必须大于0", "quantity")
         if quantity_int > 999999:
             raise ValidationError("数量不能超过999999", "quantity")
+        
+        # 如果提供了股票代码，使用股票特定的验证规则
+        if stock_code:
+            from utils.stock_utils import validate_stock_quantity
+            is_valid, error_message = validate_stock_quantity(stock_code, quantity_int)
+            if not is_valid:
+                raise ValidationError(error_message, "quantity")
+        else:
+            # 默认验证规则：必须是100的倍数
+            if quantity_int % 100 != 0:
+                raise ValidationError("数量必须是100的倍数", "quantity")
+        
         return quantity_int
     except (ValueError, TypeError):
         raise ValidationError("数量格式不正确", "quantity")

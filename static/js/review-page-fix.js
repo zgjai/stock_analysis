@@ -14,7 +14,7 @@
         loadingElements.forEach(spinner => {
             const parent = spinner.closest('.text-center');
             if (parent && parent.textContent.includes('加载中')) {
-                const container = parent.closest('.card-body, #holdings-list, #reviews-list, #holding-alerts');
+                const container = parent.closest('.card-body, #holdings-list, #reviews-list');
                 if (container) {
                     showEmptyState(container);
                 }
@@ -58,23 +58,7 @@
             };
         }
         
-        if (typeof window.loadHoldingAlerts !== 'function') {
-            window.loadHoldingAlerts = async function() {
-                console.log('🔔 加载持仓提醒...');
-                try {
-                    const response = await fetch('/api/holding-alerts');
-                    if (response.ok) {
-                        const data = await response.json();
-                        displayHoldingAlerts(data.alerts || []);
-                    } else {
-                        throw new Error('API响应错误');
-                    }
-                } catch (error) {
-                    console.error('加载持仓提醒失败:', error);
-                    showEmptyState(document.getElementById('holding-alerts'), 'alerts');
-                }
-            };
-        }
+        // Removed loadHoldingAlerts function as holding alerts module has been removed
         
         // 3. 显示空状态函数
         function showEmptyState(container, type = 'data') {
@@ -196,9 +180,7 @@
             `).join('');
         }
         
-        function displayHoldingAlerts(alerts) {
-            const container = document.getElementById('holding-alerts');
-            if (!container) return;
+        // Removed displayHoldingAlerts function as holding alerts module has been removed
             
             if (!alerts || alerts.length === 0) {
                 showEmptyState(container, 'alerts');

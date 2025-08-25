@@ -416,17 +416,7 @@
     font-weight: bold;
 }
 
-/* 持仓提醒样式 */
-.review-page .alert-sm {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-}
-
-.review-page .alert-danger {
-    background-color: rgba(220, 53, 69, 0.1);
-    border-color: rgba(220, 53, 69, 0.2);
-    color: #721c24;
-}
+/* Removed holding alerts styles as the module has been removed */
 
 .review-page .alert-warning {
     background-color: rgba(255, 193, 7, 0.1);

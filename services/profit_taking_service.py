@@ -67,23 +67,19 @@ class ProfitTakingService(BaseService):
                 if target_price is not None:
                     normalized_data['target_price'] = target_price
                 
-                # 处理止盈比例
+                # 处理止盈比例 - 统一按百分比格式处理
                 profit_ratio = target_data.get('profit_ratio') or target_data.get('profitRatio')
                 if profit_ratio is not None:
-                    # 如果是百分比格式（>1），转换为小数格式
-                    if float(profit_ratio) > 1:
-                        normalized_data['profit_ratio'] = float(profit_ratio) / 100
-                    else:
-                        normalized_data['profit_ratio'] = float(profit_ratio)
+                    profit_ratio_value = float(profit_ratio)
+                    # 前端统一发送百分比格式（如20表示20%），转换为小数格式存储
+                    normalized_data['profit_ratio'] = profit_ratio_value / 100
                 
-                # 处理卖出比例
+                # 处理卖出比例 - 统一按百分比格式处理
                 sell_ratio = target_data.get('sell_ratio') or target_data.get('sellRatio')
                 if sell_ratio is not None:
-                    # 如果是百分比格式（>1），转换为小数格式
-                    if float(sell_ratio) > 1:
-                        normalized_data['sell_ratio'] = float(sell_ratio) / 100
-                    else:
-                        normalized_data['sell_ratio'] = float(sell_ratio)
+                    sell_ratio_value = float(sell_ratio)
+                    # 前端统一发送百分比格式（如30表示30%），转换为小数格式存储
+                    normalized_data['sell_ratio'] = sell_ratio_value / 100
                 
                 # 处理序列顺序
                 sequence_order = target_data.get('sequence_order') or target_data.get('sequenceOrder')
@@ -244,17 +240,14 @@ class ProfitTakingService(BaseService):
                 try:
                     sell_ratio = Decimal(str(sell_ratio_value))
                     
-                    # 验证卖出比例范围 - 智能识别百分比和小数格式
+                    # 验证卖出比例范围 - 统一按百分比格式验证
                     if sell_ratio <= 0:
                         target_errors['sell_ratio'] = "卖出比例必须大于0"
-                    elif sell_ratio > 100:  # 百分比格式最大100
-                        target_errors['sell_ratio'] = "卖出比例不能超过100%"
+                    elif sell_ratio > 1000:  # 允许大于100%的卖出比例
+                        target_errors['sell_ratio'] = "卖出比例不能超过1000%"
                     else:
-                        # 如果是百分比格式（>1），转换为小数格式进行累计
-                        if sell_ratio > 1:
-                            total_sell_ratio += sell_ratio / 100
-                        else:
-                            total_sell_ratio += sell_ratio
+                        # 统一按百分比格式处理，转换为小数格式进行累计
+                        total_sell_ratio += sell_ratio / 100
                         
                 except (ValueError, TypeError, Exception):
                     target_errors['sell_ratio'] = "卖出比例格式无效"
@@ -276,7 +269,7 @@ class ProfitTakingService(BaseService):
                     profit_ratio = Decimal(str(profit_ratio_value))
                     if profit_ratio < 0:
                         target_errors['profit_ratio'] = "止盈比例不能为负数"
-                    elif profit_ratio > 1000:  # 支持百分比格式，最大1000%
+                    elif profit_ratio > 1000:  # 支持大于10%的止盈比例，最大1000%
                         target_errors['profit_ratio'] = "止盈比例不能超过1000%"
                 except (ValueError, TypeError, Exception):
                     target_errors['profit_ratio'] = "止盈比例格式无效"
@@ -294,12 +287,12 @@ class ProfitTakingService(BaseService):
             if target_errors:
                 validation_errors[f'targets[{i}]'] = target_errors
         
-        # 验证总卖出比例不能超过100% - 智能处理百分比和小数格式
-        max_ratio = Decimal('1')  # 小数格式的100%
+        # 验证总卖出比例 - 允许大于100%的总卖出比例，但设置合理上限
+        max_ratio = Decimal('10')  # 小数格式的1000%
         display_ratio = float(total_sell_ratio) * 100
         
         if total_sell_ratio > max_ratio:
-            validation_errors['total_sell_ratio'] = f"所有止盈目标的卖出比例总和不能超过100%，当前为{display_ratio:.2f}%"
+            validation_errors['total_sell_ratio'] = f"所有止盈目标的卖出比例总和不能超过1000%，当前为{display_ratio:.2f}%"
         
         # 如果有验证错误，抛出详细的错误信息
         if validation_errors:
@@ -345,14 +338,16 @@ class ProfitTakingService(BaseService):
                 except (ValueError, TypeError, Exception):
                     target_errors['target_price'] = "止盈价格格式无效"
             
-            # 验证止盈比例的合理性
-            if 'profit_ratio' in target and target['profit_ratio'] is not None:
+            # 验证止盈比例的合理性 - 允许大于10%的止盈比例
+            profit_ratio_value = target.get('profit_ratio') or target.get('profitRatio')
+            if profit_ratio_value is not None and profit_ratio_value != '':
                 try:
-                    profit_ratio = Decimal(str(target['profit_ratio']))
+                    profit_ratio = Decimal(str(profit_ratio_value))
+                    # 统一按百分比格式验证
                     if profit_ratio < 0:
                         target_errors['profit_ratio'] = "止盈比例不能为负数"
-                    elif profit_ratio > Decimal('9'):  # 900%
-                        target_errors['profit_ratio'] = "止盈比例不应超过900%"
+                    elif profit_ratio > Decimal('1000'):  # 允许最大1000%
+                        target_errors['profit_ratio'] = "止盈比例不应超过1000%"
                 except (ValueError, TypeError, Exception):
                     target_errors['profit_ratio'] = "止盈比例格式无效"
             
@@ -417,13 +412,12 @@ class ProfitTakingService(BaseService):
         
         for i, target in enumerate(targets):
             try:
-                # 支持多种字段名和格式
+                # 支持多种字段名，统一按百分比格式处理
                 sell_ratio_value = target.get('sell_ratio') or target.get('sellRatio', 0)
                 sell_ratio = Decimal(str(sell_ratio_value))
                 
-                # 如果是百分比格式（>1），转换为小数格式
-                if sell_ratio > 1:
-                    sell_ratio = sell_ratio / 100
+                # 统一按百分比格式处理，转换为小数格式进行计算
+                sell_ratio = sell_ratio / 100
                 
                 # 计算止盈比例
                 profit_ratio = Decimal('0')
@@ -437,7 +431,9 @@ class ProfitTakingService(BaseService):
                         raise ValidationError(f"第{i+1}个止盈目标的价格格式无效", f"targets[{i}]")
                 elif 'profit_ratio' in target and target['profit_ratio']:
                     try:
-                        profit_ratio = Decimal(str(target['profit_ratio']))
+                        profit_ratio_value = Decimal(str(target['profit_ratio']))
+                        # 统一按百分比格式处理，转换为小数格式进行计算
+                        profit_ratio = profit_ratio_value / 100
                     except (ValueError, TypeError, Exception):
                         raise ValidationError(f"第{i+1}个止盈目标的比例格式无效", f"targets[{i}]")
                 

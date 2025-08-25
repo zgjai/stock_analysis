@@ -151,10 +151,10 @@ class TestAnalyticsAPI:
         assert len(monthly_stats['monthly_data']) == 12  # 12个月
     
     def test_get_monthly_statistics_specific_year(self, client, app, db_session):
-        """测试获取指定年份的月度统计"""
+        """测试获取指定年份的月度统计和收益率"""
         with app.app_context():
-            # 创建2023年的交易记录
-            trade = TradeRecord(
+            # 创建2023年的完整交易周期
+            buy_trade = TradeRecord(
                 stock_code='000001',
                 stock_name='股票A',
                 trade_type='buy',
@@ -163,7 +163,18 @@ class TestAnalyticsAPI:
                 trade_date=datetime(2023, 6, 15),
                 reason='买入'
             )
-            trade.save()
+            buy_trade.save()
+            
+            sell_trade = TradeRecord(
+                stock_code='000001',
+                stock_name='股票A',
+                trade_type='sell',
+                price=Decimal('12.00'),
+                quantity=1000,
+                trade_date=datetime(2023, 6, 25),
+                reason='卖出'
+            )
+            sell_trade.save()
         
         response = client.get('/api/analytics/monthly?year=2023')
         
@@ -175,11 +186,22 @@ class TestAnalyticsAPI:
         monthly_stats = data['data']
         assert monthly_stats['year_summary']['year'] == 2023
         assert monthly_stats['year_summary']['total_buy_count'] == 1
+        assert monthly_stats['year_summary']['total_sell_count'] == 1
+        assert monthly_stats['year_summary']['months_with_data'] == 1
         
-        # 检查6月份数据
+        # 检查6月份数据（有完整交易周期）
         june_data = next(m for m in monthly_stats['monthly_data'] if m['month'] == 6)
         assert june_data['buy_count'] == 1
+        assert june_data['sell_count'] == 1
         assert june_data['unique_stocks'] == 1
+        assert june_data['has_data'] == True
+        assert june_data['profit_amount'] == 2000.0  # (12-10) * 1000
+        assert june_data['profit_rate'] == 0.2  # 20%
+        
+        # 检查其他月份（无数据）
+        jan_data = next(m for m in monthly_stats['monthly_data'] if m['month'] == 1)
+        assert jan_data['has_data'] == False
+        assert jan_data['profit_rate'] is None
     
     def test_get_monthly_statistics_invalid_year(self, client, app, db_session):
         """测试无效年份的月度统计"""

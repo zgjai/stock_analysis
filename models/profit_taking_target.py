@@ -27,8 +27,8 @@ class ProfitTakingTarget(BaseModel):
     
     # 表约束
     __table_args__ = (
-        db.CheckConstraint("sell_ratio > 0 AND sell_ratio <= 1", name='check_sell_ratio_range'),
-        db.CheckConstraint("profit_ratio >= 0", name='check_profit_ratio_positive'),
+        db.CheckConstraint("sell_ratio > 0 AND sell_ratio <= 10", name='check_sell_ratio_range'),  # 允许大于100%的卖出比例
+        db.CheckConstraint("profit_ratio >= 0 AND profit_ratio <= 10", name='check_profit_ratio_range'),  # 允许大于10%的止盈比例
         db.CheckConstraint("sequence_order > 0", name='check_sequence_order_positive'),
         db.Index('idx_profit_targets_trade', 'trade_record_id'),
         db.Index('idx_profit_targets_sequence', 'trade_record_id', 'sequence_order'),
@@ -53,31 +53,31 @@ class ProfitTakingTarget(BaseModel):
             except ValidationError as e:
                 validation_errors['target_price'] = e.message
         
-        # 验证止盈比例
+        # 验证止盈比例 - 支持大于10%的止盈比例
         if 'profit_ratio' in data and data['profit_ratio'] is not None:
             try:
-                profit_ratio = validate_ratio(data['profit_ratio'], 'profit_ratio')
+                profit_ratio = float(data['profit_ratio'])
                 if profit_ratio < 0:
                     validation_errors['profit_ratio'] = "止盈比例不能为负数"
-                elif profit_ratio > 10:  # 1000%
+                elif profit_ratio > 10:  # 允许大于10%的止盈比例，最大1000%
                     validation_errors['profit_ratio'] = "止盈比例不能超过1000%"
                 else:
                     data['profit_ratio'] = profit_ratio
-            except ValidationError as e:
-                validation_errors['profit_ratio'] = e.message
+            except (ValueError, TypeError):
+                validation_errors['profit_ratio'] = "止盈比例格式无效"
         
-        # 验证卖出比例
+        # 验证卖出比例 - 支持大于100%的卖出比例
         if 'sell_ratio' in data and data['sell_ratio'] is not None:
             try:
-                sell_ratio = validate_ratio(data['sell_ratio'], 'sell_ratio')
+                sell_ratio = float(data['sell_ratio'])
                 if sell_ratio <= 0:
                     validation_errors['sell_ratio'] = "卖出比例必须大于0"
-                elif sell_ratio > 1:
-                    validation_errors['sell_ratio'] = "卖出比例不能超过100%"
+                elif sell_ratio > 10:  # 允许大于100%的卖出比例，最大1000%
+                    validation_errors['sell_ratio'] = "卖出比例不能超过1000%"
                 else:
                     data['sell_ratio'] = sell_ratio
-            except ValidationError as e:
-                validation_errors['sell_ratio'] = e.message
+            except (ValueError, TypeError):
+                validation_errors['sell_ratio'] = "卖出比例格式无效"
         else:
             validation_errors['sell_ratio'] = "卖出比例不能为空"
         
@@ -121,13 +121,13 @@ class ProfitTakingTarget(BaseModel):
             elif target_price_float > buy_price_float * 10:  # 防止设置过高的止盈价格
                 validation_errors['target_price'] = "止盈价格不应超过买入价格的10倍"
         
-        # 验证止盈比例的合理性
+        # 验证止盈比例的合理性 - 允许大于10%的止盈比例
         if self.profit_ratio:
             profit_ratio_float = float(self.profit_ratio)
             if profit_ratio_float < 0:
                 validation_errors['profit_ratio'] = "止盈比例不能为负数"
-            elif profit_ratio_float > 9:  # 900%
-                validation_errors['profit_ratio'] = "止盈比例不应超过900%"
+            elif profit_ratio_float > 10:  # 允许最大1000%
+                validation_errors['profit_ratio'] = "止盈比例不应超过1000%"
         
         # 如果同时有止盈价格和止盈比例，验证一致性
         if self.target_price and self.profit_ratio:

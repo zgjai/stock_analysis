@@ -18,6 +18,37 @@
 {% block content %}
 <!-- 统计概览卡片 -->
 <div class="row mb-4">
+    <!-- 第一行：新增的收益指标 -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card stats-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-value" id="realized-profit">--</div>
+                        <div class="stats-label">已清仓收益</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="bi bi-check-circle fs-1 text-success opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card stats-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-value" id="current-holdings-profit">--</div>
+                        <div class="stats-label">当前持仓收益</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="bi bi-briefcase-fill fs-1 text-info opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="col-xl-3 col-md-6 mb-4">
         <div class="card stats-card stats-primary">
             <div class="card-body">
@@ -34,7 +65,7 @@
         </div>
     </div>
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card stats-card stats-success">
+        <div class="card stats-card stats-secondary">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
@@ -42,19 +73,23 @@
                         <div class="stats-label">总收益率</div>
                     </div>
                     <div class="stats-icon">
-                        <i class="bi bi-currency-dollar fs-1 text-success opacity-25"></i>
+                        <i class="bi bi-currency-dollar fs-1 text-secondary opacity-25"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
+
+<!-- 第二行：其他指标 -->
+<div class="row mb-4">
     <div class="col-xl-3 col-md-6 mb-4">
         <div class="card stats-card stats-info">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="stats-value" id="current-holdings">--</div>
-                        <div class="stats-label">当前持仓</div>
+                        <div class="stats-label">当前持仓数量</div>
                     </div>
                     <div class="stats-icon">
                         <i class="bi bi-briefcase fs-1 text-info opacity-25"></i>
@@ -73,6 +108,36 @@
                     </div>
                     <div class="stats-icon">
                         <i class="bi bi-trophy fs-1 text-warning opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card stats-light">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-value" id="total-investment">--</div>
+                        <div class="stats-label">总投入资金</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="bi bi-wallet2 fs-1 text-muted opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card stats-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-value" id="last-updated">--</div>
+                        <div class="stats-label">最后更新</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="bi bi-clock fs-1 text-dark opacity-25"></i>
                     </div>
                 </div>
             </div>
@@ -104,50 +169,7 @@
     </div>
 </div>
 
-<!-- 最近交易和持仓提醒 -->
-<div class="row">
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">最近交易</h5>
-                <a href="{{ url_for('frontend.trading_records') }}" class="btn btn-sm btn-outline-primary">查看全部</a>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>日期</th>
-                                <th>股票</th>
-                                <th>操作</th>
-                                <th>价格</th>
-                                <th>数量</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recent-trades">
-                            <tr>
-                                <td colspan="5" class="text-center text-muted">加载中...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">持仓提醒</h5>
-                <a href="{{ url_for('frontend.review') }}" class="btn btn-sm btn-outline-primary">查看全部</a>
-            </div>
-            <div class="card-body">
-                <div id="holding-alerts">
-                    <div class="text-center text-muted">加载中...</div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+
 {% endblock %}
 
 {% block extra_js %}

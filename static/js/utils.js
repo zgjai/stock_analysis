@@ -95,10 +95,24 @@
         },
 
         // 数量验证
-        quantity: (quantity) => {
+        quantity: (quantity, stockCode = null) => {
             if (quantity === null || quantity === undefined || quantity === '') return false;
             const num = parseInt(quantity);
-            return !isNaN(num) && num > 0 && num % 100 === 0;
+            if (isNaN(num) || num <= 0) return false;
+            
+            // 如果提供了股票代码，使用股票特定的验证规则
+            if (stockCode) {
+                // 科创板股票（68开头）可以是任意数量
+                if (stockCode.startsWith('68')) {
+                    return num > 0;
+                } else {
+                    // 其他股票必须是100的倍数
+                    return num > 0 && num % 100 === 0;
+                }
+            } else {
+                // 默认验证规则：必须是100的倍数
+                return num > 0 && num % 100 === 0;
+            }
         },
 
         // 日期验证
@@ -157,6 +171,15 @@
             return currency + parseFloat(amount).toLocaleString('zh-CN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
+            });
+        },
+
+        // 格式化数字
+        number: (value, decimals = 0) => {
+            if (value === null || value === undefined || isNaN(value)) return '--';
+            return parseFloat(value).toLocaleString('zh-CN', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
             });
         }
     };
@@ -585,6 +608,32 @@
             });
             
             console.log('All loading states forcefully cleared');
+        },
+
+        // 高亮元素
+        highlightElement: (element, duration = 1000) => {
+            if (!element) return;
+            
+            // 添加高亮样式
+            const originalStyle = element.style.cssText;
+            const originalClass = element.className;
+            
+            // 添加高亮效果
+            element.style.cssText += `
+                transition: all 0.3s ease;
+                box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+                border-color: #dc3545 !important;
+                background-color: rgba(220, 53, 69, 0.1) !important;
+            `;
+            
+            // 添加高亮类
+            element.classList.add('field-highlight-error');
+            
+            // 在指定时间后移除高亮效果
+            setTimeout(() => {
+                element.style.cssText = originalStyle;
+                element.classList.remove('field-highlight-error');
+            }, duration);
         }
     };
 

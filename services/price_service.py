@@ -141,11 +141,27 @@ class PriceService(BaseService):
                     if not stock_data.empty:
                         row = stock_data.iloc[0]
                         
-                        # 提取价格信息
+                        # 提取价格信息，安全处理可能的None值和nan值
+                        try:
+                            current_price = float(row['最新价']) if row['最新价'] is not None else 0.0
+                            change_percent = float(row['涨跌幅']) if row['涨跌幅'] is not None else 0.0
+                            
+                            # 检查是否为nan值
+                            import math
+                            if math.isnan(current_price):
+                                current_price = 0.0
+                            if math.isnan(change_percent):
+                                change_percent = 0.0
+                                
+                        except (ValueError, TypeError):
+                            logger.warning(f"股票 {stock_code} 价格数据格式异常: 最新价={row['最新价']}, 涨跌幅={row['涨跌幅']}")
+                            current_price = 0.0
+                            change_percent = 0.0
+                        
                         price_data = {
-                            'stock_name': row['名称'],
-                            'current_price': float(row['最新价']),
-                            'change_percent': float(row['涨跌幅'])
+                            'stock_name': row['名称'] if row['名称'] is not None else stock_code,
+                            'current_price': current_price,
+                            'change_percent': change_percent
                         }
                         
                         # 保存到数据库
@@ -406,11 +422,27 @@ class PriceService(BaseService):
             # 获取第一行数据
             row = stock_data.iloc[0]
             
-            # 提取价格信息
+            # 提取价格信息，安全处理可能的None值和nan值
+            try:
+                current_price = float(row['最新价']) if row['最新价'] is not None else 0.0
+                change_percent = float(row['涨跌幅']) if row['涨跌幅'] is not None else 0.0
+                
+                # 检查是否为nan值
+                import math
+                if math.isnan(current_price):
+                    current_price = 0.0
+                if math.isnan(change_percent):
+                    change_percent = 0.0
+                    
+            except (ValueError, TypeError):
+                logger.warning(f"股票 {stock_code} 价格数据格式异常: 最新价={row['最新价']}, 涨跌幅={row['涨跌幅']}")
+                current_price = 0.0
+                change_percent = 0.0
+            
             price_data = {
-                'stock_name': row['名称'],
-                'current_price': float(row['最新价']),
-                'change_percent': float(row['涨跌幅'])
+                'stock_name': row['名称'] if row['名称'] is not None else stock_code,
+                'current_price': current_price,
+                'change_percent': change_percent
             }
             
             logger.debug(f"从AKShare获取到股票 {stock_code} 数据: {price_data}")

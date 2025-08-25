@@ -66,7 +66,8 @@ class TradeRecord(BaseModel):
             data['price'] = validate_price(data['price'])
         
         if 'quantity' in data:
-            data['quantity'] = validate_quantity(data['quantity'])
+            stock_code = data.get('stock_code')
+            data['quantity'] = validate_quantity(data['quantity'], stock_code)
         
         if 'trade_type' in data:
             validate_trade_type(data['trade_type'])

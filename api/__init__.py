@@ -15,3 +15,4 @@ from . import stock_pool_routes
 from . import price_routes
 from . import sector_routes
 from . import analytics_routes
+from . import non_trading_day_routes

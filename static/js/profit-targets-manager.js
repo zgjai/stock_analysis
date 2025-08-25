@@ -250,7 +250,7 @@ class ProfitTargetsManager {
                                    value="${target.sellRatio}" 
                                    step="0.01" 
                                    min="0.01" 
-                                   max="100" 
+                                   max="1000" 
                                    placeholder="30.00"
                                    style="font-weight: 600; font-size: 0.85rem;">
                             <span class="input-group-text bg-warning text-dark fw-bold" style="font-size: 0.75rem;">%</span>
@@ -341,13 +341,13 @@ class ProfitTargetsManager {
             return sum + (target.expectedProfitRatio || 0);
         }, 0);
 
-        const isOverSold = totalSellRatio > 100;
+        const isOverSold = totalSellRatio > 200;  // 调整过度卖出的阈值
         const sellRatioClass = isOverSold ? 'text-danger' : totalSellRatio > 0 ? 'text-primary' : 'text-muted';
         const profitClass = totalExpectedProfit > 0 ? 'text-success' : 'text-muted';
 
-        // 计算进度条宽度
-        const sellRatioProgress = Math.min(totalSellRatio, 100);
-        const progressBarClass = isOverSold ? 'bg-danger' : totalSellRatio > 80 ? 'bg-warning' : 'bg-primary';
+        // 计算进度条宽度，以200%为基准
+        const sellRatioProgress = Math.min(totalSellRatio / 2, 100);  // 200%对应100%进度条
+        const progressBarClass = isOverSold ? 'bg-danger' : totalSellRatio > 160 ? 'bg-warning' : 'bg-primary';
 
         summaryContainer.innerHTML = `
             <div class="card border-0 shadow-sm">
@@ -410,12 +410,12 @@ class ProfitTargetsManager {
                     <!-- 状态提示 -->
                     <div class="mt-3 text-center">
                         ${totalSellRatio === 100 ?
-                '<span class="badge bg-success fs-6 px-3 py-2"><i class="bi bi-check-circle me-1"></i>完美配置</span>' :
-                totalSellRatio > 100 ?
-                    '<span class="badge bg-danger fs-6 px-3 py-2"><i class="bi bi-exclamation-triangle me-1"></i>超出限制</span>' :
-                    totalSellRatio > 80 ?
-                        '<span class="badge bg-warning fs-6 px-3 py-2"><i class="bi bi-info-circle me-1"></i>接近满额</span>' :
-                        '<span class="badge bg-secondary fs-6 px-3 py-2"><i class="bi bi-clock me-1"></i>还有空间</span>'
+                '<span class="badge bg-success fs-6 px-3 py-2"><i class="bi bi-check-circle me-1"></i>标准配置</span>' :
+                totalSellRatio > 200 ?
+                    '<span class="badge bg-danger fs-6 px-3 py-2"><i class="bi bi-exclamation-triangle me-1"></i>比例过高</span>' :
+                    totalSellRatio > 160 ?
+                        '<span class="badge bg-warning fs-6 px-3 py-2"><i class="bi bi-info-circle me-1"></i>比例较高</span>' :
+                        '<span class="badge bg-secondary fs-6 px-3 py-2"><i class="bi bi-clock me-1"></i>配置合理</span>'
             }
                     </div>
                 </div>
@@ -448,7 +448,7 @@ class ProfitTargetsManager {
                     if (isNaN(ratio) || ratio <= 0) {
                         isValid = false;
                         errorMessage = '止盈比例必须大于0';
-                    } else if (ratio > 1000) {
+                    } else if (ratio > 1000) {  // 允许大于10%的止盈比例
                         isValid = false;
                         errorMessage = '止盈比例不能超过1000%';
                     }
@@ -481,9 +481,9 @@ class ProfitTargetsManager {
                     } else if (ratio <= 0) {
                         isValid = false;
                         errorMessage = '卖出比例必须大于0';
-                    } else if (ratio > 100) {
+                    } else if (ratio > 1000) {  // 允许大于100%的卖出比例
                         isValid = false;
-                        errorMessage = '单个卖出比例不能超过100%';
+                        errorMessage = '单个卖出比例不能超过1000%';
                     }
                 }
                 break;
@@ -542,10 +542,10 @@ class ProfitTargetsManager {
         delete this.validationErrors.totalSellRatio;
         delete this.validationErrors.totalSellRatioWarning;
 
-        if (totalSellRatio > 100) {
-            this.validationErrors.totalSellRatio = `所有止盈目标的卖出比例总和不能超过100%，当前为${totalSellRatio.toFixed(2)}%`;
-        } else if (totalSellRatio > 90 && totalSellRatio <= 100) {
-            // 90%-100%之间给出警告
+        if (totalSellRatio > 1000) {  // 允许大于100%的总卖出比例，但设置合理上限
+            this.validationErrors.totalSellRatio = `所有止盈目标的卖出比例总和不能超过1000%，当前为${totalSellRatio.toFixed(2)}%`;
+        } else if (totalSellRatio > 200) {
+            // 超过200%给出警告
             this.validationErrors.totalSellRatioWarning = `卖出比例总和较高(${totalSellRatio.toFixed(2)}%)，请确认是否合理`;
         } else if (totalSellRatio < 50 && totalSellRatio > 0) {
             // 小于50%给出提示
@@ -651,21 +651,12 @@ class ProfitTargetsManager {
     // 公共方法
     getTargets() {
         return this.targets.map(target => {
-            let sellRatio = parseFloat(target.sellRatio) || 0;
-            let profitRatio = parseFloat(target.profitRatio) || 0;
-
-            // 如果是百分比格式（>1），转换为小数格式供后端使用
-            if (sellRatio > 1) {
-                sellRatio = sellRatio / 100;
-            }
-            if (profitRatio > 1) {
-                profitRatio = profitRatio / 100;
-            }
-
+            // 前端统一使用百分比格式，直接发送给后端
+            // 后端会负责转换为小数格式存储
             return {
                 targetPrice: parseFloat(target.targetPrice) || 0,
-                profitRatio: profitRatio,
-                sellRatio: sellRatio,
+                profitRatio: parseFloat(target.profitRatio) || 0,  // 百分比格式（如20表示20%）
+                sellRatio: parseFloat(target.sellRatio) || 0,      // 百分比格式（如30表示30%）
                 expectedProfitRatio: target.expectedProfitRatio || 0,
                 sequenceOrder: target.sequenceOrder
             };
@@ -682,12 +673,12 @@ class ProfitTargetsManager {
                 let sellRatio = targetData.sellRatio || targetData.sell_ratio || '';
                 let profitRatio = targetData.profitRatio || targetData.profit_ratio || '';
 
-                // 如果是小数格式（从数据库获取），转换为百分比格式供前端使用
+                // 后端存储的是小数格式，转换为百分比格式供前端显示
                 if (sellRatio && parseFloat(sellRatio) <= 1) {
-                    sellRatio = (parseFloat(sellRatio) * 100).toString();
+                    sellRatio = (parseFloat(sellRatio) * 100).toFixed(2);
                 }
                 if (profitRatio && parseFloat(profitRatio) <= 1) {
-                    profitRatio = (parseFloat(profitRatio) * 100).toString();
+                    profitRatio = (parseFloat(profitRatio) * 100).toFixed(2);
                 }
 
                 const target = {
@@ -797,8 +788,8 @@ class ProfitTargetsManager {
 
         const targets = this.getTargets().map(target => ({
             target_price: target.targetPrice,
-            profit_ratio: target.profitRatio / 100, // 转换为小数
-            sell_ratio: target.sellRatio / 100, // 转换为小数
+            profit_ratio: target.profitRatio, // 发送百分比格式，后端会处理转换
+            sell_ratio: target.sellRatio,     // 发送百分比格式，后端会处理转换
             sequence_order: target.sequenceOrder
         }));
 

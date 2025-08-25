@@ -193,63 +193,66 @@ def validate_strategy_rules():
         raise e
 
 
-@api_bp.route('/holdings/alerts', methods=['GET'])
-def get_holding_alerts():
-    """获取持仓策略提醒"""
-    try:
-        # 获取查询参数
-        alert_type = request.args.get('type')  # 'all', 'urgent', 'profit', 'sell_all', 'sell_partial'
-        stock_code = request.args.get('stock_code')
-        
-        if stock_code:
-            # 获取特定股票的提醒
-            alerts = HoldingAlertService.get_alerts_by_stock(stock_code)
-        elif alert_type == 'urgent':
-            # 获取紧急提醒
-            alerts = HoldingAlertService.get_urgent_alerts()
-        elif alert_type == 'profit':
-            # 获取止盈提醒
-            alerts = HoldingAlertService.get_profit_alerts()
-        elif alert_type in ['sell_all', 'sell_partial', 'hold']:
-            # 按提醒类型筛选
-            alerts = HoldingAlertService.get_alerts_by_type(alert_type)
-        else:
-            # 获取所有提醒
-            alerts = HoldingAlertService.get_all_alerts()
-        
-        return create_success_response(
-            data=alerts,
-            message='获取持仓提醒成功'
-        )
-    
-    except ValidationError as e:
-        raise e
-    except NotFoundError as e:
-        raise e
-    except DatabaseError as e:
-        raise e
-    except Exception as e:
-        logger.error(f"获取持仓提醒时发生未知错误: {e}")
-        return create_success_response(
-            data=[],
-            message='获取提醒数据时遇到问题，但系统仍可正常使用',
-            warning=str(e)
-        )
+# Commented out holding alerts API routes as the UI modules have been removed
+# These can be re-enabled if needed in the future
+
+# @api_bp.route('/holdings/alerts', methods=['GET'])
+# def get_holding_alerts():
+#     """获取持仓策略提醒"""
+#     try:
+#         # 获取查询参数
+#         alert_type = request.args.get('type')  # 'all', 'urgent', 'profit', 'sell_all', 'sell_partial'
+#         stock_code = request.args.get('stock_code')
+#         
+#         if stock_code:
+#             # 获取特定股票的提醒
+#             alerts = HoldingAlertService.get_alerts_by_stock(stock_code)
+#         elif alert_type == 'urgent':
+#             # 获取紧急提醒
+#             alerts = HoldingAlertService.get_urgent_alerts()
+#         elif alert_type == 'profit':
+#             # 获取止盈提醒
+#             alerts = HoldingAlertService.get_profit_alerts()
+#         elif alert_type in ['sell_all', 'sell_partial', 'hold']:
+#             # 按提醒类型筛选
+#             alerts = HoldingAlertService.get_alerts_by_type(alert_type)
+#         else:
+#             # 获取所有提醒
+#             alerts = HoldingAlertService.get_all_alerts()
+#         
+#         return create_success_response(
+#             data=alerts,
+#             message='获取持仓提醒成功'
+#         )
+#     
+#     except ValidationError as e:
+#         raise e
+#     except NotFoundError as e:
+#         raise e
+#     except DatabaseError as e:
+#         raise e
+#     except Exception as e:
+#         logger.error(f"获取持仓提醒时发生未知错误: {e}")
+#         return create_success_response(
+#             data=[],
+#             message='获取提醒数据时遇到问题，但系统仍可正常使用',
+#             warning=str(e)
+#         )
 
 
-@api_bp.route('/holdings/alerts/summary', methods=['GET'])
-def get_alerts_summary():
-    """获取持仓提醒汇总信息"""
-    try:
-        summary = HoldingAlertService.get_alerts_summary()
-        
-        return create_success_response(
-            data=summary,
-            message='获取提醒汇总成功'
-        )
-    
-    except Exception as e:
-        raise e
+# @api_bp.route('/holdings/alerts/summary', methods=['GET'])
+# def get_alerts_summary():
+#     """获取持仓提醒汇总信息"""
+#     try:
+#         summary = HoldingAlertService.get_alerts_summary()
+#         
+#         return create_success_response(
+#             data=summary,
+#             message='获取提醒汇总成功'
+#         )
+#     
+#     except Exception as e:
+#         raise e
 
 
 @api_bp.route('/holdings/alerts/evaluate', methods=['POST'])

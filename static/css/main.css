@@ -407,3 +407,51 @@ body {
         color: #a0aec0;
     }
 }
+/*
+ 字段高亮错误样式 */
+.field-highlight-error {
+    animation: field-error-highlight 0.3s ease-in-out;
+    transition: all 0.3s ease;
+}
+
+@keyframes field-error-highlight {
+    0% {
+        box-shadow: 0 0 0 rgba(220, 53, 69, 0);
+        border-color: initial;
+        background-color: initial;
+    }
+    50% {
+        box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+        border-color: #dc3545 !important;
+        background-color: rgba(220, 53, 69, 0.1) !important;
+    }
+    100% {
+        box-shadow: 0 0 5px rgba(220, 53, 69, 0.3);
+        border-color: #dc3545 !important;
+        background-color: rgba(220, 53, 69, 0.05) !important;
+    }
+}
+
+/* 字段高亮成功样式 */
+.field-highlight-success {
+    animation: field-success-highlight 0.3s ease-in-out;
+    transition: all 0.3s ease;
+}
+
+@keyframes field-success-highlight {
+    0% {
+        box-shadow: 0 0 0 rgba(40, 167, 69, 0);
+        border-color: initial;
+        background-color: initial;
+    }
+    50% {
+        box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+        border-color: #28a745 !important;
+        background-color: rgba(40, 167, 69, 0.1) !important;
+    }
+    100% {
+        box-shadow: 0 0 5px rgba(40, 167, 69, 0.3);
+        border-color: #28a745 !important;
+        background-color: rgba(40, 167, 69, 0.05) !important;
+    }
+}

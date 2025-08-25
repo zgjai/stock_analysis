@@ -11,7 +11,9 @@ from sqlalchemy import func, and_, or_, desc, asc, extract
 from extensions import db
 from models.trade_record import TradeRecord
 from models.stock_price import StockPrice
+from models.profit_distribution_config import ProfitDistributionConfig
 from services.base_service import BaseService
+from services.trade_pair_analyzer import TradePairAnalyzer
 from error_handlers import ValidationError, DatabaseError
 
 
@@ -22,9 +24,10 @@ class AnalyticsService(BaseService):
     def get_overall_statistics(cls) -> Dict[str, Any]:
         """获取总体收益统计概览
         
-        Requirements: 5.1, 5.2
+        Requirements: 1.1, 1.2, 1.3, 1.4, 5.1, 5.2
         - 显示总体收益概览
         - 显示已清仓收益、持仓浮盈浮亏、总收益率
+        - 新增：已清仓收益和当前持仓收益的独立显示
         """
         try:
             # 获取所有交易记录
@@ -33,17 +36,21 @@ class AnalyticsService(BaseService):
             # 计算持仓情况
             holdings = cls._calculate_current_holdings(trades)
             
-            # 计算已清仓收益
-            closed_profit = cls._calculate_closed_positions_profit(trades)
+            # 计算已清仓收益（按股票分组计算完整买卖周期的收益）
+            realized_profit = cls._calculate_realized_profit(trades)
             
-            # 计算持仓浮盈浮亏
+            # 计算当前持仓收益（结合最新价格计算浮盈浮亏）
+            current_holdings_profit = cls._calculate_current_holdings_profit(holdings)
+            
+            # 保持向后兼容性的旧字段
+            closed_profit = cls._calculate_closed_positions_profit(trades)
             floating_profit = cls._calculate_floating_profit(holdings)
             
             # 计算总投入资金
             total_investment = cls._calculate_total_investment(trades)
             
             # 计算总收益率
-            total_profit = closed_profit + floating_profit
+            total_profit = realized_profit + current_holdings_profit
             total_return_rate = (total_profit / total_investment * 100) if total_investment > 0 else 0
             
             # 统计交易次数
@@ -55,6 +62,10 @@ class AnalyticsService(BaseService):
             
             return {
                 'total_investment': float(total_investment),
+                # 新增的独立收益指标
+                'realized_profit': float(realized_profit),  # 已清仓收益
+                'current_holdings_profit': float(current_holdings_profit),  # 当前持仓收益
+                # 保持向后兼容性
                 'closed_profit': float(closed_profit),
                 'floating_profit': float(floating_profit),
                 'total_profit': float(total_profit),
@@ -69,87 +80,137 @@ class AnalyticsService(BaseService):
             raise DatabaseError(f"获取总体统计失败: {str(e)}")
     
     @classmethod
-    def get_profit_distribution(cls) -> Dict[str, Any]:
+    def get_profit_distribution(cls, use_trade_pairs: bool = True) -> Dict[str, Any]:
         """获取收益分布区间分析
         
-        Requirements: 5.3
-        - 按盈亏区间显示股票分布情况
+        Requirements: 6.1, 6.2, 6.3, 6.4, 6.5
+        - 分析已完成的交易配对（而非单个股票）
+        - 将每个买入-卖出周期视为单独的交易
+        - 显示每个收益区间的数量和百分比
+        - 使用可配置的收益区间边界
+        - 独立处理每个完整的买入-卖出周期
         """
         try:
-            # 获取所有交易记录
-            trades = TradeRecord.query.filter_by(is_corrected=False).all()
+            # 获取活跃的收益分布配置
+            profit_configs = ProfitDistributionConfig.get_active_configs()
             
-            # 计算持仓情况
-            holdings = cls._calculate_current_holdings(trades)
+            if not profit_configs:
+                # 如果没有配置，创建默认配置
+                ProfitDistributionConfig.create_default_configs()
+                profit_configs = ProfitDistributionConfig.get_active_configs()
             
-            # 计算已清仓股票的收益情况
-            closed_positions = cls._calculate_closed_positions_detail(trades)
-            
-            # 定义收益区间
-            profit_ranges = [
-                {'range': '< -20%', 'min': float('-inf'), 'max': -0.2, 'count': 0, 'stocks': []},
-                {'range': '-20% ~ -10%', 'min': -0.2, 'max': -0.1, 'count': 0, 'stocks': []},
-                {'range': '-10% ~ -5%', 'min': -0.1, 'max': -0.05, 'count': 0, 'stocks': []},
-                {'range': '-5% ~ 0%', 'min': -0.05, 'max': 0, 'count': 0, 'stocks': []},
-                {'range': '0% ~ 5%', 'min': 0, 'max': 0.05, 'count': 0, 'stocks': []},
-                {'range': '5% ~ 10%', 'min': 0.05, 'max': 0.1, 'count': 0, 'stocks': []},
-                {'range': '10% ~ 20%', 'min': 0.1, 'max': 0.2, 'count': 0, 'stocks': []},
-                {'range': '20% ~ 50%', 'min': 0.2, 'max': 0.5, 'count': 0, 'stocks': []},
-                {'range': '> 50%', 'min': 0.5, 'max': float('inf'), 'count': 0, 'stocks': []}
-            ]
-            
-            # 统计持仓股票分布
-            for stock_code, holding in holdings.items():
-                profit_rate = holding['profit_rate']
-                for range_info in profit_ranges:
-                    if range_info['min'] <= profit_rate < range_info['max']:
-                        range_info['count'] += 1
-                        range_info['stocks'].append({
-                            'stock_code': stock_code,
-                            'stock_name': holding['stock_name'],
-                            'profit_rate': profit_rate,
-                            'profit_amount': holding['profit_amount'],
-                            'status': 'holding'
-                        })
-                        break
-            
-            # 统计已清仓股票分布
-            for position in closed_positions:
-                profit_rate = position['profit_rate']
-                for range_info in profit_ranges:
-                    if range_info['min'] <= profit_rate < range_info['max']:
-                        range_info['count'] += 1
-                        range_info['stocks'].append({
-                            'stock_code': position['stock_code'],
-                            'stock_name': position['stock_name'],
-                            'profit_rate': profit_rate,
-                            'profit_amount': position['profit_amount'],
-                            'status': 'closed'
-                        })
-                        break
-            
-            # 计算总股票数
-            total_stocks = sum(range_info['count'] for range_info in profit_ranges)
-            
-            # 计算百分比
-            for range_info in profit_ranges:
-                range_info['percentage'] = (range_info['count'] / total_stocks * 100) if total_stocks > 0 else 0
-            
-            return {
-                'profit_ranges': profit_ranges,
-                'total_stocks': total_stocks,
-                'holding_stocks': len(holdings),
-                'closed_stocks': len(closed_positions)
-            }
+            if use_trade_pairs:
+                # 使用新的交易配对分析逻辑
+                return TradePairAnalyzer.get_profit_distribution_data(profit_configs)
+            else:
+                # 保持向后兼容的旧逻辑（基于股票）
+                return cls._get_legacy_profit_distribution(profit_configs)
         except Exception as e:
             raise DatabaseError(f"获取收益分布失败: {str(e)}")
     
     @classmethod
-    def get_monthly_statistics(cls, year: int = None) -> Dict[str, Any]:
-        """获取月度交易统计和成功率
+    def _get_legacy_profit_distribution(cls, profit_configs: List) -> Dict[str, Any]:
+        """旧版收益分布分析（基于股票，保持向后兼容）"""
+        # 获取所有交易记录
+        trades = TradeRecord.query.filter_by(is_corrected=False).all()
         
-        Requirements: 5.4
-        - 显示每月交易次数、收益情况和成功率
+        # 计算持仓情况
+        holdings = cls._calculate_current_holdings(trades)
+        
+        # 计算已清仓股票的收益情况
+        closed_positions = cls._calculate_closed_positions_detail(trades)
+        
+        # 初始化分布统计
+        distribution = []
+        for config in profit_configs:
+            distribution.append({
+                'range_name': config.range_name,
+                'min_rate': config.min_profit_rate,
+                'max_rate': config.max_profit_rate,
+                'count': 0,
+                'percentage': 0,
+                'total_profit': 0,
+                'stocks': []
+            })
+        
+        # 统计持仓股票分布
+        for stock_code, holding in holdings.items():
+            profit_rate = holding['profit_rate']
+            for dist_item in distribution:
+                min_rate = dist_item['min_rate']
+                max_rate = dist_item['max_rate']
+                
+                # 检查是否在区间内
+                in_range = True
+                if min_rate is not None and profit_rate < min_rate:
+                    in_range = False
+                if max_rate is not None and profit_rate >= max_rate:
+                    in_range = False
+                
+                if in_range:
+                    dist_item['count'] += 1
+                    dist_item['total_profit'] += holding['profit_amount']
+                    dist_item['stocks'].append({
+                        'stock_code': stock_code,
+                        'stock_name': holding['stock_name'],
+                        'profit_rate': profit_rate,
+                        'profit_amount': holding['profit_amount'],
+                        'status': 'holding'
+                    })
+                    break
+        
+        # 统计已清仓股票分布
+        for position in closed_positions:
+            profit_rate = position['profit_rate']
+            for dist_item in distribution:
+                min_rate = dist_item['min_rate']
+                max_rate = dist_item['max_rate']
+                
+                # 检查是否在区间内
+                in_range = True
+                if min_rate is not None and profit_rate < min_rate:
+                    in_range = False
+                if max_rate is not None and profit_rate >= max_rate:
+                    in_range = False
+                
+                if in_range:
+                    dist_item['count'] += 1
+                    dist_item['total_profit'] += position['profit_amount']
+                    dist_item['stocks'].append({
+                        'stock_code': position['stock_code'],
+                        'stock_name': position['stock_name'],
+                        'profit_rate': profit_rate,
+                        'profit_amount': position['profit_amount'],
+                        'status': 'closed'
+                    })
+                    break
+        
+        # 计算总股票数和百分比
+        total_stocks = sum(dist_item['count'] for dist_item in distribution)
+        for dist_item in distribution:
+            dist_item['percentage'] = (dist_item['count'] / total_stocks * 100) if total_stocks > 0 else 0
+        
+        return {
+            'total_trades': total_stocks,
+            'distribution': distribution,
+            'summary': {
+                'total_profit': sum(dist_item['total_profit'] for dist_item in distribution),
+                'average_profit_rate': 0,  # 需要重新计算
+                'win_rate': 0  # 需要重新计算
+            },
+            'holding_stocks': len(holdings),
+            'closed_stocks': len(closed_positions)
+        }
+    
+    @classmethod
+    def get_monthly_statistics(cls, year: int = None) -> Dict[str, Any]:
+        """获取月度交易统计和收益率
+        
+        Requirements: 5.1, 5.2, 5.3, 5.4
+        - 计算并显示月度收益率
+        - 使用每月的已实现收益和损失
+        - 处理无数据月份，显示适当的指示器
+        - 显示格式正确的百分比值
         """
         try:
             if year is None:
@@ -180,15 +241,18 @@ class AnalyticsService(BaseService):
                     'buy_amount': 0,
                     'sell_amount': 0,
                     'profit_amount': 0,
+                    'profit_rate': None,  # 月度收益率，None表示无数据
                     'success_count': 0,
                     'success_rate': 0,
-                    'stocks': set()
+                    'stocks': set(),
+                    'has_data': False  # 标记是否有交易数据
                 }
             
             # 统计每月交易数据
             for trade in trades:
                 month = trade.trade_date.month
                 monthly_stats[month]['stocks'].add(trade.stock_code)
+                monthly_stats[month]['has_data'] = True
                 
                 if trade.trade_type == 'buy':
                     monthly_stats[month]['buy_count'] += 1
@@ -199,19 +263,32 @@ class AnalyticsService(BaseService):
                 
                 monthly_stats[month]['total_trades'] += 1
             
-            # 计算每月的收益和成功率
+            # 计算每月的收益率和成功率
             for month, stats in monthly_stats.items():
-                # 计算当月涉及的股票的收益情况
-                month_profit, month_success = cls._calculate_monthly_profit_and_success(
-                    trades, month, year
-                )
-                stats['profit_amount'] = month_profit
-                stats['success_count'] = month_success
-                stats['success_rate'] = (month_success / len(stats['stocks']) * 100) if len(stats['stocks']) > 0 else 0
+                if stats['has_data']:
+                    # 计算当月已完成交易的收益情况
+                    month_profit, month_success, month_cost = cls._calculate_monthly_realized_profit_and_success(
+                        trades, month, year
+                    )
+                    stats['profit_amount'] = month_profit
+                    stats['success_count'] = month_success
+                    
+                    # 计算月度收益率：基于该月已完成交易的成本
+                    if month_cost > 0:
+                        stats['profit_rate'] = month_profit / month_cost
+                    else:
+                        stats['profit_rate'] = 0 if month_profit == 0 else None
+                    
+                    stats['success_rate'] = (month_success / len(stats['stocks']) * 100) if len(stats['stocks']) > 0 else 0
+                else:
+                    # 无数据月份保持默认值
+                    stats['profit_rate'] = None
+                
                 stats['unique_stocks'] = len(stats['stocks'])
                 stats['stocks'] = list(stats['stocks'])  # 转换为列表以便JSON序列化
             
             # 计算年度汇总
+            valid_months = [stats for stats in monthly_stats.values() if stats['has_data']]
             year_summary = {
                 'year': year,
                 'total_buy_count': sum(stats['buy_count'] for stats in monthly_stats.values()),
@@ -220,7 +297,9 @@ class AnalyticsService(BaseService):
                 'total_buy_amount': sum(stats['buy_amount'] for stats in monthly_stats.values()),
                 'total_sell_amount': sum(stats['sell_amount'] for stats in monthly_stats.values()),
                 'total_profit': sum(stats['profit_amount'] for stats in monthly_stats.values()),
-                'average_success_rate': sum(stats['success_rate'] for stats in monthly_stats.values()) / 12
+                'average_success_rate': sum(stats['success_rate'] for stats in valid_months) / len(valid_months) if valid_months else 0,
+                'months_with_data': len(valid_months),
+                'average_monthly_return': sum(stats['profit_rate'] for stats in valid_months if stats['profit_rate'] is not None) / len([s for s in valid_months if s['profit_rate'] is not None]) if any(s['profit_rate'] is not None for s in valid_months) else 0
             }
             
             return {
@@ -506,34 +585,30 @@ class AnalyticsService(BaseService):
         return closed_positions
     
     @classmethod
-    def _calculate_monthly_profit_and_success(cls, trades: List[TradeRecord], 
-                                            month: int, year: int) -> Tuple[float, int]:
-        """计算指定月份的收益和成功股票数"""
-        # 获取该月涉及的股票
-        month_stocks = set()
+    def _calculate_realized_profit(cls, trades: List[TradeRecord]) -> float:
+        """计算已清仓收益（按股票分组计算完整买卖周期的收益）
+        
+        Requirements: 1.1, 1.3
+        - 汇总所有已完成的交易（买入-卖出配对）
+        """
+        stock_trades = defaultdict(list)
+        
+        # 按股票分组交易记录
         for trade in trades:
-            if trade.trade_date.month == month and trade.trade_date.year == year:
-                month_stocks.add(trade.stock_code)
+            stock_trades[trade.stock_code].append(trade)
         
-        # 计算每只股票到该月底的收益情况
-        month_profit = 0
-        success_count = 0
+        total_realized_profit = 0
         
-        # 计算该月的最后一天
-        from calendar import monthrange
-        last_day = monthrange(year, month)[1]
-        month_end = datetime(year, month, last_day)
-        
-        for stock_code in month_stocks:
-            stock_trades = [t for t in trades if t.stock_code == stock_code 
-                          and t.trade_date <= month_end]
+        for stock_code, stock_trade_list in stock_trades.items():
+            # 按时间排序
+            stock_trade_list.sort(key=lambda x: x.trade_date)
             
             # 计算该股票的收益
-            position = 0
-            total_cost = 0
-            total_revenue = 0
+            position = 0  # 当前持仓
+            total_cost = 0  # 总成本
+            total_revenue = 0  # 总收入
             
-            for trade in stock_trades:
+            for trade in stock_trade_list:
                 if trade.trade_type == 'buy':
                     position += trade.quantity
                     total_cost += float(trade.price * trade.quantity)
@@ -541,11 +616,120 @@ class AnalyticsService(BaseService):
                     position -= trade.quantity
                     total_revenue += float(trade.price * trade.quantity)
             
-            # 如果已清仓，计算实际收益
+            # 如果已清仓（持仓为0），计算收益
             if position == 0:
-                profit = total_revenue - total_cost
+                total_realized_profit += (total_revenue - total_cost)
+        
+        return total_realized_profit
+    
+    @classmethod
+    def _calculate_current_holdings_profit(cls, holdings: Dict[str, Dict[str, Any]]) -> float:
+        """计算当前持仓收益（结合最新价格计算浮盈浮亏）
+        
+        Requirements: 1.2, 1.4
+        - 使用当前市场价格减去所有持仓的成本基础
+        """
+        return sum(holding['profit_amount'] for holding in holdings.values())
+    
+    @classmethod
+    def _calculate_monthly_realized_profit_and_success(cls, trades: List[TradeRecord], 
+                                                     month: int, year: int) -> Tuple[float, int, float]:
+        """计算指定月份的已实现收益、成功股票数和投入成本
+        
+        Requirements: 5.2
+        - 使用每月的已实现收益和损失
+        """
+        from calendar import monthrange
+        
+        # 计算该月的日期范围
+        month_start = datetime(year, month, 1)
+        last_day = monthrange(year, month)[1]
+        month_end = datetime(year, month, last_day, 23, 59, 59)
+        
+        # 获取该月完成的交易（在该月内既有买入又有卖出完成清仓的股票）
+        month_profit = 0
+        success_count = 0
+        month_cost = 0
+        
+        # 按股票分组所有交易记录
+        stock_trades = defaultdict(list)
+        for trade in trades:
+            stock_trades[trade.stock_code].append(trade)
+        
+        # 分析每只股票在该月的交易情况
+        for stock_code, stock_trade_list in stock_trades.items():
+            # 按时间排序
+            stock_trade_list.sort(key=lambda x: x.trade_date)
+            
+            # 计算该月内完成的交易周期
+            monthly_completed_trades = cls._get_monthly_completed_trades(
+                stock_trade_list, month_start, month_end
+            )
+            
+            for completed_trade in monthly_completed_trades:
+                profit = completed_trade['profit']
+                cost = completed_trade['cost']
+                
                 month_profit += profit
+                month_cost += cost
+                
                 if profit > 0:
                     success_count += 1
         
-        return month_profit, success_count
+        return month_profit, success_count, month_cost
+    
+    @classmethod
+    def _get_monthly_completed_trades(cls, stock_trades: List[TradeRecord], 
+                                    month_start: datetime, month_end: datetime) -> List[Dict]:
+        """获取指定月份内完成的交易周期"""
+        completed_trades = []
+        
+        # 使用FIFO方法匹配买入和卖出
+        buy_queue = []  # 买入队列
+        
+        for trade in stock_trades:
+            if trade.trade_type == 'buy':
+                buy_queue.append({
+                    'trade': trade,
+                    'remaining_quantity': trade.quantity,
+                    'unit_cost': float(trade.price)
+                })
+            elif trade.trade_type == 'sell':
+                sell_quantity = trade.quantity
+                sell_price = float(trade.price)
+                sell_date = trade.trade_date
+                
+                # 从买入队列中匹配
+                while sell_quantity > 0 and buy_queue:
+                    buy_item = buy_queue[0]
+                    buy_trade = buy_item['trade']
+                    
+                    # 计算本次匹配的数量
+                    match_quantity = min(sell_quantity, buy_item['remaining_quantity'])
+                    
+                    # 如果卖出发生在指定月份内，记录为该月完成的交易
+                    if month_start <= sell_date <= month_end:
+                        cost = match_quantity * buy_item['unit_cost']
+                        revenue = match_quantity * sell_price
+                        profit = revenue - cost
+                        
+                        completed_trades.append({
+                            'buy_date': buy_trade.trade_date,
+                            'sell_date': sell_date,
+                            'quantity': match_quantity,
+                            'buy_price': buy_item['unit_cost'],
+                            'sell_price': sell_price,
+                            'cost': cost,
+                            'revenue': revenue,
+                            'profit': profit
+                        })
+                    
+                    # 更新数量
+                    buy_item['remaining_quantity'] -= match_quantity
+                    sell_quantity -= match_quantity
+                    
+                    # 如果买入项目已完全匹配，从队列中移除
+                    if buy_item['remaining_quantity'] <= 0:
+                        buy_queue.pop(0)
+        
+        return completed_trades

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试复盘页面持仓天数显示</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 持仓天数显示样式 */
+        .holding-days-display {
+            position: relative;
+            cursor: help;
+        }
+
+        .holding-days-display .text-info {
+            color: #0d6efd !important;
+            font-weight: 600;
+        }
+
+        .holding-days-display:hover .text-info {
+            color: #0a58ca !important;
+            text-decoration: underline;
+        }
+
+        .holding-item {
+            transition: all 0.2s ease;
+            border: 1px solid #dee2e6;
+            background-color: #fff;
+        }
+
+        .holding-item:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+            border-color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>测试复盘页面持仓天数显示</h2>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">当前持仓（包含实际交易日数）</h5>
+            </div>
+            <div class="card-body">
+                <div id="holdings-list">
+                    <div class="text-center text-muted">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 模拟持仓数据（包含实际交易日数）
+        const mockHoldings = [
+            {
+                stock_code: '000001',
+                stock_name: '平安银行',
+                current_quantity: 1000,
+                avg_buy_price: 12.50,
+                current_price: 13.20,
+                first_buy_date: '2025-08-01',
+                holding_days: 15,
+                actual_holding_days: 10,
+                holding_days_display: '10 个交易日',
+                holding_days_tooltip: '实际持仓 10 个交易日（不含周末及节假日）\n首次买入: 2025-08-01'
+            },
+            {
+                stock_code: '000002',
+                stock_name: '万科A',
+                current_quantity: 500,
+                avg_buy_price: 8.80,
+                current_price: 9.10,
+                first_buy_date: '2025-08-10',
+                holding_days: 8,
+                actual_holding_days: 6,
+                holding_days_display: '6 个交易日',
+                holding_days_tooltip: '实际持仓 6 个交易日（不含周末及节假日）\n首次买入: 2025-08-10'
+            }
+        ];
+
+        function getHoldingDaysDisplay(holding) {
+            // 优先显示实际交易日数
+            const actualDays = holding.actual_holding_days || holding.holding_days || 0;
+            return `${actualDays} 天`;
+        }
+
+        function getHoldingDaysTooltip(holding) {
+            const actualDays = holding.actual_holding_days || holding.holding_days || 0;
+            const firstBuyDate = holding.first_buy_date ? new Date(holding.first_buy_date).toLocaleDateString('zh-CN') : '--';
+            return `实际持仓 ${actualDays} 个交易日（不含周末及节假日）\n首次买入: ${firstBuyDate}`;
+        }
+
+        function calculateProfitRatio(holding) {
+            if (!holding.avg_buy_price || !holding.current_price) {
+                return '--';
+            }
+            const ratio = ((holding.current_price - holding.avg_buy_price) / holding.avg_buy_price * 100).toFixed(2);
+            return ratio + '%';
+        }
+
+        function getProfitClass(holding) {
+            if (!holding.avg_buy_price || !holding.current_price) {
+                return 'text-muted';
+            }
+            const ratio = (holding.current_price - holding.avg_buy_price) / holding.avg_buy_price;
+            return ratio > 0 ? 'text-success' : ratio < 0 ? 'text-danger' : 'text-muted';
+        }
+
+        function displayHoldings(holdings) {
+            const holdingsList = document.getElementById('holdings-list');
+            if (!holdingsList) return;
+
+            if (!holdings || holdings.length === 0) {
+                holdingsList.innerHTML = '<div class="text-center text-muted">暂无持仓数据</div>';
+                return;
+            }
+
+            const holdingsHtml = holdings.map(holding => `
+            <div class="holding-item card mb-3">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-2">
+                            <div class="fw-bold">${holding.stock_code}</div>
+                            <div class="text-muted small">${holding.stock_name || '--'}</div>
+                        </div>
+                        <div class="col-md-1">
+                            <div class="small text-muted">成本价</div>
+                            <div class="fw-bold">¥${holding.avg_buy_price ? holding.avg_buy_price.toFixed(2) : '--'}</div>
+                        </div>
+                        <div class="col-md-1">
+                            <div class="small text-muted">当前价</div>
+                            <div class="fw-bold">¥${holding.current_price ? holding.current_price.toFixed(2) : '--'}</div>
+                        </div>
+                        <div class="col-md-1">
+                            <div class="small text-muted">持仓量</div>
+                            <div class="fw-bold">${holding.current_quantity || 0}</div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="small text-muted">持仓天数</div>
+                            <div class="holding-days-display fw-bold text-info" title="${getHoldingDaysTooltip(holding)}">
+                                ${getHoldingDaysDisplay(holding)}
+                            </div>
+                            <div class="small text-muted">仅交易日</div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="small text-muted">浮盈比例</div>
+                            <div class="fw-bold ${getProfitClass(holding)}">${calculateProfitRatio(holding)}</div>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-primary btn-sm w-100">
+                                <i class="fas fa-chart-line"></i> 复盘分析
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+            holdingsList.innerHTML = holdingsHtml;
+        }
+
+        // 页面加载完成后显示模拟数据
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                displayHoldings(mockHoldings);
+            }, 1000);
+        });
+
+        // 测试实际API
+        function testRealAPI() {
+            fetch('/api/holdings?include_actual_days=true')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.data) {
+                        displayHoldings(data.data);
+                        console.log('✅ 实际API测试成功', data.data);
+                    } else {
+                        console.error('❌ API返回失败', data);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ API请求失败', error);
+                });
+        }
+
+        // 添加测试按钮
+        setTimeout(() => {
+            const container = document.querySelector('.container');
+            const testButton = document.createElement('button');
+            testButton.className = 'btn btn-success mt-3';
+            testButton.innerHTML = '<i class="fas fa-test-tube"></i> 测试实际API';
+            testButton.onclick = testRealAPI;
+            container.appendChild(testButton);
+        }, 2000);
+    </script>
+</body>
+</html>

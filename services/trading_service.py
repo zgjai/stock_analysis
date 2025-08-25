@@ -27,6 +27,9 @@ class TradingService(BaseService):
             # 验证交易原因是否在配置的选项中
             cls._validate_trade_reason(data.get('trade_type'), data.get('reason'))
             
+            # 验证股票数量规则
+            cls._validate_stock_quantity(data.get('stock_code'), data.get('quantity'))
+            
             # 设置交易日期（如果未提供）
             if 'trade_date' not in data or data['trade_date'] is None:
                 data['trade_date'] = datetime.now()
@@ -122,11 +125,19 @@ class TradingService(BaseService):
     def update_trade(cls, trade_id: int, data: Dict[str, Any]) -> TradeRecord:
         """更新交易记录"""
         try:
+            # 获取现有交易记录
+            trade = cls.get_by_id(trade_id)
+            
             # 验证交易原因是否在配置的选项中
             if 'reason' in data:
-                trade = cls.get_by_id(trade_id)
                 trade_type = data.get('trade_type', trade.trade_type)
                 cls._validate_trade_reason(trade_type, data.get('reason'))
+            
+            # 验证股票数量规则（如果数量或股票代码有更新）
+            if 'quantity' in data or 'stock_code' in data:
+                stock_code = data.get('stock_code', trade.stock_code)
+                quantity = data.get('quantity', trade.quantity)
+                cls._validate_stock_quantity(stock_code, quantity)
             
             # 过滤掉None值和空字符串，避免覆盖必填字段
             # 但保留交易日期字段，即使它可能是空字符串
@@ -400,6 +411,20 @@ class TradingService(BaseService):
         
         if valid_reasons and reason not in valid_reasons:
             raise ValidationError(f"无效的{trade_type}原因: {reason}")
+    
+    @classmethod
+    def _validate_stock_quantity(cls, stock_code: str, quantity: int):
+        """验证股票数量规则"""
+        if not stock_code:
+            raise ValidationError("股票代码不能为空")
+        
+        if quantity is None:
+            raise ValidationError("数量不能为空")
+        
+        from utils.stock_utils import validate_stock_quantity
+        is_valid, error_message = validate_stock_quantity(stock_code, quantity)
+        if not is_valid:
+            raise ValidationError(error_message)
     
     @classmethod
     def _apply_filters(cls, query, filters: Dict[str, Any]):

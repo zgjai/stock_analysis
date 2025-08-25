@@ -686,6 +686,52 @@ def ensure_compatibility():
         raise e
 
 
+@api_bp.route('/trades/current-holdings', methods=['GET'])
+def get_current_holdings_for_trading():
+    """获取当前持仓列表，用于卖出操作的股票选择
+    
+    Requirements: 3.2
+    - 为卖出操作提供股票选择
+    """
+    try:
+        from services.analytics_service import AnalyticsService
+        from models.trade_record import TradeRecord
+        
+        # 获取所有未订正的交易记录
+        trades = TradeRecord.query.filter_by(is_corrected=False).all()
+        
+        # 计算当前持仓
+        holdings = AnalyticsService._calculate_current_holdings(trades)
+        
+        # 转换为适合前端使用的格式
+        holdings_list = []
+        for stock_code, holding in holdings.items():
+            holdings_list.append({
+                'stock_code': stock_code,
+                'stock_name': holding['stock_name'],
+                'quantity': holding['quantity'],
+                'avg_cost': round(holding['avg_cost'], 2),
+                'current_price': round(holding['current_price'], 2),
+                'market_value': round(holding['market_value'], 2),
+                'profit_amount': round(holding['profit_amount'], 2),
+                'profit_rate': round(holding['profit_rate'] * 100, 2)
+            })
+        
+        # 按股票代码排序
+        holdings_list.sort(key=lambda x: x['stock_code'])
+        
+        return create_success_response(
+            data={
+                'holdings': holdings_list,
+                'total_count': len(holdings_list)
+            },
+            message='获取当前持仓成功'
+        )
+    
+    except Exception as e:
+        raise e
+
+
 @api_bp.route('/trades/<int:trade_id>/migrate-to-batch', methods=['POST'])
 def migrate_to_batch_profit(trade_id):
     """将单一止盈迁移为分批止盈"""

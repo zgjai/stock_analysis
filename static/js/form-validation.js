@@ -58,10 +58,24 @@ class FormValidator {
     setupBuiltInValidation() {
         // 设置HTML5验证属性对应的规则
         this.form.querySelectorAll('[required]').forEach(field => {
-            this.addRule(field.name, {
-                validator: Validators.required,
-                message: this.getRequiredMessage(field)
-            });
+            // 特殊处理：holding_stock字段只在卖出模式下才需要验证
+            if (field.name === 'holding_stock') {
+                this.addRule(field.name, {
+                    validator: (value) => {
+                        const tradeType = document.getElementById('trade-type')?.value;
+                        if (tradeType === 'buy') {
+                            return true; // 买入模式下不需要验证持仓股票
+                        }
+                        return Validators.required(value);
+                    },
+                    message: '请选择要卖出的持仓股票'
+                });
+            } else {
+                this.addRule(field.name, {
+                    validator: Validators.required,
+                    message: this.getRequiredMessage(field)
+                });
+            }
         });
         
         this.form.querySelectorAll('[type="email"]').forEach(field => {

@@ -169,9 +169,7 @@ if (typeof window.ApiClient === 'undefined') {
         return this.request('GET', '/holdings');
     }
 
-    async getHoldingAlerts() {
-        return this.request('GET', '/holdings/alerts');
-    }
+    // Removed getHoldingAlerts method as holding alerts module has been removed
 
     // 持仓天数更新API - 需求1
     async updateHoldingDays(stockCode, holdingDays) {

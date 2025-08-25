@@ -44,6 +44,16 @@ def analytics():
     """统计分析页面"""
     return render_template('analytics.html')
 
+@frontend_bp.route('/non-trading-days')
+def non_trading_days():
+    """非交易日配置页面"""
+    return render_template('non_trading_days.html')
+
+@frontend_bp.route('/profit-distribution-config')
+def profit_distribution_config():
+    """收益分布配置页面"""
+    return render_template('profit_distribution_config.html')
+
 @frontend_bp.route('/health')
 def health_check():
     """健康检查接口"""

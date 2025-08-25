@@ -120,7 +120,8 @@ class App {
             'stock-pool': '/stock-pool',
             'sector': '/sector-analysis',
             'cases': '/cases',
-            'analytics': '/analytics'
+            'analytics': '/analytics',
+            'non-trading-days': '/non-trading-days'
         };
 
         const url = routes[page];
@@ -172,6 +173,12 @@ class App {
             case 'analytics':
                 if (typeof initAnalytics === 'function') {
                     initAnalytics();
+                }
+                break;
+            case 'non-trading-days':
+                if (typeof NonTradingDaysManager !== 'undefined') {
+                    // 非交易日页面已经有自己的初始化逻辑
+                    console.log('非交易日配置页面已加载');
                 }
                 break;
         }

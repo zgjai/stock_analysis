@@ -69,6 +69,22 @@
         color: #dc3545 !important;
         font-weight: 600;
     }
+
+    /* 持仓天数显示样式 */
+    .holding-days-display {
+        position: relative;
+        cursor: help;
+    }
+
+    .holding-days-display .text-info {
+        color: #0d6efd !important;
+        font-weight: 600;
+    }
+
+    .holding-days-display:hover .text-info {
+        color: #0a58ca !important;
+        text-decoration: underline;
+    }
 </style>
 {% endblock %}
 
@@ -128,20 +144,6 @@
 
         <!-- 持仓提醒和操作面板 -->
         <div class="col-lg-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">持仓策略提醒</h5>
-                </div>
-                <div class="card-body">
-                    <div id="holding-alerts">
-                        <div class="text-center text-muted">
-                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                            加载中...
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- 快速复盘面板 -->
             <div class="card mt-3">
                 <div class="card-header">
@@ -1562,7 +1564,7 @@
             </div>
         `;
 
-            const url = forceRefreshPrices ? '/api/holdings?force_refresh=true' : '/api/holdings';
+            const url = forceRefreshPrices ? '/api/holdings?force_refresh=true&include_actual_days=true' : '/api/holdings?include_actual_days=true';
             fetch(url).then(response => response.json()).then(data => {
                 if (data.success && data.data && data.data.length > 0) {
                     currentHoldings = data.data;
@@ -1602,18 +1604,25 @@
                         <div class="fw-bold">${holding.stock_code}</div>
                         <div class="text-muted small">${holding.stock_name || '--'}</div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-1">
                         <div class="small text-muted">成本价</div>
                         <div class="fw-bold">¥${holding.avg_buy_price ? holding.avg_buy_price.toFixed(2) : (holding.avg_price ? holding.avg_price.toFixed(2) : '--')}</div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-1">
                         <div class="small text-muted">当前价</div>
                         <div class="fw-bold">¥${holding.current_price ? holding.current_price.toFixed(2) : '--'}</div>
                         <div class="small text-muted">${getPriceUpdateTime()}</div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-1">
                         <div class="small text-muted">持仓量</div>
                         <div class="fw-bold">${holding.current_quantity || holding.total_quantity || 0}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="small text-muted">持仓天数</div>
+                        <div class="holding-days-display fw-bold text-info" title="${getHoldingDaysTooltip(holding)}">
+                            ${getHoldingDaysDisplay(holding)}
+                        </div>
+                        <div class="small text-muted">仅交易日</div>
                     </div>
                     <div class="col-md-2">
                         <div class="small text-muted">浮盈比例</div>
@@ -1655,6 +1664,18 @@
             minute: '2-digit',
             second: '2-digit'
         });
+    }
+
+    function getHoldingDaysDisplay(holding) {
+        // 优先显示实际交易日数
+        const actualDays = holding.actual_holding_days || holding.holding_days || 0;
+        return `${actualDays} 天`;
+    }
+
+    function getHoldingDaysTooltip(holding) {
+        const actualDays = holding.actual_holding_days || holding.holding_days || 0;
+        const firstBuyDate = holding.first_buy_date ? new Date(holding.first_buy_date).toLocaleDateString('zh-CN') : '--';
+        return `实际持仓 ${actualDays} 个交易日（不含周末及节假日）\n首次买入: ${firstBuyDate}`;
     }
 
     function updatePriceUpdateTime(wasForceRefresh = false) {

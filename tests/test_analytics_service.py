@@ -160,10 +160,10 @@ class TestAnalyticsService:
             assert ranges['20% ~ 50%']['count'] == 1   # 股票B
     
     def test_get_monthly_statistics(self, app, db_session):
-        """测试月度统计"""
+        """测试月度统计和收益率计算"""
         with app.app_context():
             # 创建不同月份的交易记录
-            # 1月份交易
+            # 1月份完整交易周期（买入-卖出）
             jan_buy = TradeRecord(
                 stock_code='000001',
                 stock_name='股票A',
@@ -186,7 +186,7 @@ class TestAnalyticsService:
             )
             jan_sell.save()
             
-            # 2月份交易
+            # 2月份只有买入（未完成交易周期）
             feb_buy = TradeRecord(
                 stock_code='000002',
                 stock_name='股票B',
@@ -198,23 +198,126 @@ class TestAnalyticsService:
             )
             feb_buy.save()
             
+            # 3月份完成2月份买入的股票（跨月交易周期）
+            mar_sell = TradeRecord(
+                stock_code='000002',
+                stock_name='股票B',
+                trade_type='sell',
+                price=Decimal('25.00'),
+                quantity=500,
+                trade_date=datetime(2024, 3, 5),
+                reason='止盈'
+            )
+            mar_sell.save()
+            
             monthly_stats = AnalyticsService.get_monthly_statistics(2024)
             
             assert monthly_stats['year_summary']['year'] == 2024
             assert monthly_stats['year_summary']['total_buy_count'] == 2
-            assert monthly_stats['year_summary']['total_sell_count'] == 1
+            assert monthly_stats['year_summary']['total_sell_count'] == 2
+            assert monthly_stats['year_summary']['months_with_data'] == 3
             
-            # 检查1月份数据
+            # 检查1月份数据（有完整交易周期）
             jan_data = next(m for m in monthly_stats['monthly_data'] if m['month'] == 1)
             assert jan_data['buy_count'] == 1
             assert jan_data['sell_count'] == 1
             assert jan_data['unique_stocks'] == 1
+            assert jan_data['has_data'] == True
+            assert jan_data['profit_amount'] == 2000.0  # (12-10) * 1000
+            assert jan_data['profit_rate'] == 0.2  # 2000/10000 = 20%
             
-            # 检查2月份数据
+            # 检查2月份数据（只有买入，无完成交易）
             feb_data = next(m for m in monthly_stats['monthly_data'] if m['month'] == 2)
             assert feb_data['buy_count'] == 1
             assert feb_data['sell_count'] == 0
             assert feb_data['unique_stocks'] == 1
+            assert feb_data['has_data'] == True
+            assert feb_data['profit_amount'] == 0  # 无完成交易
+            assert feb_data['profit_rate'] == 0  # 无收益
+            
+            # 检查3月份数据（完成2月买入的股票）
+            mar_data = next(m for m in monthly_stats['monthly_data'] if m['month'] == 3)
+            assert mar_data['buy_count'] == 0
+            assert mar_data['sell_count'] == 1
+            assert mar_data['unique_stocks'] == 1
+            assert mar_data['has_data'] == True
+            assert mar_data['profit_amount'] == 2500.0  # (25-20) * 500
+            assert mar_data['profit_rate'] == 0.25  # 2500/10000 = 25%
+            
+            # 检查4月份数据（无交易数据）
+            apr_data = next(m for m in monthly_stats['monthly_data'] if m['month'] == 4)
+            assert apr_data['buy_count'] == 0
+            assert apr_data['sell_count'] == 0
+            assert apr_data['unique_stocks'] == 0
+            assert apr_data['has_data'] == False
+            assert apr_data['profit_rate'] is None  # 无数据月份
+    
+    def test_monthly_statistics_empty_months(self, app, db_session):
+        """测试无数据月份的处理"""
+        with app.app_context():
+            # 不创建任何交易记录
+            monthly_stats = AnalyticsService.get_monthly_statistics(2024)
+            
+            assert monthly_stats['year_summary']['year'] == 2024
+            assert monthly_stats['year_summary']['months_with_data'] == 0
+            assert monthly_stats['year_summary']['average_monthly_return'] == 0
+            
+            # 所有月份都应该没有数据
+            for month_data in monthly_stats['monthly_data']:
+                assert month_data['has_data'] == False
+                assert month_data['profit_rate'] is None
+                assert month_data['profit_amount'] == 0
+    
+    def test_monthly_statistics_partial_trades(self, app, db_session):
+        """测试部分卖出的月度统计"""
+        with app.app_context():
+            # 买入1000股
+            buy_trade = TradeRecord(
+                stock_code='000001',
+                stock_name='股票A',
+                trade_type='buy',
+                price=Decimal('10.00'),
+                quantity=1000,
+                trade_date=datetime(2024, 1, 10),
+                reason='测试买入'
+            )
+            buy_trade.save()
+            
+            # 1月份卖出500股
+            jan_sell = TradeRecord(
+                stock_code='000001',
+                stock_name='股票A',
+                trade_type='sell',
+                price=Decimal('12.00'),
+                quantity=500,
+                trade_date=datetime(2024, 1, 20),
+                reason='部分止盈'
+            )
+            jan_sell.save()
+            
+            # 2月份卖出剩余500股
+            feb_sell = TradeRecord(
+                stock_code='000001',
+                stock_name='股票A',
+                trade_type='sell',
+                price=Decimal('15.00'),
+                quantity=500,
+                trade_date=datetime(2024, 2, 15),
+                reason='全部清仓'
+            )
+            feb_sell.save()
+            
+            monthly_stats = AnalyticsService.get_monthly_statistics(2024)
+            
+            # 检查1月份数据（部分卖出）
+            jan_data = next(m for m in monthly_stats['monthly_data'] if m['month'] == 1)
+            assert jan_data['profit_amount'] == 1000.0  # (12-10) * 500
+            assert jan_data['profit_rate'] == 0.2  # 1000/5000 = 20%
+            
+            # 检查2月份数据（剩余部分卖出）
+            feb_data = next(m for m in monthly_stats['monthly_data'] if m['month'] == 2)
+            assert feb_data['profit_amount'] == 2500.0  # (15-10) * 500
+            assert feb_data['profit_rate'] == 0.5  # 2500/5000 = 50%
     
     def test_export_statistics_to_excel(self, app, db_session):
         """测试Excel导出功能"""
