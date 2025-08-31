@@ -45,7 +45,7 @@
                 <h5>模拟复盘表单</h5>
             </div>
             <div class="card-body">
-                <form id="review-form">
+                <form id="review-form" novalidate>
                     <input type="hidden" id="review-stock-code" value="000001">
                     <input type="hidden" id="review-id">
                     
@@ -56,14 +56,14 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">复盘日期</label>
-                            <input type="date" class="form-control" id="review-date" required>
+                            <input type="date" class="form-control" id="review-date">
                         </div>
                     </div>
                     
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">持仓天数</label>
-                            <input type="number" class="form-control" id="holding-days" min="1" value="1" required>
+                            <input type="number" class="form-control" id="holding-days" value="1">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">当前价格</label>
@@ -73,7 +73,7 @@
                     
                     <div class="mb-3">
                         <label class="form-label">决策结果</label>
-                        <select class="form-select" id="decision" required>
+                        <select class="form-select" id="decision">
                             <option value="">请选择决策</option>
                             <option value="hold">继续持有</option>
                             <option value="sell_partial">部分止盈</option>
@@ -83,7 +83,7 @@
                     
                     <div class="mb-3">
                         <label class="form-label">决策理由</label>
-                        <textarea class="form-control" id="reason" rows="2" placeholder="请输入决策理由..." required>测试理由</textarea>
+                        <textarea class="form-control" id="reason" rows="2" placeholder="请输入决策理由...">测试理由</textarea>
                     </div>
                     
                     <button type="button" class="btn btn-primary" id="save-review-btn" onclick="saveReview()">保存复盘</button>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JavaScript语法测试</title>
+</head>
+<body>
+    <h1>JavaScript语法测试</h1>
+    <div id="test-results"></div>
+    
+    <script src="static/js/utils.js"></script>
+    <script src="static/js/api.js"></script>
+    <script>
+        const results = [];
+        
+        // 测试utils.js
+        try {
+            if (typeof Validators !== 'undefined') {
+                results.push('✅ Validators 加载成功');
+            } else {
+                results.push('❌ Validators 未定义');
+            }
+            
+            if (typeof Formatters !== 'undefined') {
+                results.push('✅ Formatters 加载成功');
+            } else {
+                results.push('❌ Formatters 未定义');
+            }
+            
+            if (typeof UXUtils !== 'undefined') {
+                results.push('✅ UXUtils 加载成功');
+            } else {
+                results.push('❌ UXUtils 未定义');
+            }
+            
+            if (typeof ApiClient !== 'undefined') {
+                results.push('✅ ApiClient 加载成功');
+            } else {
+                results.push('❌ ApiClient 未定义');
+            }
+            
+        } catch (error) {
+            results.push('❌ JavaScript错误: ' + error.message);
+        }
+        
+        document.getElementById('test-results').innerHTML = results.join('<br>');
+        console.log('测试结果:', results);
+    </script>
+</body>
+</html>

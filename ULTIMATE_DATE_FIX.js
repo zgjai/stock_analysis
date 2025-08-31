@@ -13,8 +13,8 @@
     
     // 2. 暴力清除所有验证状态
     function clearDateValidation() {
-        tradeDateField.classList.remove('is-invalid', 'is-valid');
-        tradeDateField.classList.add('is-valid'); // 强制显示为有效
+        tradeDateField// .classList.remove(["']is-invalid["'], 'is-valid');
+        tradeDateField// .classList.add(["']is-valid["']); // 强制显示为有效
         
         // 清除所有错误消息
         const containers = [
@@ -56,8 +56,8 @@
                     // 交易日期永远返回true
                     const field = document.getElementById(fieldId);
                     if (field) {
-                        field.classList.remove('is-invalid');
-                        field.classList.add('is-valid');
+                        field// .classList.remove(["']is-invalid["']);
+                        field// .classList.add(["']is-valid["']);
                         
                         // 清除错误消息
                         const container = this.getFieldContainer(field);

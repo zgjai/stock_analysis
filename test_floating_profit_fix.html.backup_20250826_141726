@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>浮盈计算器修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>浮盈计算器修复测试</h2>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试组件</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- 当前价格输入 -->
+                        <div class="mb-3">
+                            <label for="current-price-input" class="form-label">当前价格</label>
+                            <input type="number" class="form-control" id="current-price-input" 
+                                   placeholder="请输入当前价格" step="0.01" min="0">
+                        </div>
+                        
+                        <!-- 浮盈显示 -->
+                        <div class="mb-3">
+                            <label class="form-label">浮盈比例</label>
+                            <div class="floating-profit-container">
+                                <span id="floating-profit-ratio" class="text-muted">--</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 买入价格显示 -->
+                        <div class="mb-3">
+                            <label class="form-label">买入价格</label>
+                            <div id="buy-price-display" class="text-muted">--</div>
+                        </div>
+                        
+                        <!-- 盈亏金额显示 -->
+                        <div class="mb-3">
+                            <label class="form-label">盈亏金额</label>
+                            <div id="profit-amount-display" class="text-muted">--</div>
+                        </div>
+                        
+                        <!-- 错误提示 -->
+                        <div id="floating-profit-error" class="text-danger small mt-1" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试日志</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-log" class="small" style="height: 300px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 4px;">
+                            <div class="text-muted">等待测试开始...</div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button id="test-init" class="btn btn-primary btn-sm">测试初始化</button>
+                            <button id="test-calculation" class="btn btn-success btn-sm">测试计算</button>
+                            <button id="clear-log" class="btn btn-secondary btn-sm">清空日志</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 包含必要的JavaScript文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/floating-profit-calculator.js') }}"></script>
+    
+    <script>
+        // 测试日志函数
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('test-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                'info': 'text-info',
+                'success': 'text-success',
+                'error': 'text-danger',
+                'warning': 'text-warning'
+            };
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = colors[type] || 'text-muted';
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // 清空日志
+        document.getElementById('clear-log').addEventListener('click', () => {
+            document.getElementById('test-log').innerHTML = '<div class="text-muted">日志已清空</div>';
+        });
+        
+        let calculator = null;
+        
+        // 测试初始化
+        document.getElementById('test-init').addEventListener('click', () => {
+            log('开始测试浮盈计算器初始化...', 'info');
+            
+            try {
+                // 检查依赖
+                if (typeof debounce === 'undefined') {
+                    throw new Error('debounce 函数未定义');
+                }
+                log('✓ debounce 函数可用', 'success');
+                
+                if (typeof throttle === 'undefined') {
+                    throw new Error('throttle 函数未定义');
+                }
+                log('✓ throttle 函数可用', 'success');
+                
+                if (typeof FloatingProfitCalculator === 'undefined') {
+                    throw new Error('FloatingProfitCalculator 类未定义');
+                }
+                log('✓ FloatingProfitCalculator 类可用', 'success');
+                
+                // 尝试创建实例
+                calculator = new FloatingProfitCalculator('000001', 10.50);
+                log('✓ FloatingProfitCalculator 实例创建成功', 'success');
+                
+                // 测试方法绑定
+                if (typeof calculator.handlePriceInput === 'function') {
+                    log('✓ handlePriceInput 方法绑定成功', 'success');
+                } else {
+                    throw new Error('handlePriceInput 方法绑定失败');
+                }
+                
+                if (typeof calculator.updateDisplay === 'function') {
+                    log('✓ updateDisplay 方法绑定成功', 'success');
+                } else {
+                    throw new Error('updateDisplay 方法绑定失败');
+                }
+                
+                log('🎉 浮盈计算器初始化测试通过！', 'success');
+                
+            } catch (error) {
+                log('❌ 初始化测试失败: ' + error.message, 'error');
+                console.error('初始化测试失败:', error);
+            }
+        });
+        
+        // 测试计算功能
+        document.getElementById('test-calculation').addEventListener('click', () => {
+            if (!calculator) {
+                log('❌ 请先运行初始化测试', 'warning');
+                return;
+            }
+            
+            log('开始测试浮盈计算功能...', 'info');
+            
+            try {
+                // 设置买入价格
+                calculator.setBuyPrice(10.00);
+                log('✓ 设置买入价格: ¥10.00', 'success');
+                
+                // 设置当前价格
+                calculator.setCurrentPrice(11.50);
+                log('✓ 设置当前价格: ¥11.50', 'success');
+                
+                // 获取计算结果
+                const result = calculator.getCalculationResult();
+                if (result) {
+                    log('✓ 计算结果获取成功', 'success');
+                    log(`  - 浮盈比例: ${result.formatted_ratio}`, 'info');
+                    log(`  - 盈亏金额: ¥${result.floating_profit_amount?.toFixed(2) || 'N/A'}`, 'info');
+                    log(`  - 颜色类: ${result.color_class}`, 'info');
+                } else {
+                    throw new Error('无法获取计算结果');
+                }
+                
+                // 测试价格输入
+                const priceInput = document.getElementById('current-price-input');
+                priceInput.value = '12.00';
+                priceInput.dispatchEvent(new Event('input', { bubbles: true }));
+                log('✓ 模拟价格输入测试完成', 'success');
+                
+                log('🎉 浮盈计算功能测试通过！', 'success');
+                
+            } catch (error) {
+                log('❌ 计算功能测试失败: ' + error.message, 'error');
+                console.error('计算功能测试失败:', error);
+            }
+        });
+        
+        // 页面加载完成后自动运行初始化测试
+        document.addEventListener('DOMContentLoaded', () => {
+            log('页面加载完成，准备开始测试...', 'info');
+            
+            // 延迟一秒后自动运行初始化测试
+            setTimeout(() => {
+                document.getElementById('test-init').click();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

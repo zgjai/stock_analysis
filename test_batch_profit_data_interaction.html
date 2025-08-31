@@ -110,15 +110,14 @@
                 const apiClient = new ApiClient();
                 
                 // 检查新增的方法是否存在
-                const requiredMethods = [
+                constMethods = [
                     'getProfitTargets',
                     'setProfitTargets', 
                     'calculateBatchProfit',
                     'getTradeWithProfitTargets'
                 ];
                 
-                const missingMethods = [];
-                requiredMethods.forEach(method => {
+                const missingMethods = [];Methods.forEach(method => {
                     if (typeof apiClient[method] !== 'function') {
                         missingMethods.push(method);
                     }

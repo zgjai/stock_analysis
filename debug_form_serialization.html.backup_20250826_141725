@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>表单序列化调试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>表单序列化调试</h2>
+        
+        <form id="test-form">
+            <div class="mb-3">
+                <label for="stock-code" class="form-label">股票代码</label>
+                <input type="text" class="form-control" id="stock-code" name="stock_code" value="000776">
+            </div>
+            
+            <div class="mb-3">
+                <label for="stock-name" class="form-label">股票名称</label>
+                <input type="text" class="form-control" id="stock-name" name="stock_name" value="广发证券">
+            </div>
+            
+            <div class="mb-3">
+                <label for="reason" class="form-label">操作原因</label>
+                <select class="form-select" id="reason" name="reason">
+                    <option value="">请选择操作原因</option>
+                    <option value="少妇B1战法" selected>少妇B1战法</option>
+                    <option value="少妇SB1战法">少妇SB1战法</option>
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="stop-loss-price" class="form-label">止损价格</label>
+                <input type="number" class="form-control" id="stop-loss-price" name="stop_loss_price" value="18.50" step="0.01">
+            </div>
+            
+            <button type="button" class="btn btn-primary" onclick="testSerialization()">测试序列化</button>
+        </form>
+        
+        <div class="mt-4">
+            <h4>序列化结果：</h4>
+            <pre id="result"></pre>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script>
+        function testSerialization() {
+            const form = document.getElementById('test-form');
+            const result = document.getElementById('result');
+            
+            console.log('=== 表单序列化测试 ===');
+            
+            // 测试FormUtils.serialize
+            const serializedData = FormUtils.serialize(form);
+            console.log('FormUtils.serialize结果:', serializedData);
+            
+            // 测试原生FormData
+            const formData = new FormData(form);
+            const nativeData = {};
+            for (let [key, value] of formData.entries()) {
+                nativeData[key] = value;
+            }
+            console.log('原生FormData结果:', nativeData);
+            
+            // 测试直接从DOM获取
+            const domData = {
+                stock_code: document.getElementById('stock-code').value,
+                stock_name: document.getElementById('stock-name').value,
+                reason: document.getElementById('reason').value,
+                stop_loss_price: document.getElementById('stop-loss-price').value
+            };
+            console.log('直接从DOM获取:', domData);
+            
+            // 显示结果
+            result.textContent = JSON.stringify({
+                'FormUtils.serialize': serializedData,
+                '原生FormData': nativeData,
+                '直接从DOM获取': domData
+            }, null, 2);
+        }
+        
+        // 页面加载后自动测试
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(testSerialization, 1000);
+        });
+    </script>
+</body>
+</html>

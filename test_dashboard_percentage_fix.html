@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仪表板百分比显示修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>仪表板百分比显示修复测试</h2>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>修复前的问题</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>问题描述：</strong></p>
+                        <ul>
+                            <li>总收益率显示为 0.02%（应该是 2.00%）</li>
+                            <li>成功率显示为 0.41%（应该是 41.0%）</li>
+                        </ul>
+                        
+                        <p><strong>原因分析：</strong></p>
+                        <ul>
+                            <li>后端返回小数形式：total_return_rate = 0.02（表示2%）</li>
+                            <li>前端错误地再次除以100：0.02 / 100 = 0.0002</li>
+                            <li>Formatters.percentage再乘以100：0.0002 * 100 = 0.02%</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>修复后的效果</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>修复方案：</strong></p>
+                        <ul>
+                            <li>直接使用后端返回的小数值</li>
+                            <li>让Formatters.percentage正确处理转换</li>
+                        </ul>
+                        
+                        <p><strong>预期结果：</strong></p>
+                        <ul>
+                            <li>总收益率：2.00%</li>
+                            <li>成功率：41.0%</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试数据模拟</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="card stats-card">
+                                    <div class="card-body text-center">
+                                        <h4 id="total-profit" class="stats-value">--</h4>
+                                        <p class="mb-0">总收益率</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card stats-card">
+                                    <div class="card-body text-center">
+                                        <h4 id="success-rate" class="stats-value">--</h4>
+                                        <p class="mb-0">成功率</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card stats-card">
+                                    <div class="card-body text-center">
+                                        <h4 id="test-old-logic" class="stats-value">--</h4>
+                                        <p class="mb-0">旧逻辑结果</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card stats-card">
+                                    <div class="card-body text-center">
+                                        <h4 id="test-new-logic" class="stats-value">--</h4>
+                                        <p class="mb-0">新逻辑结果</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-primary" onclick="testPercentageLogic()">测试百分比逻辑</button>
+                            <button class="btn btn-success" onclick="simulateApiData()">模拟API数据</button>
+                            <button class="btn btn-info" onclick="testEdgeCases()">测试边界情况</button>
+                        </div>
+                        
+                        <div id="test-results" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script>
+        // 模拟后端API返回的数据
+        const mockApiData = {
+            total_return_rate: 0.02,    // 2%
+            success_rate: 0.41,         // 41%
+            realized_profit: 20000,
+            current_holdings_profit: 5000,
+            total_investment: 1000000
+        };
+
+        function testPercentageLogic() {
+            const results = [];
+            
+            // 测试总收益率
+            const totalReturnRate = mockApiData.total_return_rate;
+            
+            // 旧逻辑（错误的）
+            const oldLogicRate = (totalReturnRate / 100) * 100; // 0.02 / 100 * 100 = 0.02
+            
+            // 新逻辑（正确的）
+            const newLogicRate = totalReturnRate * 100; // 0.02 * 100 = 2.0
+            
+            results.push(`<h6>总收益率测试：</h6>`);
+            results.push(`后端返回值: ${totalReturnRate}`);
+            results.push(`旧逻辑结果: ${oldLogicRate}%`);
+            results.push(`新逻辑结果: ${newLogicRate}%`);
+            results.push(`<br>`);
+            
+            // 测试成功率
+            const successRate = mockApiData.success_rate;
+            const oldLogicSuccess = (successRate / 100) * 100;
+            const newLogicSuccess = successRate * 100;
+            
+            results.push(`<h6>成功率测试：</h6>`);
+            results.push(`后端返回值: ${successRate}`);
+            results.push(`旧逻辑结果: ${oldLogicSuccess}%`);
+            results.push(`新逻辑结果: ${newLogicSuccess}%`);
+            
+            document.getElementById('test-results').innerHTML = results.join('<br>');
+            
+            // 更新显示
+            document.getElementById('test-old-logic').textContent = oldLogicRate + '%';
+            document.getElementById('test-new-logic').textContent = newLogicRate + '%';
+        }
+
+        function simulateApiData() {
+            // 使用修复后的逻辑更新显示
+            updateStatsCards(mockApiData);
+            
+            addResult('✅ 模拟API数据加载完成');
+            addResult(`总收益率: ${(mockApiData.total_return_rate * 100).toFixed(2)}%`);
+            addResult(`成功率: ${(mockApiData.success_rate * 100).toFixed(1)}%`);
+        }
+
+        function testEdgeCases() {
+            const edgeCases = [
+                { name: '零值', total_return_rate: 0, success_rate: 0 },
+                { name: '负值', total_return_rate: -0.05, success_rate: 0.2 },
+                { name: '大值', total_return_rate: 1.5, success_rate: 0.95 },
+                { name: 'null值', total_return_rate: null, success_rate: null },
+                { name: 'undefined值', total_return_rate: undefined, success_rate: undefined }
+            ];
+            
+            const results = ['<h6>边界情况测试：</h6>'];
+            
+            edgeCases.forEach(testCase => {
+                const returnRate = Formatters.percentage(testCase.total_return_rate);
+                const successRate = Formatters.percentage(testCase.success_rate);
+                
+                results.push(`${testCase.name}: 收益率=${returnRate}, 成功率=${successRate}`);
+            });
+            
+            document.getElementById('test-results').innerHTML = results.join('<br>');
+        }
+
+        function updateStatsCards(data) {
+            // 更新总收益率（修复后的逻辑）
+            const totalProfitElement = document.getElementById('total-profit');
+            if (totalProfitElement) {
+                const profit = data.total_return_rate || 0; // 直接使用，不再除以100
+                totalProfitElement.textContent = Formatters.percentage(profit);
+                
+                // 设置颜色
+                if (profit > 0) {
+                    totalProfitElement.style.color = '#dc3545'; // 红色表示盈利
+                } else if (profit < 0) {
+                    totalProfitElement.style.color = '#28a745'; // 绿色表示亏损
+                } else {
+                    totalProfitElement.style.color = '#6c757d'; // 灰色表示持平
+                }
+            }
+
+            // 更新成功率（修复后的逻辑）
+            const successRateElement = document.getElementById('success-rate');
+            if (successRateElement) {
+                const rate = data.success_rate || 0; // 直接使用，不再除以100
+                successRateElement.textContent = Formatters.percentage(rate);
+            }
+        }
+
+        function addResult(message) {
+            const resultsDiv = document.getElementById('test-results');
+            const currentContent = resultsDiv.innerHTML;
+            resultsDiv.innerHTML = currentContent + '<br>' + message;
+        }
+
+        // 页面加载时显示初始状态
+        document.addEventListener('DOMContentLoaded', function() {
+            addResult('📊 仪表板百分比显示修复测试已准备就绪');
+            addResult('点击按钮开始测试...');
+        });
+    </script>
+</body>
+</html>

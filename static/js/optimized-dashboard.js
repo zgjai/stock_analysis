@@ -210,8 +210,8 @@ class OptimizedDashboard {
         this.animateValue('realized-profit', data.realized_profit, '¥');
         this.animateValue('current-holdings-profit', data.current_holdings_profit, '¥');
         this.animateValue('total-profit', data.total_profit, '¥');
-        this.animateValue('total-return-rate', data.total_return_rate, '%');
-        this.animateValue('success-rate', data.success_rate, '%');
+        this.animateValuePercentage('total-return-rate', data.total_return_rate);
+        this.animateValuePercentage('success-rate', data.success_rate);
         
         // 更新其他统计信息
         this.updateElement('current-holdings-count', data.current_holdings_count);
@@ -355,10 +355,10 @@ class OptimizedDashboard {
                 <td>¥${holding.avg_cost.toFixed(2)}</td>
                 <td>¥${holding.current_price.toFixed(2)}</td>
                 <td>¥${holding.market_value.toFixed(2)}</td>
-                <td class="${holding.profit_amount >= 0 ? 'text-success' : 'text-danger'}">
+                <td class="${holding.profit_amount >= 0 ? 'text-danger' : 'text-success'}">
                     ¥${holding.profit_amount.toFixed(2)}
                 </td>
-                <td class="${holding.profit_rate >= 0 ? 'text-success' : 'text-danger'}">
+                <td class="${holding.profit_rate >= 0 ? 'text-danger' : 'text-success'}">
                     ${(holding.profit_rate * 100).toFixed(2)}%
                 </td>
             `;
@@ -391,6 +391,35 @@ class OptimizedDashboard {
             const currentValue = startValue + (targetValue - startValue) * easeOutQuart;
             
             element.textContent = suffix + currentValue.toFixed(2);
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            }
+        };
+        
+        requestAnimationFrame(animate);
+    }
+    
+    animateValuePercentage(elementId, targetValue) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        
+        // 从当前显示的百分比中提取数值
+        const currentText = element.textContent.replace('%', '');
+        const startValue = parseFloat(currentText) || 0;
+        const targetPercentage = (targetValue || 0) * 100; // 转换为百分比
+        const duration = 1000; // 1秒动画
+        const startTime = performance.now();
+        
+        const animate = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // 使用缓动函数
+            const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+            const currentValue = startValue + (targetPercentage - startValue) * easeOutQuart;
+            
+            element.textContent = currentValue.toFixed(2) + '%';
             
             if (progress < 1) {
                 requestAnimationFrame(animate);

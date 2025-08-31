@@ -455,3 +455,75 @@ body {
         background-color: rgba(40, 167, 69, 0.05) !important;
     }
 }
+
+/* 持仓列表优化样式 */
+.holding-item {
+    transition: all 0.2s ease;
+}
+
+.holding-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+}
+
+.holding-item .card-body {
+    padding: 1rem;
+}
+
+/* 持仓数据行样式优化 */
+.holding-item .d-flex {
+    min-height: 1.5rem;
+    align-items: center;
+}
+
+.holding-item .small.text-muted {
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+    min-width: 3.5rem;
+}
+
+.holding-item .fw-bold {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+    .holding-item .card-body {
+        padding: 0.75rem;
+    }
+    
+    .holding-item .small.text-muted {
+        font-size: 0.7rem;
+        min-width: 3rem;
+    }
+    
+    .holding-item .fw-bold {
+        font-size: 0.8rem;
+    }
+    
+    .holding-item .d-flex {
+        min-height: 1.25rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .holding-item .card-body {
+        padding: 0.5rem;
+    }
+    
+    .holding-item .small.text-muted {
+        font-size: 0.65rem;
+        min-width: 2.5rem;
+    }
+    
+    .holding-item .fw-bold {
+        font-size: 0.75rem;
+    }
+    
+    .holding-item .d-flex {
+        min-height: 1rem;
+        margin-bottom: 0.25rem;
+    }
+}

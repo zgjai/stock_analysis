@@ -72,8 +72,25 @@ def validate_ratio(ratio, field_name):
     if ratio is None:
         return None
     
+    # 处理空字符串的情况
+    if isinstance(ratio, str):
+        ratio = ratio.strip()
+        if ratio == '':
+            return None
+    
     try:
         ratio_float = float(ratio)
+        
+        # 智能转换：如果值大于等于1且看起来像百分比，自动转换为小数
+        # 判断逻辑：如果是整数且 >= 1，或者小数且 > 1，都视为百分比
+        if (ratio_float >= 1 and ratio_float == int(ratio_float)) or ratio_float > 1:
+            # 如果值在1-100之间，假设是百分比，除以100
+            if ratio_float <= 100:
+                ratio_float = ratio_float / 100
+            else:
+                # 如果值大于100，可能是错误输入
+                raise ValidationError(f"{field_name}值过大，请输入0-100之间的百分比或0-1之间的小数", field_name)
+        
         if ratio_float < 0 or ratio_float > 1:
             raise ValidationError(f"{field_name}必须在0-1之间", field_name)
         return ratio_float

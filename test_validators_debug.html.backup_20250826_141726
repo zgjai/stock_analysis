@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>验证器调试</title>
+    <script src="/static/js/utils_clean.js"></script>
+</head>
+<body>
+    <h1>验证器调试</h1>
+    <div id="results"></div>
+    
+    <script>
+        function testValidators() {
+            const results = document.getElementById('results');
+            let html = '';
+            
+            // 测试你的数据
+            const testData = {
+                stock_code: '000776',
+                stock_name: '广发证券',
+                price: '19.453',
+                quantity: '31100'
+            };
+            
+            html += '<h2>测试你的数据:</h2>';
+            
+            // 测试股票代码
+            try {
+                const stockCodeResult = Validators.stockCode(testData.stock_code);
+                html += `<p>股票代码 "${testData.stock_code}": ${stockCodeResult ? '✅ 通过' : '❌ 失败'}</p>`;
+            } catch (e) {
+                html += `<p>股票代码测试错误: ${e.message}</p>`;
+            }
+            
+            // 测试股票名称
+            try {
+                const stockNameResult = Validators.stockName(testData.stock_name);
+                html += `<p>股票名称 "${testData.stock_name}": ${stockNameResult ? '✅ 通过' : '❌ 失败'}</p>`;
+            } catch (e) {
+                html += `<p>股票名称测试错误: ${e.message}</p>`;
+            }
+            
+            // 测试价格
+            try {
+                const priceResult = Validators.price(testData.price);
+                html += `<p>价格 "${testData.price}": ${priceResult ? '✅ 通过' : '❌ 失败'}</p>`;
+            } catch (e) {
+                html += `<p>价格测试错误: ${e.message}</p>`;
+            }
+            
+            // 测试数量
+            try {
+                const quantityResult = Validators.quantity(testData.quantity);
+                html += `<p>数量 "${testData.quantity}": ${quantityResult ? '✅ 通过' : '❌ 失败'}</p>`;
+                
+                // 详细检查数量
+                const num = parseInt(testData.quantity);
+                html += `<p>数量详细检查:</p>`;
+                html += `<ul>`;
+                html += `<li>原始值: "${testData.quantity}"</li>`;
+                html += `<li>转换后: ${num}</li>`;
+                html += `<li>是否为数字: ${!isNaN(num)}</li>`;
+                html += `<li>是否大于0: ${num > 0}</li>`;
+                html += `<li>是否100的倍数: ${num % 100 === 0}</li>`;
+                html += `<li>31100 % 100 = ${31100 % 100}</li>`;
+                html += `</ul>`;
+            } catch (e) {
+                html += `<p>数量测试错误: ${e.message}</p>`;
+            }
+            
+            results.innerHTML = html;
+        }
+        
+        // 页面加载后测试
+        window.addEventListener('load', () => {
+            setTimeout(testValidators, 100);
+        });
+    </script>
+</body>
+</html>

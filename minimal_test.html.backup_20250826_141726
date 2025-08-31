@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>最小化测试</title>
+</head>
+<body>
+    <h1>最小化测试</h1>
+    <div id="output"></div>
+    
+    <script>
+        // 直接从trading_records.html复制第979-1020行的代码
+        class TestManager {
+            async handleTradeFormSubmit(formData) {
+                try {
+                    const saveBtn = document.getElementById('save-trade-btn');
+                    // UXUtils.showLoading(saveBtn, '保存中...');
+                    
+                    // 处理数值字段
+                    formData.price = parseFloat(formData.price);
+                    formData.quantity = parseInt(formData.quantity);
+                    
+                    if (formData.stop_loss_price) {
+                        formData.stop_loss_price = parseFloat(formData.stop_loss_price);
+                    }
+                    if (formData.take_profit_ratio) {
+                        formData.take_profit_ratio = parseFloat(formData.take_profit_ratio) / 100;
+                    }
+                    if (formData.sell_ratio) {
+                        formData.sell_ratio = parseFloat(formData.sell_ratio) / 100;
+                    }
+                    
+                    let response = { success: true };
+                    if (this.editingTradeId) {
+                        // 更新交易记录
+                        // response = await apiClient.updateTrade(this.editingTradeId, formData);
+                    } else {
+                        // 创建新交易记录
+                        // response = await apiClient.createTrade(formData);
+                    }
+                    
+                    if (response.success) {
+                        console.log('成功');
+                    } else {
+                        console.log('失败');
+                    }
+                } catch (error) {
+                    console.error('Save trade error:', error);
+                } finally {
+                    console.log('完成');
+                }
+            }
+        }
+        
+        // 测试
+        const manager = new TestManager();
+        const testData = {
+            price: "100.50",
+            quantity: "200",
+            stop_loss_price: "95.00",
+            take_profit_ratio: "10",
+            sell_ratio: "50"
+        };
+        
+        manager.handleTradeFormSubmit(testData).then(() => {
+            document.getElementById('output').innerHTML = '<p style="color: green;">✅ 测试成功</p>';
+        }).catch(error => {
+            document.getElementById('output').innerHTML = `<p style="color: red;">❌ 测试失败: ${error.message}</p>`;
+        });
+    </script>
+</body>
+</html>

@@ -10,11 +10,11 @@
     <div class="container mt-5">
         <h2>字段验证测试</h2>
         
-        <form id="trade-form">
+        <form id="trade-form" novalidate>
             <!-- 交易类型 -->
             <div class="mb-3">
                 <label for="trade-type" class="form-label">交易类型</label>
-                <select class="form-select" id="trade-type" name="trade_type" required>
+                <select class="form-select" id="trade-type" name="trade_type">
                     <option value="">请选择交易类型</option>
                     <option value="buy" selected>买入</option>
                     <option value="sell">卖出</option>
@@ -24,37 +24,37 @@
             <!-- 股票代码 -->
             <div class="mb-3">
                 <label for="stock-code" class="form-label">股票代码</label>
-                <input type="text" class="form-control" id="stock-code" name="stock_code" value="000776" required>
+                <input type="text" class="form-control" id="stock-code" name="stock_code" value="000776">
             </div>
 
             <!-- 股票名称 -->
             <div class="mb-3">
                 <label for="stock-name" class="form-label">股票名称</label>
-                <input type="text" class="form-control" id="stock-name" name="stock_name" value="广发证券" required>
+                <input type="text" class="form-control" id="stock-name" name="stock_name" value="广发证券">
             </div>
 
             <!-- 交易日期 -->
             <div class="mb-3">
                 <label for="trade-date" class="form-label">交易日期</label>
-                <input type="datetime-local" class="form-control" id="trade-date" name="trade_date" value="2025-08-04T18:01" required>
+                <input type="datetime-local" class="form-control" id="trade-date" name="trade_date" value="2025-08-04T18:01">
             </div>
 
             <!-- 价格 -->
             <div class="mb-3">
                 <label for="price" class="form-label">价格</label>
-                <input type="number" class="form-control" id="price" name="price" step="0.001" value="19.453" required>
+                <input type="number" class="form-control" id="price" name="price" step="0.001" value="19.453">
             </div>
 
             <!-- 数量 -->
             <div class="mb-3">
                 <label for="quantity" class="form-label">数量</label>
-                <input type="number" class="form-control" id="quantity" name="quantity" value="31100" required>
+                <input type="number" class="form-control" id="quantity" name="quantity" value="31100">
             </div>
 
             <!-- 操作原因 -->
             <div class="mb-3">
                 <label for="reason" class="form-label">操作原因</label>
-                <select class="form-select" id="reason" name="reason" required>
+                <select class="form-select" id="reason" name="reason">
                     <option value="">请选择操作原因</option>
                     <option value="技术分析" selected>技术分析</option>
                     <option value="基本面分析">基本面分析</option>

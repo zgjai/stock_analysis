@@ -1,0 +1,566 @@
+tml>/body>
+</ht>
+<  </scrip     }
+  
+   }            ');
+rror功能不可用', 'etus('保存复盘stSta  updateTe           se {
+      } el;
+         ')('保存复盘功能已调用tStatusdateTes     up    );
+       eview(veRanager.saiewSaveM    rev       ') {
+     ctionw === 'funevieeRManager.saveviewSaveypeof rr && tageSaveManif (review        
+                复盘');
+测试保存.log('💾      console
+       eview() {tion saveRunc      f函数（用于测试）
+  / 保存复盘
+        /
+        }
+;')); join('tails.assed, delP确性', al('警告消息准Result     addTest      
+      }
+                  }
+                       }
+              = false;
+ssed llPa       a               `);
+  警告 '有' : '无'}Warning ?as}警告，实际${h '有' : '无'arning ?uldHaveW 期望${shoe}:scenario.nam(`❌ ${ails.push det                {
+        else   }                 );
+ ame}: 正确`enario.nscs.push(`✅ ${     detail                   ng) {
+rniHaveWashouldng === if (hasWarni                       
+               == null;
+  e !ectedMessagario.exping = sceneWarnldHavoust sh   con         
+        alue;rnVtunt.rekEveed || mocentdefaultPrevnt.vening = mockEsWar   const ha               
+                     );
+ mockEventEvent(ow.dispatchwind              件
+       触发事          //             
+               ';
+  rnValue = '.retu  mockEvent            };
+       true; = reventedfaultPs.de { thifunction()efault = preventDEvent.mock                   
+ ad');unlo'beforew Event(= net mockEvent       cons             / 创建模拟事件
+     /            
+                      es;
+  hasChango.narihanges = scedCasUnsaveManager.hve    reviewSa             {
+   eManager) reviewSav    if (            enarios) {
+ scario ofnst scen     for (co
+                  
+  [];etails = d  let         d = true;
+  allPasse  let          
+            ];
+          
+       }          
+ age: nullMess   expected            
+     es: false,ang    hasCh        
+        更改时不显示警告',e: '无未保存    nam                   {
+           },
+                  确定要离开吗？'
+存的复盘数据，e: '您有未保sagdMescte        expe            
+true,Changes:     has                存更改时的警告',
+'有未保    name:                        {
+[
+         cenarios = const s           
+ 消息同场景下的警告 // 测试不            
+    ');
+       '🧪 测试警告消息准确性ole.log(     cons       cy() {
+racusageAcWarningMesction testnc fun asy性
+       息准确 测试警告消
+        //
+ }    }
+              理器未初始化');
+  false, '保存管t('未保存更改检测',estResul  addT         e {
+        } els          }
+          
+     单字段未找到'); false, '表('未保存更改检测',dTestResult  ad                else {
+    }            = '';
+    .valueieldanalysisF                
+    e = '';ield.valu   reasonF               清理
+     //            
+                      }
+                       tate}`);
+ fterChangeS}, 变化后: ${atate${initialSse, `初始状态: 更改检测', falResult('未保存Testadd                   {
+            } else        ');
+      测到表单变化true, '成功检', '未保存更改检测dTestResult(ad                   
+     e) {atterChangeSte && aftatf (!initialS          i           
+                   Changes;
+savedhasUnSaveManager.eviewtate = rerChangeSt aftons          c
+                      ;
+        0))50lve, t(resotTimeou se=>ve (resolromisew P ne await             检测
+           // 等待变化             
+                 '));
+     Event('inputhEvent(new eld.dispatceasonFi        r        试理由';
+    = '测ue eld.valnFi     reaso        单
+          // 修改表               
+                   nges;
+   hadCave.hasUnseManagereviewSavte = rt initialSta      cons          未保存更改
+    没有// 初始状态应该                    isField) {
+nalysield && anFif (reaso             
+               );
+    lysis'yId('anatBlemenment.getEField = docut analysis cons         n');
+      'reasoentById(lemment.getE docuasonField =st re con               
+取表单字段 获        //{
+        r) nageveMaf (reviewSa       i    
+     ;
+        保存更改检测')测试未sole.log('🧪  con
+           () {ontingesDetecnsavedChastUunction te f     async改检测
+     // 测试未保存更
+
+      
+        }        });
+    理器未初始化'se, '模态框或保存管确认', fal态框关闭Result('模Test  add           se {
+        } else;
+       hanges = fal.hasUnsavedCManagerSave  review     
+          重置状态    //       
+                         }
+        关闭');
+    认对话框未正确阻止'模态框关闭确, false, 模态框关闭确认'estResult('   addT                {
+     } else      ;
+       认对话框正常工作')态框关闭确 '模ue,框关闭确认', trt('模态ddTestResul          a         
+ ed) {ltPreventent.defaukEvif (moc               
+             rm;
+    nfioriginalCoonfirm = w.cindo       w     
+    rm函数复原始confi      // 恢
+                         
+ ckEvent);moEvent(patchdisodalElement. m         触发事件
+              //  
+                       alse; };
+eturn fion() { r functw.confirm =       windo        m;
+ .confir windowConfirm =iginalor   const     
+         用户选择取消关闭       // 模拟            
+            true; };
+ revented = is.defaultPction() { thunt = feventDefaulent.pr      mockEv   ;
+       ')de.bs.modalnt('hiEve new ckEvent =onst mo   c            
+ al事件mod模拟的hide.bs.       // 创建               
+    ue;
+      nges = tredChasavUnnager.hasiewSaveMa     rev          
+  模拟有未保存更改//            r) {
+    ewSaveManageeviElement && rf (modal   i      
+   dal');ewMo'revilementById(ent.getEment = documElet modal      cons 
+             );
+    框关闭确认'og('🧪 测试模态ole.lns      co   
+   () {ationirmlCloseConfModast teionnctync fu    as   模态框关闭确认
+  // 测试     }
+
+   
+        }           理器未初始化');
+false, '保存管, unload事件绑定'sult('before  addTestRe     
+          } else {         lse;
+  s = fansavedChangesUanager.haveM   reviewSa     
+        // 重置状态        
+                    }
+            ;
+        正确响应')unload事件未efore'be, ls定', fanload事件绑lt('beforeuesutR    addTes          
+       { else       }
+         定并响应');oad事件已正确绑unl'before true, unload事件绑定',sult('before addTestRe                 
+  ue) {rnValretukEvent.moc| ted |evendefaultPrvent.   if (mockE                 
+           ent);
+ EvEvent(mockatchdow.disp        win     事件处理器
+        // 触发                
+
+           '';lue = Vareturnvent.    mockE            ; };
+ented = trueevdefaultPrthis.on() { unctilt = fntDefaukEvent.preve   moc   
+          load');uneforeEvent('bvent = new  mockE     const         nload事件
+  模拟的beforeu      // 创建                  
+e;
+        hanges = trusavedC.hasUneManagerewSavrevi          
+      更改有未保存     // 模拟      {
+     er) aveManagiewS  if (rev           
+ 
+          unload);rendow).befoteners(wiLis.getEvent  window                                         ners && 
+entListew.getEvwindo                                         er && 
+  tListendow.addEvenwin     (                                || 
+     ull load !== nbeforeunwindow.ondListener = sBeforeUnloa   const ha   听器
+      d监eunloa 检查是否有befor     //        
+   ;
+        nload事件绑定')eu🧪 测试beforlog('   console.        
+  {()dBindingoreUnloatestBefc function  asyn      d事件绑定
+ 试beforeunloa// 测       }
+
+  
+              }');
+     oreunload方法理器未初始化或缺少befse, '保存管, falt('保存管理器初始化'tResul  addTes           lse {
+   } e          
+  方法');nload含beforeu化并包管理器已正确初始'保存始化', true, ('保存管理器初esult   addTestR          {
+   ) nction'=== 'fuing loadWarneUnetupBefor.sgeranaveMof reviewSa&& typer nageeviewSaveMa     if (r  
+                
+ 理器初始化');('🧪 测试保存管e.log      consol() {
+      lizationInitiaerManagion testSave async funct始化
+       试保存管理器初     // 测    }
+
+   ;
+    成')log('🏁 测试完onsole. c           
+  
+           }  
+         or');})`, 'errlCount/${totapassedCount}(`部分测试失败 (${tatusteTestS   upda       {
+      lse } e      
+      ess');, 'succCount})`otal}/${tsedCountpas${所有测试通过 (s(`tupdateTestSta       u   {
+       ount) === totalCedCount   if (pass
+                  h;
+   engtesults.lstRnt = te totalCou const        h;
+   gted).len => r.passer(rResults.filtunt = testssedCot pa     cons     
+            racy();
+  eAccuMessagestWarningait taw         消息准确性
+   试警告/ 测试5: 测 /          
+        n();
+     ioDetectedChangestestUnsav  await 
+          检测4: 测试未保存更改     // 测试   
+          
+      on();matiConfirdalCloseait testMo       aw认
+     试3: 测试模态框关闭确   // 测         
+            
+nding();oreUnloadBieftBwait tes  a        绑定
+  ad事件eunlo试2: 测试befor      // 测
+                 ion();
+ ializatInittSaveManagerait tes    aw
+        管理器初始化保存测试1: 检查 //           
+    果
+         / 清空之前的结s = []; /sult  testRe    );
+      运行测试...'tatus('正在ateTestS     upd   
+    行所有测试');og('🧪 开始运console.l           () {
+ llTestsrunAc function syn  a      所有测试
+     // 运行
+       }
+}
+              ');
+  未初始化保存管理器, false, '告设置'nload警beforeuult('stRes       addTe        lse {
+       } e           }
+          
+ , 500);        }        }
+                  
+          更改状态');, '未能设置未保存 falseload警告设置','beforeunesult(tR    addTes                          } else {
+               
+       刷新页面测试');置未保存更改状态，请尝试true, '已设', load警告设置foreun'betResult(addTes                      s) {
+      edChangesUnsavager.haSaveManewif (revi              
+          { => (()Timeoutset                
+                     ;
+   'input')) Event(chEvent(newField.dispat reason                 存更改';
+  '测试未保lue = ld.vaFieson rea             
+      ) {eldsonFi    if (rea          n');
+  ById('reasotElement.geocumentnField = dnst reaso       co       变化
+  发表单 触 //           r) {
+    geveManaewSa(revi  if 
+          更改  // 模拟有未保存的           
+   );
+        新页面或关闭标签页'试刷 请尝告 -面离开警('测试页estStatuspdateT      u
+      nload() {tBeforeUfunction tes   ad警告
+     eunlo 测试befor   //
+
+     }
+        }       ;
+     '), 'error初始化'框未stStatus('模态Te     update
+           } else {            框已打开');
+复盘模态('useTestStat  updat            show();
+  ewModal.        revi  {
+      viewModal)     if (re       al() {
+ eviewModn openR functio      模态框
+ / 打开复盘        /    }
+
+  = html;
+  innerHTML tsEl. resul      iv>';
+     '</d=     html +
+          
+                  });   `;
+               div>
+    </                 v>
+    </di                    </small>
+ stamp}melt.tiresuted">${ext-mul class="t<smal                     
+       v>  </di                         }
+ ''/div>` : t.details}<-1">${resuld mtmutemall text-ss="sla`<div cdetails ?    ${result.                           >
+  ng/stroesult.name}<${rstrong>     <                  
+         me-2"></i>ass} as ${iconCls="fas   <i cl                     
+         <div>                    
+       ems-start">een align-itontent-betwustify-c"d-flex j class=<div                    >
+    ass}"em ${bgClt-group-it"lisiv class=       <d        
+      html += `                  
+         
+    -danger';-group-item'listccess' : m-sugroup-ite? 'list-d asseult.pres = nst bgClass   co            ger';
+  text-danimess' : 'fa-ttext-succesck 'fa-chesed ? paslt.ass = resuconst iconCl      
+          > {result =lts.forEach(testResu         
+                `;
+    ">
+       oupist-gr class="l    <div          /div>
+     <               </div>
+            div>
+      </nt)*100}%">/totalCouedCountsswidth: ${(pastyle="                          ng'}" 
+   bg-warnisuccess' : 'unt ? 'bg-alCount === totr ${passedCo"progress-baclass=  <div                       ">
+ress mb-3lass="progiv c         <d
+            通过</h6>alCount}}/${totassedCount${p果汇总: 6>测试结          <h  >
+        b-3"lass="m    <div c    
+        l = `et htm        l
+             ngth;
+   tResults.leount = tesotalC  const t      
+    length;sed)..paster(r => rResults.filt = testt passedCoun        cons       
+   }
+       
+           n;   retur     
+        ;div>'果</暂无测试结muted">"text-div class=erHTML = '<innltsEl.      resu          === 0) {
+.length sults  if (testRe                
+ 
+     ults');est-restById('t.getElemenocumentl = dsultsE const re         ay() {
+  ResultsDisplpdateTeston u functi      
+ 结果显示新测试   // 更
+     
+
+        }isplay();stResultsDteTe        upda  
+           
+   });         ring()
+   ocaleTimeSt.toL: new Date()   timestamp           s,
+  s: detail detail         
+       passed,assed:        p  e,
+       testNam     name:    {
+       h(.pusesults     testR       s = '') {
+ilpassed, detaName, esult(testion addTestR      funct
+  加测试结果       // 添     }
+
+ 
+          `;    </div>
+               ssage}
+   ${me              /i>
+     ">< me-2s}las{iconCfas $="   <i class         
+        ">o'}t-infs' : 'tex'text-succesess' ? e === 'succanger' : typext-d? 't=== 'error' pe class="${ty <div            
+    HTML = `ertatusEl.inn s    
+                 
+  fo';-in textfo-circlea-in'f                             uccess' : 
+cle text-sirheck-c'fa-c'success' ? ype ===       t                
+       ger' : xt-dan-triangle teationclam-exror' ? 'fa 'er ==== typet iconClass      cons       atus');
+st-std('teByIlementcument.getEEl = doonst status    c       o') {
+ type = 'inf(message, tusStadateTestn up     functio测试状态
+    // 更新    
+
+           }     };
+ }
+                         };
+           a }
+      w(), ...dat || Date.no { id: id     data:           e,
+        success: tru               
+         return {                    000));
+solve, 1tTimeout(re> sesolve =ise(renew Prom     await          网络延迟
+            // 模拟            a);
+  保存:', datog('🔧 模拟APIconsole.l              {
+       id)ion(data,  async functsaveReview:              turn {
+    re  
+        nt() {MockApiClieon createfuncti       建模拟API客户端
+  创        //     });
+
+   }
+           'error');
+ ssage, error.me + '初始化失败: 'tStatus(ateTespd           u   error);
+  '❌ 初始化失败:', r(le.erroonso   c        {
+      h (error)   } catc                  
+       ，准备测试');
+始化完成tStatus('初ateTes upd                  
+            ay;
+ e = tod').valureview-datentById('lemetEt.gedocumen             T')[0];
+   g().split('toISOStrine().ay = new Dat const tod              / 设置今天的日期
+         / 
+                      
+           });
+      ap模态框初始化成功'✅ Bootstronsole.log('   c              );
+   dalElement(mop.Modalraw bootstnel = ewModa     revi      {
+         ned') defi= 'unap !=trotsypeof boElement && todal (m     if     l');
+      viewModad('retByIElemennt.getent = docume modalElem       const        
+ ap模态框tr初始化Boots        //             
+               }
+         ');
+    r未加载ewSaveManageor('❌ Revinsole.err     co             e {
+       } els   );
+        化成功''✅ 复盘保存管理器初始onsole.log( c               
+    );orm'iew-fevnager('#rSaveMaew Review= nager iewSaveMan    rev          
+      d') {ndefinenager !== 'uSaveMaview(typeof Re        if 
+        管理器始化保存 初       //    
+                     }
+              ent();
+  ApiCliteMockt = crea    apiClien              现');
+  模拟实ient未加载，使用 ApiClarn('⚠️console.w               {
+       else           }
+     功');始化成'✅ API客户端初nsole.log(   co                nt();
+ Cliew Apiient = ne      apiCl         
+     ed') {= 'undefin!=iClient eof Ap     if (typ          化API客户端
+      // 初始            try {
+          
+     );
+        始化测试页面'og('🚀 开始初le.l conso           ion() {
+sync functaded', atLoDOMContenntListener('ent.addEve   docum  // 初始化
+        
+    [];
+estResults =    let t    ull;
+l = n reviewModa    let
+    ager = null;eviewSaveMan let rl;
+       Client = nulapit      le全局变量
+   /      /ipt>
+    <scr
+    
+   script>ager.js"></save-manc/js/review-tatipt src="s   <script>
+ /scri.js"><s/apitatic/jrc="st s
+    <scripript>scjs"></ystem.message-sd-/js/unifierc="statict s <script文件 -->
+   必要的JavaScrip 加载<!--
+    
+    >cript.js"></sundle.minbootstrap.b1.3/dist/js/5.trap@/npm/bootsjsdelivr.netn.ps://cdhttt src="rip<sc   
+
+  </div>
+   v>     </di
+   </div>         v>
+         </di          /button>
+复盘<()">保存view="saveReckbtn" onclive-review-"saary" id=n-primass="btn btbutton" cle="n typ  <butto            on>
+      utt>取消</b"modal"iss=a-bs-dismondary" dat-sectnass="btn btton" cl="bu<button type                  
+  oter">-folass="modal <div c        v>
+             </di        
+  /form>    <         
+       div>     </               
+    >eared></textarrequi入决策理由..." lder="请输" placehos="2" row="reason" id-control="form class<textarea                 
+           l>abe/l">决策理由<orm-labelel class="f        <lab               
+     3">="mb-<div class              
+          
+div>          </          
+    div>    </               
+         t></selec                            
+    >清仓</option>all""sell_value=ion       <opt                          on>
+    分止盈</opti">部l"sell_partiation value=       <op                             >
+有</option">继续持"holdlue=ption va       <o                          on>
+   请选择决策</optiue="">on val<opti                              
+      uired>" req"decision=elect" idform-s"ass= <select cl                      >
+         bell">决策结果</labe"form-lass= <label cla                        >
+       "col-md-6lass="  <div c                     >
+     w mb-3"s="ro   <div clas              
+          </div>
+                 a>
+    textare.."></"请输入分析内容.ceholder=3" plaws="" ro"analysistrol" id=-conlass="formextarea c  <t                        el>
+  lab容</析内rm-label">分"foass= <label cl                          
+ "mb-3"> class=div     <              v>
+
+            </di                  </div>
+                           div>
+      </                    >
+      strong5</">0</span>/ext-primaryclass="t-score" "total<span id=分: >总  <strong                                  
+t-3">lass="m  <div c                             >
+    </div                        v>
+             </di                           div>
+  </                                >
+       >J没死叉</label"j-score"or=label" fk-orm-checel class="f     <lab                                       >
+lue="1"-score" va" id="j"checkbox" type=heck-input"form-cclass=    <input                                         k mb-2">
+m-chec="forlass     <div c                                 </div>
+                                         abel>
+ 势还在向上</le">趋"trend-scorfor=label" orm-check-s="fl clas      <labe                                     ">
+ "1" value=cored="trend-s" icheckbox type="eck-input"-chrmfoss="<input cla                                   
+         b-2">k mm-checass="fordiv cl           <                             d-6">
+lass="col-m<div c                                   
+ iv>         </d                         >
+        </div                                 bel>
+ ">无放量阴线</lalume-score"voor=abel" fk-lhecm-cfors="bel clas      <la                                   ="1">
+   aluee" vvolume-scord="ox" iype="checkb t"utcheck-inp"form-s= clas <input                                    
+       ">mb-2form-check lass="v c        <di                              div>
+         </                              
+   线</label>破BBIbi-score">不="b forck-label""form-cheel class=lab        <                                    1">
+"" value=ecorbbi-s id="x"checkbout" type="-check-inp="formclassnput  <i                                  
+         b-2">rm-check m"fo <div class=                                   iv>
+     </d                                  >
+     </label收盘价上升">e-up-score"pricel" for=check-lab"form-s=ascl<label                                     
+        "1">=valuep-score" "price-u" id=xkboectype="chk-input" orm-checss="f<input cla                                       >
+     mb-2"m-check ss="forla <div c                                 
+      -6">ol-mdlass="civ c  <d                                "row">
+  class=<div                               
+  body">lass="card- c    <div                  v>
+              </di                    
+，总分5分)</h6> (每项1分>评分标准mb-0"<h6 class="                                der">
+"card-hea=iv class    <d                       b-3">
+ s="card miv clas    <d              
+      v>
+     </di              div>
+        </                     >
+        </div                           </div>
+                                  </div>
+                                          >--</div>
+ atio"t-rprofiating-d="flold" ifw-botext lainrol-p"form-conts=<div clas                                       
+     ner">aifit-contpro"floating-=lassdiv c        <                            
+    例</label>>浮盈比"bel"form-la class=      <label                                  ">
+d-4="col-mlass<div c                            v>
+              </di                           div>
+   ">¥10.50</ce-displayuy-priid="baintext" control-plorm-"fiv class= <d                                     /label>
+  价<bel">成本ss="form-la cla<label                                        
+-4">"col-md class=      <div                         
+     v>  </di                          
+        v></di                                    .99">
+    "99991" max="0.0min=0.01" =" step格""输入当前价aceholder=      pl                                            ut" 
+ t-price-inp"currenid=ol" ntrform-co="" classmberut type="nu    <inp                                      an>
+  ">¥</spoup-text="input-grass cl<span                                            -group">
+utinp class="        <div                             
+   </label>bel">当前价格orm-la"fel class=      <lab                               ">
+   ="col-md-4classv   <di                                  ow">
+s="r<div clas                            y">
+    rd-bodss="cav cladi      <            
+               </div>                    算</h6>
+   b-0">浮盈计class="m     <h6                   
+         der">-hea="card class <div                           
+ mb-3">ass="card  <div cl                     </div>
+
+                    
+      </div>                  
+         " required>="5"1" valueays" min="holding-dl" id=orm-controclass="f" ="numberput type         <in                >
+       数</label仓天-label">持orm="fassabel cl    <l                    
+        ">l-md-6ss="co<div cla                     ">
+       -3"row mbdiv class=  <                   div>
+
+   </                   v>
+            </di               
+      d>" requireate"review-dontrol" id="form-ce" class="datype=    <input t                    
+        bel>>复盘日期</lael"abrm-l class="fo      <label                          6">
+s="col-md- clas      <div                
+      /div>       <              >
+       onlyread"000001" value=" -codeplay-stockisid="d-control" rmfoss=""text" cla type=input        <                     l>
+   股票代码</label">belaform-ss=" <label cla                           
+    -md-6">class="col  <div                       ">
+     mb-3 class="rowiv  <d             
+                             ">
+    ew-id id="revi="hidden" type    <input             ">
+       00100e="0code" valuck-w-stod="reviedden" ipe="hinput ty <i                       form">
+w-revie" id=       <form            
+ al-body">ss="modcla    <div          iv>
+     </d             </button>
+ dal">ismiss="mo-de" data-bsn-closbt" class="utton"b=ypetton tbu          <        盘评分</h5>
+  -title">复s="modal    <h5 clas              >
+  der"al-heamodclass="v        <di
+         -content">almod"lass=      <div c">
+      -lgdaldialog moass="modal-v cldi    <1">
+    bindex="-taiewModal" ="rev idodal fade"ss="m <div cla  模态框 -->
+  <!-- 复盘
+   div>
+iv>
+    <//d  <
+      iv>       </d
+       </div>        
+      div></            >
+             </div              /div>
+     ">等待测试开始...<"text-muteddiv class=          <                
+  >est-status""tiv id=       <d            ">
+     odys="card-b   <div clas          v>
+       di          </         /h6>
+ 测试状态<  <h6>                     ader">
+ "card-hess=cladiv     <           
+     card"> class="    <div           md-4">
+ s="col-  <div clas    
+                v>
+      </di    div>
+             </     v>
+  </di                   
+ ></div>t-3"class="msults" st-reid="te  <div                    
+                          /div>
+            <        tton>
+     ">运行所有测试</bullTests()click="runAnfo" on"btn btn-ilass= cton        <but                 
+   /button>">测试页面离开警告<)oreUnload(estBefnclick="ty" oarbtn-secondtn n class="b   <butto                        
+ button>复盘模态框</打开wModal()">penRevielick="o" oncimaryprtn-"btn b=ass <button cl                         
+  b-3">="m <div class                       ">
+bodys="card- <div clas                  /div>
+   <               5>
+   试场景</h  <h5>测              
+        header">"card-=iv class         <d
+           d">class="cardiv     <           md-8">
+ col-"iv class=      <d
+      row">s="  <div clas    
+        h1>
+  </保存更改警告机制测试7 - 未>任务 <h1   t-4">
+    iner mlass="conta
+    <div cdy>/head>
+<bo">
+<esheet"stylel=n.css" rl.mi/css/al6.0.0e/awesom/font-/libsm/ajaxlare.codfcdnjs.clou//"https:<link href=t">
+    leshee"sty=in.css" rel.mbootstrapss/5.1.3/dist/cp@npm/bootstrasdelivr.net/dn.jttps://ck href="h<lin    >
+le改警告机制测试</tit务7 - 未保存更  <title>任">
+  .0scale=1 initial-ice-width,devth=ontent="widewport" cvimeta name=">
+    <TF-8" charset="Uta
+    <me>
+<head>CN"ng="zh-<html laml>
+<!DOCTYPE ht

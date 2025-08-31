@@ -220,7 +220,19 @@ class SimpleFormValidator {
                 continue;
             }
 
-            data[key] = value;
+            // 处理空值字段 - 只有非空值才添加到数据中
+            if (value !== null && value !== undefined && value.toString().trim() !== '') {
+                data[key] = value;
+            }
+            // 对于可选的数值字段，如果为空则不包含在数据中
+            else if (['take_profit_ratio', 'sell_ratio', 'stop_loss_price'].includes(key)) {
+                // 这些字段为空时不添加到数据中，让后端处理为 null
+                continue;
+            }
+            // 其他字段保持原有逻辑
+            else {
+                data[key] = value;
+            }
         }
 
         return data;

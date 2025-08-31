@@ -17,12 +17,12 @@
                 <h5 class="card-title mb-0">上传案例</h5>
             </div>
             <div class="card-body">
-                <form id="upload-form" enctype="multipart/form-data">
+                <form id="upload-form" enctype="multipart/form-data" novalidate>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="case-file" class="form-label">选择图片 <span class="text-danger">*</span></label>
-                                <input type="file" class="form-control" id="case-file" accept="image/*" required>
+                                <input type="file" class="form-control" id="case-file" accept="image/*">
                                 <div class="form-text">支持 JPG、PNG、GIF 格式，最大 10MB</div>
                             </div>
                         </div>
@@ -37,7 +37,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="case-title" class="form-label">案例标题 <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="case-title" placeholder="输入案例标题" required>
+                                <input type="text" class="form-control" id="case-title" placeholder="输入案例标题">
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -70,7 +70,7 @@
                 <h5 class="card-title mb-0">搜索筛选</h5>
             </div>
             <div class="card-body">
-                <form id="search-form">
+                <form id="search-form" novalidate>
                     <div class="mb-3">
                         <label for="search-keyword" class="form-label">关键词</label>
                         <input type="text" class="form-control" id="search-keyword" placeholder="搜索标题或备注">
@@ -179,11 +179,11 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="edit-case-form">
+                <form id="edit-case-form" novalidate>
                     <input type="hidden" id="edit-case-id">
                     <div class="mb-3">
                         <label for="edit-case-title" class="form-label">案例标题</label>
-                        <input type="text" class="form-control" id="edit-case-title" required>
+                        <input type="text" class="form-control" id="edit-case-title">
                     </div>
                     <div class="mb-3">
                         <label for="edit-case-stock-code" class="form-label">股票代码</label>

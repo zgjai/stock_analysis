@@ -1,0 +1,690 @@
+{% extends "base.html" %}
+
+{% block title %}统计分析 - 股票交易记录系统{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">统计分析</li>
+{% endblock %}
+
+{% block page_title %}统计分析{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- 总体统计概览 -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">总收益率</h6>
+                        <h4 class="mb-0" id="total-return-rate">-</h4>
+                    </div>
+                    <div class="text-white-50">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">已清仓收益</h6>
+                        <h4 class="mb-0" id="closed-profit">-</h4>
+                    </div>
+                    <div class="text-white-50">
+                        <i class="fas fa-coins fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">持仓浮盈浮亏</h6>
+                        <h4 class="mb-0" id="holding-profit">-</h4>
+                    </div>
+                    <div class="text-white-50">
+                        <i class="fas fa-wallet fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">交易成功率</h6>
+                        <h4 class="mb-0" id="success-rate">-</h4>
+                    </div>
+                    <div class="text-white-50">
+                        <i class="fas fa-percentage fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 图表区域 -->
+<div class="row mb-4">
+    <!-- 收益分布图 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">收益分布区间</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="profit-distribution-chart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 月度收益趋势 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">月度收益趋势</h5>
+                <select class="form-select form-select-sm" id="year-select" style="width: auto;">
+                    <!-- 动态生成年份选项 -->
+                </select>
+            </div>
+            <div class="card-body">
+                <canvas id="monthly-trend-chart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 详细统计表格 -->
+<div class="row mb-4">
+    <!-- 月度统计表 -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">月度交易统计</h5>
+                <button class="btn btn-outline-primary btn-sm" id="refresh-monthly-btn">
+                    <i class="fas fa-sync-alt me-1"></i>刷新
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="monthly-stats-table">
+                        <thead>
+                            <tr>
+                                <th>月份</th>
+                                <th>交易次数</th>
+                                <th>买入次数</th>
+                                <th>卖出次数</th>
+                                <th>月度收益</th>
+                                <th>成功率</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 持仓概况 -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">当前持仓概况</h5>
+            </div>
+            <div class="card-body">
+                <div id="holdings-summary">
+                    <div class="text-center text-muted">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 投资表现指标 -->
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">投资表现指标</h5>
+            </div>
+            <div class="card-body">
+                <div class="row" id="performance-metrics">
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <h6 class="text-muted">总交易次数</h6>
+                            <h4 id="total-trades">-</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <h6 class="text-muted">交易天数</h6>
+                            <h4 id="trading-days">-</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <h6 class="text-muted">日均交易次数</h6>
+                            <h4 id="avg-trades-per-day">-</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <h6 class="text-muted">已清仓股票数</h6>
+                            <h4 id="closed-positions">-</h4>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-success">最佳表现股票</h6>
+                        <div id="best-stock" class="mb-3">
+                            <div class="text-muted">暂无数据</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-danger">最差表现股票</h6>
+                        <div id="worst-stock" class="mb-3">
+                            <div class="text-muted">暂无数据</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 导出功能 -->
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">数据导出</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="mb-0">导出完整的统计分析报表，包含所有交易数据和分析结果。</p>
+                        <small class="text-muted">支持Excel格式，包含多个工作表</small>
+                    </div>
+                    <button class="btn btn-success" id="export-btn">
+                        <i class="fas fa-download me-2"></i>导出Excel报表
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+class AnalyticsManager {
+    constructor() {
+        this.charts = {};
+        this.currentYear = new Date().getFullYear();
+        
+        this.init();
+    }
+    
+    init() {
+        this.bindEvents();
+        this.initYearSelect();
+        this.loadAllData();
+    }
+    
+    bindEvents() {
+        // 年份选择
+        document.getElementById('year-select').addEventListener('change', (e) => {
+            this.currentYear = parseInt(e.target.value);
+            this.loadMonthlyData();
+        });
+        
+        // 刷新月度数据
+        document.getElementById('refresh-monthly-btn').addEventListener('click', () => {
+            this.loadMonthlyData();
+        });
+        
+        // 导出数据
+        document.getElementById('export-btn').addEventListener('click', () => {
+            this.exportData();
+        });
+    }
+    
+    initYearSelect() {
+        const select = document.getElementById('year-select');
+        const currentYear = new Date().getFullYear();
+        
+        // 生成最近5年的选项
+        for (let year = currentYear; year >= currentYear - 4; year--) {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = `${year}年`;
+            if (year === currentYear) option.selected = true;
+            select.appendChild(option);
+        }
+    }
+    
+    async loadAllData() {
+        try {
+            // 并行加载所有数据
+            const [overview, profitDistribution, monthlyStats, holdings, performance] = await Promise.all([
+                this.loadOverviewData(),
+                this.loadProfitDistribution(),
+                this.loadMonthlyData(),
+                this.loadHoldingsData(),
+                this.loadPerformanceData()
+            ]);
+            
+        } catch (error) {
+            console.error('加载数据失败:', error);
+            showMessage('加载统计数据失败', 'error');
+        }
+    }
+    
+    async loadOverviewData() {
+        try {
+            const response = await apiClient.getAnalyticsOverview();
+            if (response.success) {
+                this.renderOverview(response.data);
+                return response.data;
+            }
+        } catch (error) {
+            console.error('加载总体统计失败:', error);
+        }
+    }
+    
+    renderOverview(data) {
+        document.getElementById('total-return-rate').textContent = 
+            data.total_return_rate ? `${(data.total_return_rate * 100).toFixed(2)}%` : '0.00%';
+        
+        document.getElementById('closed-profit').textContent = 
+            data.closed_profit ? `¥${data.closed_profit.toFixed(2)}` : '¥0.00';
+        
+        document.getElementById('holding-profit').textContent = 
+            data.holding_profit ? `¥${data.holding_profit.toFixed(2)}` : '¥0.00';
+        
+        document.getElementById('success-rate').textContent = 
+            data.success_rate ? `${(data.success_rate * 100).toFixed(1)}%` : '0.0%';
+    }
+    
+    async loadProfitDistribution() {
+        try {
+            const response = await apiClient.getProfitDistribution();
+            if (response.success) {
+                this.renderProfitDistributionChart(response.data);
+                return response.data;
+            }
+        } catch (error) {
+            console.error('加载收益分布失败:', error);
+        }
+    }
+    
+    renderProfitDistributionChart(data) {
+        const ctx = document.getElementById('profit-distribution-chart').getContext('2d');
+        
+        if (this.charts.profitDistribution) {
+            this.charts.profitDistribution.destroy();
+        }
+        
+        const labels = data.map(item => item.range);
+        const values = data.map(item => item.count);
+        const colors = data.map(item => {
+            if (item.range.includes('亏损')) return '#dc3545';
+            if (item.range.includes('盈利')) return '#28a745';
+            return '#6c757d';
+        });
+        
+        this.charts.profitDistribution = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                return `${context.label}: ${context.parsed}只 (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    async loadMonthlyData() {
+        try {
+            const response = await apiClient.request('GET', `/analytics/monthly?year=${this.currentYear}`);
+            if (response.success) {
+                this.renderMonthlyChart(response.data);
+                this.renderMonthlyTable(response.data);
+                return response.data;
+            }
+        } catch (error) {
+            console.error('加载月度数据失败:', error);
+        }
+    }
+    
+    renderMonthlyChart(data) {
+        const ctx = document.getElementById('monthly-trend-chart').getContext('2d');
+        
+        if (this.charts.monthlyTrend) {
+            this.charts.monthlyTrend.destroy();
+        }
+        
+        const months = ['1月', '2月', '3月', '4月', '5月', '6月', 
+                       '7月', '8月', '9月', '10月', '11月', '12月'];
+        
+        const profits = months.map((_, index) => {
+            const monthData = data.find(item => item.month === index + 1);
+            return monthData ? monthData.profit : 0;
+        });
+        
+        const tradeCounts = months.map((_, index) => {
+            const monthData = data.find(item => item.month === index + 1);
+            return monthData ? monthData.trade_count : 0;
+        });
+        
+        this.charts.monthlyTrend = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [{
+                    label: '月度收益 (¥)',
+                    data: profits,
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    tension: 0.4,
+                    yAxisID: 'y'
+                }, {
+                    label: '交易次数',
+                    data: tradeCounts,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '月份'
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: '收益 (¥)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: '交易次数'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.datasetIndex === 0) {
+                                    return `收益: ¥${context.parsed.y.toFixed(2)}`;
+                                } else {
+                                    return `交易次数: ${context.parsed.y}次`;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    renderMonthlyTable(data) {
+        const tbody = document.querySelector('#monthly-stats-table tbody');
+        
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">暂无数据</td></tr>';
+            return;
+        }
+        
+        const html = data.map(item => `
+            <tr>
+                <td>${this.currentYear}年${item.month}月</td>
+                <td>${item.trade_count}</td>
+                <td>${item.buy_count}</td>
+                <td>${item.sell_count}</td>
+                <td class="${item.profit >= 0 ? 'text-success' : 'text-danger'}">
+                    ¥${item.profit.toFixed(2)}
+                </td>
+                <td>${(item.success_rate * 100).toFixed(1)}%</td>
+            </tr>
+        `).join('');
+        
+        tbody.innerHTML = html;
+    }
+    
+    async loadHoldingsData() {
+        try {
+            const response = await apiClient.request('GET', '/analytics/holdings');
+            if (response.success) {
+                this.renderHoldingsSummary(response.data);
+                return response.data;
+            }
+        } catch (error) {
+            console.error('加载持仓数据失败:', error);
+        }
+    }
+    
+    renderHoldingsSummary(data) {
+        const container = document.getElementById('holdings-summary');
+        
+        if (!data.holdings || data.holdings.length === 0) {
+            container.innerHTML = '<div class="text-center text-muted">暂无持仓</div>';
+            return;
+        }
+        
+        const html = `
+            <div class="mb-3">
+                <div class="d-flex justify-content-between">
+                    <span>持仓股票数:</span>
+                    <strong>${data.total_count}只</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>总市值:</span>
+                    <strong>¥${data.total_market_value.toFixed(2)}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>总成本:</span>
+                    <strong>¥${data.total_cost.toFixed(2)}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>浮盈浮亏:</span>
+                    <strong class="${data.total_profit >= 0 ? 'text-success' : 'text-danger'}">
+                        ¥${data.total_profit.toFixed(2)}
+                    </strong>
+                </div>
+            </div>
+            <hr>
+            <h6>持仓明细 (前5只)</h6>
+            <div class="list-group list-group-flush">
+                ${data.holdings.slice(0, 5).map(holding => `
+                    <div class="list-group-item px-0 py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${holding.stock_code}</strong>
+                                <small class="text-muted d-block">${holding.stock_name || ''}</small>
+                            </div>
+                            <div class="text-end">
+                                <div class="${holding.profit_rate >= 0 ? 'text-success' : 'text-danger'}">
+                                    ${(holding.profit_rate * 100).toFixed(2)}%
+                                </div>
+                                <small class="text-muted">¥${holding.profit_amount.toFixed(2)}</small>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    }
+    
+    async loadPerformanceData() {
+        try {
+            const response = await apiClient.request('GET', '/analytics/performance');
+            if (response.success) {
+                this.renderPerformanceMetrics(response.data);
+                return response.data;
+            }
+        } catch (error) {
+            console.error('加载表现数据失败:', error);
+        }
+    }
+    
+    renderPerformanceMetrics(data) {
+        document.getElementById('total-trades').textContent = data.total_trades || '0';
+        document.getElementById('trading-days').textContent = data.trading_days || '0';
+        document.getElementById('avg-trades-per-day').textContent = data.avg_trades_per_day || '0';
+        document.getElementById('closed-positions').textContent = data.closed_positions_count || '0';
+        
+        // 最佳表现股票
+        const bestStock = document.getElementById('best-stock');
+        if (data.best_performing_stock) {
+            bestStock.innerHTML = `
+                <div><strong>${data.best_performing_stock.stock_code}</strong> ${data.best_performing_stock.stock_name || ''}</div>
+                <div class="text-success">+${data.best_performing_stock.profit_rate}% (¥${data.best_performing_stock.profit_amount})</div>
+            `;
+        } else {
+            bestStock.innerHTML = '<div class="text-muted">暂无数据</div>';
+        }
+        
+        // 最差表现股票
+        const worstStock = document.getElementById('worst-stock');
+        if (data.worst_performing_stock) {
+            worstStock.innerHTML = `
+                <div><strong>${data.worst_performing_stock.stock_code}</strong> ${data.worst_performing_stock.stock_name || ''}</div>
+                <div class="text-danger">${data.worst_performing_stock.profit_rate}% (¥${data.worst_performing_stock.profit_amount})</div>
+            `;
+        } else {
+            worstStock.innerHTML = '<div class="text-muted">暂无数据</div>';
+        }
+    }
+    
+    async exportData() {
+        try {
+            const exportBtn = document.getElementById('export-btn');
+            const originalText = exportBtn.innerHTML;
+            
+            exportBtn.disabled = true;
+            exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>导出中...';
+            
+            // 直接下载文件
+            const response = await fetch('/api/analytics/export');
+            
+            if (!response.ok) {
+                throw new Error('导出失败');
+            }
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // 从响应头获取文件名
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = '股票交易统计报表.xlsx';
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            }
+            
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showMessage('统计报表导出成功', 'success');
+            
+        } catch (error) {
+            console.error('导出失败:', error);
+            showMessage('导出失败: ' + error.message, 'error');
+        } finally {
+            const exportBtn = document.getElementById('export-btn');
+            exportBtn.disabled = false;
+            exportBtn.innerHTML = '<i class="fas fa-download me-2"></i>导出Excel报表';
+        }
+    }
+}
+
+// 初始化统计分析管理器
+let analyticsManager;
+
+function initAnalytics() {
+    analyticsManager = new AnalyticsManager();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.pathname.includes('analytics')) {
+        initAnalytics();
+    }
+});
+</script>
+{% endblock %}

@@ -54,7 +54,7 @@
                 <h5 class="mb-0">模拟复盘表单</h5>
             </div>
             <div class="card-body">
-                <form id="review-form">
+                <form id="review-form" novalidate>
                     <input type="hidden" id="review-id">
                     
                     <div class="row mb-3">
@@ -71,7 +71,7 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">持仓天数</label>
-                            <input type="number" class="form-control" id="holding-days" name="holding_days" min="1">
+                            <input type="number" class="form-control" id="holding-days" name="holding_days">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">当前价格</label>
@@ -239,7 +239,7 @@
             // 测试不同类型的错误
             const errorTypes = [
                 { message: 'Network error occurred', type: '网络错误' },
-                { message: 'Validation failed: required field missing', type: '验证错误' },
+                { message: 'Validation failed: field missing', type: '验证错误' },
                 { message: 'Server internal error', type: '服务器错误' },
                 { message: 'Request timeout', type: '超时错误' }
             ];

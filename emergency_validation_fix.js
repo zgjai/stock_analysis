@@ -26,7 +26,7 @@
     if (form) {
         const invalidFields = form.querySelectorAll('.is-invalid');
         invalidFields.forEach(field => {
-            field.classList.remove('is-invalid');
+            field// .classList.remove(["']is-invalid["']);
             console.log(`✅ 清除字段 ${field.id} 的错误状态`);
         });
         

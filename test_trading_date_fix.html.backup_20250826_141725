@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易日期修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>交易日期修复测试</h2>
+        
+        <div class="alert alert-info">
+            <h5>测试说明</h5>
+            <p>这个测试页面用于验证交易日期在编辑时不会被重置的问题修复。</p>
+            <ol>
+                <li>点击"编辑交易"按钮打开模态框</li>
+                <li>修改交易日期为其他日期</li>
+                <li>关闭模态框再重新打开</li>
+                <li>检查日期是否保持修改后的值</li>
+            </ol>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h5>模拟交易记录</h5>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>股票代码</th>
+                            <th>交易类型</th>
+                            <th>价格</th>
+                            <th>数量</th>
+                            <th>交易日期</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>000001</td>
+                            <td>买入</td>
+                            <td>¥10.50</td>
+                            <td>1000</td>
+                            <td>2025-08-20 14:30</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="editTrade(1)">编辑</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑交易模态框 -->
+    <div class="modal fade" id="editTradeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑交易记录</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-trade-form">
+                        <input type="hidden" id="trade-id" value="">
+                        
+                        <div class="mb-3">
+                            <label for="stock-code" class="form-label">股票代码</label>
+                            <input type="text" class="form-control" id="stock-code" value="000001">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="trade-type" class="form-label">交易类型</label>
+                            <select class="form-select" id="trade-type">
+                                <option value="buy" selected>买入</option>
+                                <option value="sell">卖出</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="price" class="form-label">价格</label>
+                            <input type="number" class="form-control" id="price" value="10.50" step="0.01">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="quantity" class="form-label">数量</label>
+                            <input type="number" class="form-control" id="quantity" value="1000">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="trade-date" class="form-label">交易日期 <span class="text-danger">*</span></label>
+                            <input type="datetime-local" class="form-control" id="trade-date" value="2025-08-20T14:30">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">交易原因</label>
+                            <input type="text" class="form-control" id="reason" value="测试交易">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveTrade()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let editingTradeId = null;
+        let editTradeModal = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            editTradeModal = new bootstrap.Modal(document.getElementById('editTradeModal'));
+            
+            // 监听模态框关闭事件
+            document.getElementById('editTradeModal').addEventListener('hidden.bs.modal', function() {
+                console.log('模态框关闭，调用resetForm()');
+                resetForm();
+            });
+        });
+
+        function editTrade(tradeId) {
+            console.log('编辑交易:', tradeId);
+            editingTradeId = tradeId;
+            
+            // 模拟填充交易数据
+            document.getElementById('trade-id').value = tradeId;
+            document.getElementById('stock-code').value = '000001';
+            document.getElementById('trade-type').value = 'buy';
+            document.getElementById('price').value = '10.50';
+            document.getElementById('quantity').value = '1000';
+            document.getElementById('trade-date').value = '2025-08-20T14:30';
+            document.getElementById('reason').value = '测试交易';
+            
+            editTradeModal.show();
+        }
+
+        function resetForm() {
+            console.log('重置表单，当前编辑ID:', editingTradeId);
+            
+            const form = document.getElementById('edit-trade-form');
+            
+            // 保存当前交易日期（如果是编辑模式）
+            const isEditing = editingTradeId !== null;
+            let currentTradeDate = null;
+            if (isEditing) {
+                const tradeDateField = document.getElementById('trade-date');
+                if (tradeDateField) {
+                    currentTradeDate = tradeDateField.value;
+                    console.log('保存当前交易日期:', currentTradeDate);
+                }
+            }
+            
+            // 重置表单
+            form.reset();
+            
+            // 重置编辑状态
+            editingTradeId = null;
+            
+            // 只有在非编辑模式下才重置交易日期为当前时间
+            if (!isEditing) {
+                console.log('非编辑模式，设置当前时间');
+                const now = new Date();
+                const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                    .toISOString().slice(0, 16);
+                document.getElementById('trade-date').value = localDateTime;
+            } else if (currentTradeDate) {
+                console.log('编辑模式，恢复原有日期:', currentTradeDate);
+                // 如果是编辑模式，恢复原有的交易日期
+                document.getElementById('trade-date').value = currentTradeDate;
+            }
+        }
+
+        function saveTrade() {
+            const tradeDate = document.getElementById('trade-date').value;
+            console.log('保存交易，交易日期:', tradeDate);
+            alert('交易已保存，交易日期: ' + tradeDate);
+            editTradeModal.hide();
+        }
+    </script>
+</body>
+</html>

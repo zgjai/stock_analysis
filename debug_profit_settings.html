@@ -12,7 +12,7 @@
         
         <div class="card">
             <div class="card-body">
-                <form id="test-form">
+                <form id="test-form" novalidate>
                     <div class="mb-3">
                         <label for="trade-type" class="form-label">交易类型</label>
                         <select class="form-select" id="trade-type" name="trade_type">
@@ -44,7 +44,7 @@
                                 <label for="stop-loss-price" class="form-label">止损价格</label>
                                 <div class="input-group">
                                     <span class="input-group-text">¥</span>
-                                    <input type="number" class="form-control" id="stop-loss-price" step="0.01" min="0" placeholder="0.00">
+                                    <input type="number" class="form-control" id="stop-loss-price" step="0.01" placeholder="0.00">
                                 </div>
                             </div>
                         </div>
@@ -55,14 +55,14 @@
                                 <div class="col-md-6">
                                     <label for="take-profit-ratio" class="form-label">止盈比例</label>
                                     <div class="input-group">
-                                        <input type="number" class="form-control" id="take-profit-ratio" step="0.01" min="0" max="10" placeholder="0.20">
+                                        <input type="number" class="form-control" id="take-profit-ratio" step="0.01" placeholder="0.20">
                                         <span class="input-group-text">%</span>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="sell-ratio" class="form-label">卖出比例</label>
                                     <div class="input-group">
-                                        <input type="number" class="form-control" id="sell-ratio" step="0.01" min="0" max="1" placeholder="0.50">
+                                        <input type="number" class="form-control" id="sell-ratio" step="0.01" placeholder="0.50">
                                         <span class="input-group-text">%</span>
                                     </div>
                                 </div>

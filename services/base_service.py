@@ -52,9 +52,25 @@ class BaseService:
             raise NotImplementedError("子类必须设置model属性")
         
         try:
+            from flask import current_app
+            current_app.logger.info(f"=== BaseService.create 开始 ===")
+            current_app.logger.info(f"模型类: {cls.model.__name__}")
+            current_app.logger.info(f"创建数据: {data}")
+            
+            current_app.logger.info("开始创建模型实例")
             record = cls.model(**data)
-            return record.save()
+            current_app.logger.info(f"模型实例创建成功: {record}")
+            
+            current_app.logger.info("开始保存记录")
+            saved_record = record.save()
+            current_app.logger.info(f"记录保存成功，ID: {saved_record.id}")
+            
+            return saved_record
         except Exception as e:
+            current_app.logger.error(f"BaseService.create 发生错误: {str(e)}")
+            current_app.logger.error(f"错误类型: {type(e)}")
+            import traceback
+            current_app.logger.error(f"错误堆栈: {traceback.format_exc()}")
             raise DatabaseError(f"创建{cls.model.__name__}记录失败: {str(e)}")
     
     @classmethod

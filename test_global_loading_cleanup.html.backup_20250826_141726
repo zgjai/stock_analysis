@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全局加载状态清理测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>全局加载状态清理测试</h2>
+        
+        <div class="alert alert-info">
+            <h5>问题描述</h5>
+            <p>用户反馈：页面数据已经正常加载出来，但"加载交易记录..."的弹框仍然显示，需要手动在控制台输入命令才能关闭。</p>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试操作</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-primary mb-2" onclick="createStuckLoading()">创建卡住的加载状态</button>
+                        <button class="btn btn-warning mb-2" onclick="testAutoCleanup()">测试自动清理</button>
+                        <button class="btn btn-success mb-2" onclick="manualCleanup()">手动清理</button>
+                        <button class="btn btn-info mb-2" onclick="checkLoadingState()">检查加载状态</button>
+                        <button class="btn btn-danger mb-2" onclick="clearAllLoadingStates()">强制清理所有</button>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5>模拟数据表格</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>股票代码</th>
+                                    <th>股票名称</th>
+                                    <th>交易类型</th>
+                                    <th>价格</th>
+                                    <th>数量</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trades-table-body">
+                                <tr>
+                                    <td>000001</td>
+                                    <td>平安银行</td>
+                                    <td>买入</td>
+                                    <td>¥20.00</td>
+                                    <td>1000股</td>
+                                </tr>
+                                <tr>
+                                    <td>000002</td>
+                                    <td>万科A</td>
+                                    <td>卖出</td>
+                                    <td>¥15.50</td>
+                                    <td>500股</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p class="text-success">✅ 数据已正常加载显示</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results">
+                            <p class="text-muted">点击测试按钮查看结果</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5>解决方案</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>自动解决方案：</h6>
+                        <ul>
+                            <li>页面加载后1秒自动检查并清理</li>
+                            <li>每1秒检查一次，超过5秒自动清理</li>
+                            <li>15秒超时自动清理机制</li>
+                        </ul>
+                        
+                        <h6>手动解决方案：</h6>
+                        <div class="bg-light p-2 rounded">
+                            <code>clearAllLoadingStates()</code>
+                        </div>
+                        <small class="text-muted">在浏览器控制台输入上述命令</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    
+    <script>
+        // 模拟创建卡住的加载状态
+        function createStuckLoading() {
+            logResult('info', '创建模拟的卡住加载状态...');
+            
+            // 创建全局加载遮罩
+            let overlay = document.getElementById('global-loading-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'global-loading-overlay';
+                overlay.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center';
+                overlay.style.cssText = 'background: rgba(0,0,0,0.5); z-index: 9999;';
+                overlay.innerHTML = `
+                    <div class="bg-white rounded p-4 text-center">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                        <div class="loading-text">加载交易记录...</div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+            }
+            
+            // 故意不设置时间戳，模拟卡住状态
+            overlay.style.display = 'flex';
+            
+            logResult('warning', '已创建卡住的加载状态，数据已加载但遮罩仍显示');
+        }
+        
+        // 测试自动清理
+        function testAutoCleanup() {
+            logResult('info', '测试自动清理机制...');
+            
+            // 创建带时间戳的加载状态
+            if (typeof UXUtils !== 'undefined' && UXUtils.showGlobalLoading) {
+                UXUtils.showGlobalLoading('测试自动清理...');
+                logResult('info', '已显示加载状态，等待自动清理...');
+                
+                // 6秒后检查是否自动清理
+                setTimeout(() => {
+                    const overlay = document.getElementById('global-loading-overlay');
+                    if (overlay && overlay.style.display !== 'none') {
+                        logResult('error', '自动清理失败，加载状态仍然存在');
+                    } else {
+                        logResult('success', '自动清理成功！');
+                    }
+                }, 6000);
+            } else {
+                logResult('error', 'UXUtils未加载，无法测试');
+            }
+        }
+        
+        // 手动清理
+        function manualCleanup() {
+            logResult('info', '执行手动清理...');
+            
+            if (typeof clearAllLoadingStates === 'function') {
+                const result = clearAllLoadingStates();
+                logResult('success', `手动清理完成: ${result}`);
+            } else {
+                // 备用清理方法
+                const overlay = document.getElementById('global-loading-overlay');
+                if (overlay) {
+                    overlay.style.display = 'none';
+                    try {
+                        overlay.remove();
+                        logResult('success', '备用清理方法成功');
+                    } catch (e) {
+                        logResult('error', `清理失败: ${e.message}`);
+                    }
+                } else {
+                    logResult('info', '没有发现需要清理的加载状态');
+                }
+            }
+        }
+        
+        // 检查加载状态
+        function checkLoadingState() {
+            const overlay = document.getElementById('global-loading-overlay');
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            const bodyClasses = document.body.className;
+            
+            let status = '当前状态检查:\n';
+            status += `- 全局加载遮罩: ${overlay ? (overlay.style.display !== 'none' ? '显示中' : '已隐藏') : '不存在'}\n`;
+            status += `- Bootstrap背景: ${backdrops.length > 0 ? `${backdrops.length}个` : '无'}\n`;
+            status += `- Body类: ${bodyClasses || '无'}\n`;
+            
+            if (overlay && overlay.style.display !== 'none') {
+                logResult('warning', status + '\n⚠️ 检测到活跃的加载状态');
+            } else {
+                logResult('success', status + '\n✅ 没有检测到活跃的加载状态');
+            }
+        }
+        
+        // 全局清理函数（复制自修复代码）
+        window.clearAllLoadingStates = function() {
+            console.log('强制清理所有加载状态...');
+            
+            // 清理全局加载遮罩
+            const overlays = document.querySelectorAll('#global-loading-overlay, .loading-overlay, [id*="loading"], [class*="loading"]');
+            overlays.forEach(overlay => {
+                if (overlay.style) {
+                    overlay.style.display = 'none';
+                }
+                try {
+                    if (overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                } catch (e) {
+                    console.warn('移除遮罩失败:', e);
+                }
+            });
+            
+            // 清理Bootstrap模态背景
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => {
+                try {
+                    backdrop.remove();
+                } catch (e) {
+                    console.warn('移除背景失败:', e);
+                }
+            });
+            
+            // 重置body样式
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            
+            console.log('所有加载状态已清理完成');
+            return '✅ 加载状态清理完成';
+        };
+        
+        // 日志记录函数
+        function logResult(type, message) {
+            const resultsElement = document.getElementById('test-results');
+            const resultEntry = document.createElement('div');
+            const iconClass = {
+                'success': 'bi-check-circle text-success',
+                'error': 'bi-x-circle text-danger',
+                'warning': 'bi-exclamation-triangle text-warning',
+                'info': 'bi-info-circle text-info'
+            }[type] || 'bi-info-circle text-info';
+            
+            resultEntry.className = 'mb-2';
+            resultEntry.innerHTML = `
+                <i class="bi ${iconClass} me-2"></i>
+                <span class="text-${type === 'error' ? 'danger' : type === 'warning' ? 'warning' : type === 'success' ? 'success' : 'info'}">${message.replace(/\n/g, '<br>')}</span>
+                <small class="text-muted ms-2">${new Date().toLocaleTimeString()}</small>
+            `;
+            
+            resultsElement.appendChild(resultEntry);
+            
+            // 同时输出到控制台
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            logResult('info', '测试页面加载完成');
+            
+            // 模拟实际页面的自动清理机制
+            setTimeout(() => {
+                const overlay = document.getElementById('global-loading-overlay');
+                if (overlay) {
+                    logResult('info', '检测到全局加载遮罩，执行自动清理...');
+                    clearAllLoadingStates();
+                }
+            }, 1000);
+            
+            // 定期检查机制
+            const checkInterval = setInterval(() => {
+                const overlay = document.getElementById('global-loading-overlay');
+                if (overlay && overlay.style.display !== 'none') {
+                    const overlayTime = overlay.dataset.showTime;
+                    const currentTime = Date.now();
+                    
+                    if (!overlayTime || (currentTime - parseInt(overlayTime)) > 5000) {
+                        logResult('warning', '检测到长时间显示的加载状态，自动清理...');
+                        clearAllLoadingStates();
+                    }
+                } else {
+                    clearInterval(checkInterval);
+                }
+            }, 1000);
+            
+            setTimeout(() => {
+                clearInterval(checkInterval);
+            }, 30000);
+        });
+    </script>
+</body>
+</html>

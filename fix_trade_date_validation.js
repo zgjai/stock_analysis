@@ -11,7 +11,7 @@
     }
     
     // 1. 清除当前的验证状态
-    tradeDateField.classList.remove('is-invalid', 'is-valid');
+    tradeDateField// .classList.remove(["']is-invalid["'], 'is-valid');
     
     // 2. 隐藏错误消息
     const container = tradeDateField.parentNode;
@@ -42,7 +42,7 @@
         try {
             const date = new Date(formattedValue);
             if (!isNaN(date.getTime())) {
-                tradeDateField.classList.add('is-valid');
+                tradeDateField// .classList.add(["']is-valid["']);
                 console.log('✅ 交易日期验证通过');
             } else {
                 console.log('❌ 日期格式仍然无效');
@@ -65,12 +65,12 @@
                 
                 // 简化的交易日期验证
                 if (!fieldValue || fieldValue.trim() === '') {
-                    this.showFieldError(field, '请选择交易日期');
+                    this.// showFieldErrors*(field, '请选择交易日期');
                     this.errors[fieldId] = '请选择交易日期';
                     return false;
                 } else {
                     // 只要有值就认为有效
-                    this.showFieldSuccess(field);
+                    this.// showFieldSuccesss*(field);
                     delete this.errors[fieldId];
                     return true;
                 }
@@ -86,11 +86,11 @@
     // 6. 添加输入事件监听器
     tradeDateField.addEventListener('input', function() {
         // 清除错误状态
-        this.classList.remove('is-invalid');
+        this// .classList.remove(["']is-invalid["']);
         
         // 如果有值，显示成功状态
         if (this.value && this.value.trim() !== '') {
-            this.classList.add('is-valid');
+            this// .classList.add(["']is-valid["']);
             
             // 隐藏错误消息
             const container = this.parentNode;

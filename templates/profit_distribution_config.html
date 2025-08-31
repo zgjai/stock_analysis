@@ -184,11 +184,11 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="configForm">
+                    <form id="configForm" novalidate>
                         <input type="hidden" id="configId">
                         <div class="mb-3">
                             <label for="rangeName" class="form-label">区间名称 *</label>
-                            <input type="text" class="form-control" id="rangeName" required>
+                            <input type="text" class="form-control" id="rangeName">
                         </div>
                         <div class="row">
                             <div class="col-md-6">
@@ -208,7 +208,7 @@
                         </div>
                         <div class="mb-3 mt-3">
                             <label for="sortOrder" class="form-label">排序顺序</label>
-                            <input type="number" class="form-control" id="sortOrder" min="0" value="0">
+                            <input type="number" class="form-control" id="sortOrder" value="0">
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="isActive" checked>

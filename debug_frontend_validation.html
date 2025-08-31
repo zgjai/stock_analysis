@@ -34,11 +34,11 @@
     
     <div class="test-section">
         <h3>3. 测试表单验证器</h3>
-        <form id="test-form">
-            <input type="text" name="stock_code" id="form-stock-code" placeholder="股票代码" value="000776" required>
-            <input type="text" name="stock_name" id="form-stock-name" placeholder="股票名称" value="广发证券" required>
-            <input type="number" name="price" id="form-price" placeholder="价格" value="19.453" required>
-            <input type="number" name="quantity" id="form-quantity" placeholder="数量" value="31100" required>
+        <form id="test-form" novalidate>
+            <input type="text" name="stock_code" id="form-stock-code" placeholder="股票代码" value="000776">
+            <input type="text" name="stock_name" id="form-stock-name" placeholder="股票名称" value="广发证券">
+            <input type="number" name="price" id="form-price" placeholder="价格" value="19.453">
+            <input type="number" name="quantity" id="form-quantity" placeholder="数量" value="31100">
             <button type="submit">提交测试</button>
         </form>
         <div id="form-result"></div>

@@ -35,7 +35,7 @@
                         <h5>测试表单</h5>
                     </div>
                     <div class="card-body">
-                        <form id="test-form">
+                        <form id="test-form" novalidate>
                             <div class="mb-3">
                                 <label for="name" class="form-label">姓名</label>
                                 <input type="text" class="form-control" id="name" name="name" value="测试用户">
@@ -216,10 +216,8 @@
                 return;
             }
             
-            const requiredMethods = ['disable', 'serialize', 'populate', 'reset'];
-            let allMethodsExist = true;
-            
-            requiredMethods.forEach(methodName => {
+            constMethods = ['disable', 'serialize', 'populate', 'reset'];
+            let allMethodsExist = true;Methods.forEach(methodName => {
                 if (typeof FormUtils[methodName] === 'function') {
                     logResult(`✅ FormUtils.${methodName} 存在`, 'success');
                 } else {

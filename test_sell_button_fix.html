@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卖出按钮修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">🔧 卖出按钮修复测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <h6>修复内容：</h6>
+                            <ul class="mb-0">
+                                <li>修复了事件绑定中的 <code>this</code> 上下文问题</li>
+                                <li>将 <code>this.saveTrade()</code> 改为 <code>tradingManager.saveTrade()</code></li>
+                                <li>修复了所有相关的事件绑定</li>
+                            </ul>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <h6>问题原因：</h6>
+                            <p class="mb-0">
+                                在 <code>setupEventListeners()</code> 方法中，事件监听器使用了箭头函数，
+                                但在箭头函数内部调用 <code>this.saveTrade()</code> 时，
+                                <code>this</code> 上下文不是 TradingRecordsManager 实例，
+                                导致方法调用失败，API请求无法发送。
+                            </p>
+                        </div>
+
+                        <div class="alert alert-success">
+                            <h6>修复方案：</h6>
+                            <p class="mb-0">
+                                将所有事件绑定中的 <code>this.methodName()</code> 
+                                改为 <code>tradingManager.methodName()</code>，
+                                使用全局的 tradingManager 实例来调用方法。
+                            </p>
+                        </div>
+
+                        <h6>修复的事件绑定：</h6>
+                        <ul>
+                            <li>保存交易按钮点击事件</li>
+                            <li>分批止盈切换事件</li>
+                            <li>价格输入事件</li>
+                            <li>止损止盈计算事件</li>
+                            <li>订正确认按钮事件</li>
+                            <li>模态框显示/隐藏事件</li>
+                            <li>交易类型选择事件</li>
+                            <li>每页数量变化事件</li>
+                        </ul>
+
+                        <div class="mt-4">
+                            <button type="button" class="btn btn-primary" onclick="testAPI()">
+                                🧪 测试API连接
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="window.location.href='/trading-records'">
+                                🚀 前往交易记录页面测试
+                            </button>
+                        </div>
+
+                        <div id="test-result" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+    
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '<div class="alert alert-info">🔄 测试API连接...</div>';
+            
+            try {
+                // 测试API连接
+                const response = await axios.get('/api/trades/stats');
+                
+                if (response.data && response.data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h6>✅ API连接正常</h6>
+                            <p class="mb-0">后端API响应正常，现在可以测试卖出记录保存功能了。</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-warning">
+                            <h6>⚠️ API响应异常</h6>
+                            <p class="mb-0">API有响应但格式不符合预期</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('API测试失败:', error);
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h6>❌ API连接失败</h6>
+                        <p class="mb-0">错误信息: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -13,11 +13,11 @@ function fixFieldValidationStates() {
             console.log(`修复字段: ${fieldId}`);
             
             // 强制移除无效状态
-            field.classList.remove('is-invalid');
+            field// .classList.remove(["']is-invalid["']);
             
             // 如果字段有值，添加有效状态
             if (field.value && field.value.trim() !== '') {
-                field.classList.add('is-valid');
+                field// .classList.add(["']is-valid["']);
                 console.log(`✅ ${fieldId} 设置为有效状态`);
             }
             

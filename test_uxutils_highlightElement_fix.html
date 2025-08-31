@@ -16,7 +16,7 @@
                         <h5 class="card-title mb-0">UXUtils.highlightElement 修复测试</h5>
                     </div>
                     <div class="card-body">
-                        <form id="testForm">
+                        <form id="testForm" novalidate>
                             <div class="mb-3">
                                 <label for="testInput1" class="form-label">测试输入框 1</label>
                                 <input type="text" class="form-control" id="testInput1" name="testInput1">
@@ -115,29 +115,23 @@
             try {
                 const validator = new FormValidator('testForm', {
                     rules: {
-                        testInput1: {
-                            required: true,
+                        testInput1: {: true,
                             minLength: 3
                         },
-                        testInput2: {
-                            required: true,
+                        testInput2: {: true,
                             email: true
                         },
-                        testSelect: {
-                            required: true
+                        testSelect: {: true
                         }
                     },
                     messages: {
-                        testInput1: {
-                            required: '请输入测试内容',
+                        testInput1: {: '请输入测试内容',
                             minLength: '至少输入3个字符'
                         },
-                        testInput2: {
-                            required: '请输入邮箱地址',
+                        testInput2: {: '请输入邮箱地址',
                             email: '请输入有效的邮箱地址'
                         },
-                        testSelect: {
-                            required: '请选择一个选项'
+                        testSelect: {: '请选择一个选项'
                         }
                     },
                     highlightErrors: true

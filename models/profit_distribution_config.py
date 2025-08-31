@@ -34,14 +34,17 @@ class ProfitDistributionConfig(BaseModel):
     def create_default_configs(cls):
         """创建默认的收益分布区间配置"""
         default_configs = [
-            {'range_name': '严重亏损', 'min_profit_rate': None, 'max_profit_rate': -0.2, 'sort_order': 1},
-            {'range_name': '中度亏损', 'min_profit_rate': -0.2, 'max_profit_rate': -0.1, 'sort_order': 2},
-            {'range_name': '轻微亏损', 'min_profit_rate': -0.1, 'max_profit_rate': 0, 'sort_order': 3},
-            {'range_name': '微盈利', 'min_profit_rate': 0, 'max_profit_rate': 0.05, 'sort_order': 4},
-            {'range_name': '小幅盈利', 'min_profit_rate': 0.05, 'max_profit_rate': 0.1, 'sort_order': 5},
-            {'range_name': '中等盈利', 'min_profit_rate': 0.1, 'max_profit_rate': 0.2, 'sort_order': 6},
-            {'range_name': '高盈利', 'min_profit_rate': 0.2, 'max_profit_rate': 0.5, 'sort_order': 7},
-            {'range_name': '超高盈利', 'min_profit_rate': 0.5, 'max_profit_rate': None, 'sort_order': 8},
+            {'range_name': '(负无穷,-10%)', 'min_profit_rate': None, 'max_profit_rate': -0.1, 'sort_order': 1},
+            {'range_name': '[-10%,-5%)', 'min_profit_rate': -0.1, 'max_profit_rate': -0.05, 'sort_order': 2},
+            {'range_name': '[-5%,-3%)', 'min_profit_rate': -0.05, 'max_profit_rate': -0.03, 'sort_order': 3},
+            {'range_name': '[-3%,-1%)', 'min_profit_rate': -0.03, 'max_profit_rate': -0.01, 'sort_order': 4},
+            {'range_name': '[-1%,0%)', 'min_profit_rate': -0.01, 'max_profit_rate': 0, 'sort_order': 5},
+            {'range_name': '[0%,2%)', 'min_profit_rate': 0, 'max_profit_rate': 0.02, 'sort_order': 6},
+            {'range_name': '[2%,5%)', 'min_profit_rate': 0.02, 'max_profit_rate': 0.05, 'sort_order': 7},
+            {'range_name': '[5%,10%)', 'min_profit_rate': 0.05, 'max_profit_rate': 0.1, 'sort_order': 8},
+            {'range_name': '[10%,15%)', 'min_profit_rate': 0.1, 'max_profit_rate': 0.15, 'sort_order': 9},
+            {'range_name': '[15%,20%)', 'min_profit_rate': 0.15, 'max_profit_rate': 0.2, 'sort_order': 10},
+            {'range_name': '[20%,正无穷)', 'min_profit_rate': 0.2, 'max_profit_rate': None, 'sort_order': 11},
         ]
         
         for config_data in default_configs:

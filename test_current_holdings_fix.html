@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试当前持仓API修复</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>测试当前持仓API修复</h1>
+    <button onclick="testCurrentHoldings()">测试加载当前持仓</button>
+    <div id="result"></div>
+
+    <script>
+        // 复制API客户端的核心部分
+        class TestApiClient {
+            constructor(baseURL = '/api') {
+                this.baseURL = baseURL;
+            }
+
+            async request(method, url, data = null) {
+                try {
+                    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+                    console.log('请求URL:', fullUrl);
+                    
+                    const config = {
+                        method: method.toLowerCase(),
+                        url: fullUrl
+                    };
+
+                    if (data) {
+                        if (method.toLowerCase() === 'get') {
+                            config.params = data;
+                        } else {
+                            config.data = data;
+                        }
+                    }
+
+                    const response = await axios(config);
+                    return response.data;
+                } catch (error) {
+                    console.error('API请求失败:', error);
+                    throw error;
+                }
+            }
+        }
+
+        const testApiClient = new TestApiClient();
+
+        async function testCurrentHoldings() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '正在测试...';
+
+            try {
+                console.log('开始测试当前持仓API...');
+                
+                // 测试修复后的URL
+                const response = await testApiClient.request('GET', '/trades/current-holdings');
+                
+                console.log('API响应:', response);
+                
+                if (response.success && response.data && response.data.holdings) {
+                    resultDiv.innerHTML = `
+                        <h3>✅ 测试成功！</h3>
+                        <p>找到 ${response.data.holdings.length} 个持仓记录</p>
+                        <pre>${JSON.stringify(response.data.holdings, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h3>⚠️ API响应格式异常</h3>
+                        <pre>${JSON.stringify(response, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                console.error('测试失败:', error);
+                resultDiv.innerHTML = `
+                    <h3>❌ 测试失败</h3>
+                    <p>错误信息: ${error.message}</p>
+                    <p>状态码: ${error.response?.status || 'N/A'}</p>
+                    <p>请求URL: ${error.config?.url || 'N/A'}</p>
+                `;
+            }
+        }
+
+        // 页面加载后自动测试
+        window.addEventListener('load', () => {
+            console.log('页面加载完成，准备测试...');
+        });
+    </script>
+</body>
+</html>

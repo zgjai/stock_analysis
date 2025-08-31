@@ -387,7 +387,7 @@
                 <button type="button" class="btn-close" onclick="closeMockModal()"></button>
             </div>
             <div class="modal-body p-3">
-                <form id="mock-review-form">
+                <form id="mock-review-form" novalidate>
                     <input type="hidden" id="mock-review-stock-code" value="000001">
                     <input type="hidden" id="mock-review-id">
                     
@@ -398,18 +398,18 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">复盘日期</label>
-                            <input type="date" class="form-control" id="mock-review-date" required>
+                            <input type="date" class="form-control" id="mock-review-date">
                         </div>
                     </div>
 
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">持仓天数</label>
-                            <input type="number" class="form-control" id="mock-holding-days" min="1" value="5" required>
+                            <input type="number" class="form-control" id="mock-holding-days" value="5">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">当前价格</label>
-                            <input type="number" class="form-control" id="mock-current-price-input" step="0.01" min="0.01" max="9999.99" value="10.50">
+                            <input type="number" class="form-control" id="mock-current-price-input" step="0.01" value="10.50">
                         </div>
                     </div>
 
@@ -455,7 +455,7 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">决策结果</label>
-                            <select class="form-select" id="mock-decision" required>
+                            <select class="form-select" id="mock-decision">
                                 <option value="">请选择决策</option>
                                 <option value="hold" selected>继续持有</option>
                                 <option value="sell_partial">部分止盈</option>
@@ -466,7 +466,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">决策理由</label>
-                        <textarea class="form-control" id="mock-reason" rows="2" placeholder="请输入决策理由..." required>测试决策理由</textarea>
+                        <textarea class="form-control" id="mock-reason" rows="2" placeholder="请输入决策理由...">测试决策理由</textarea>
                     </div>
                 </form>
             </div>
@@ -710,8 +710,8 @@
                     }
                     
                     // 测试必填字段检查
-                    const requiredFields = ['stock_code', 'review_date', 'holding_days', 'decision', 'reason'];
-                    const missingFields = requiredFields.filter(field => !formData[field]);
+                    constFields = ['stock_code', 'review_date', 'holding_days', 'decision', 'reason'];
+                    const missingFields =Fields.filter(field => !formData[field]);
                     
                     if (missingFields.length === 0) {
                         results.push(this.addTestResult(

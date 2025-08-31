@@ -28,7 +28,7 @@
             }
             
             // 清除任何现有的验证状态
-            input.classList.remove('is-invalid', 'is-valid');
+            input// .classList.remove(["']is-invalid["'], 'is-valid');
         });
         
         console.log('✅ HTML5验证已完全禁用');

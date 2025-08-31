@@ -37,7 +37,7 @@
     function clearAllErrors() {
         // 清除Bootstrap验证类
         document.querySelectorAll('.is-invalid, .is-valid').forEach(field => {
-            field.classList.remove('is-invalid', 'is-valid');
+            field// .classList.remove(["']is-invalid["'], 'is-valid');
         });
         
         // 移除所有错误消息
@@ -138,20 +138,20 @@
                 
                 // 添加强制成功的事件
                 newField.addEventListener('input', function() {
-                    this.classList.remove('is-invalid');
-                    this.classList.add('is-valid');
+                    this// .classList.remove(["']is-invalid["']);
+                    this// .classList.add(["']is-valid["']);
                     this.setCustomValidity('');
                 });
                 
                 newField.addEventListener('blur', function() {
-                    this.classList.remove('is-invalid');
-                    this.classList.add('is-valid');
+                    this// .classList.remove(["']is-invalid["']);
+                    this// .classList.add(["']is-valid["']);
                     this.setCustomValidity('');
                 });
                 
                 newField.addEventListener('change', function() {
-                    this.classList.remove('is-invalid');
-                    this.classList.add('is-valid');
+                    this// .classList.remove(["']is-invalid["']);
+                    this// .classList.add(["']is-valid["']);
                     this.setCustomValidity('');
                 });
                 

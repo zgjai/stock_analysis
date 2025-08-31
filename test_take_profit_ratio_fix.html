@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试 take_profit_ratio 修复</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h1>测试 take_profit_ratio 修复</h1>
+    
+    <div>
+        <h2>测试场景：空字符串处理</h2>
+        <button onclick="testEmptyString()">测试空字符串</button>
+        <button onclick="testValidValue()">测试有效值</button>
+        <button onclick="testNullValue()">测试 null 值</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function testEmptyString() {
+            const testData = {
+                stock_code: "000001",
+                stock_name: "平安银行",
+                trade_type: "buy",
+                price: 10.50,
+                quantity: 200,
+                reason: "少妇B1战法",
+                take_profit_ratio: "",  // 空字符串
+                sell_ratio: "",         // 空字符串
+                stop_loss_price: ""     // 空字符串
+            };
+            
+            await sendTestRequest(testData, "空字符串测试");
+        }
+        
+        async function testValidValue() {
+            const testData = {
+                stock_code: "000001",
+                stock_name: "平安银行",
+                trade_type: "buy",
+                price: 10.50,
+                quantity: 200,
+                reason: "少妇B1战法",
+                take_profit_ratio: "10",  // 有效值
+                sell_ratio: "50",         // 有效值
+                stop_loss_price: "9.50"   // 有效值
+            };
+            
+            await sendTestRequest(testData, "有效值测试");
+        }
+        
+        async function testNullValue() {
+            const testData = {
+                stock_code: "000001",
+                stock_name: "平安银行",
+                trade_type: "buy",
+                price: 10.50,
+                quantity: 200,
+                reason: "少妇B1战法",
+                take_profit_ratio: null,  // null 值
+                sell_ratio: null,         // null 值
+                stop_loss_price: null     // null 值
+            };
+            
+            await sendTestRequest(testData, "null 值测试");
+        }
+        
+        async function sendTestRequest(data, testName) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML += `<h3>${testName}</h3>`;
+            resultDiv.innerHTML += `<p>发送数据: ${JSON.stringify(data, null, 2)}</p>`;
+            
+            try {
+                const response = await fetch('/api/trades', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML += `<p style="color: green;">✅ 成功: ${result.message}</p>`;
+                    resultDiv.innerHTML += `<p>返回数据: ${JSON.stringify(result.data, null, 2)}</p>`;
+                } else {
+                    resultDiv.innerHTML += `<p style="color: red;">❌ 失败: ${result.message}</p>`;
+                    if (result.details) {
+                        resultDiv.innerHTML += `<p>错误详情: ${JSON.stringify(result.details, null, 2)}</p>`;
+                    }
+                }
+            } catch (error) {
+                resultDiv.innerHTML += `<p style="color: red;">❌ 网络错误: ${error.message}</p>`;
+            }
+            
+            resultDiv.innerHTML += '<hr>';
+        }
+    </script>
+</body>
+</html>

@@ -235,14 +235,14 @@
 
                 <!-- 交易表单 -->
                 <div id="trade-form-container" style="display: none;">
-                    <form id="trade-form" data-validate novalidate>
+                    <form id="trade-form" novalidate>
                     <!-- 买入时的股票输入 -->
                     <div id="buy-stock-input" class="row" style="display: none;">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="stock-code" class="form-label">股票代码 <span
                                         class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="stock-code" name="stock_code" required
+                                <input type="text" class="form-control" id="stock-code" name="stock_code"
                                     placeholder="例如: 000001" title="请输入6位数字的股票代码">
                             </div>
                         </div>
@@ -250,7 +250,7 @@
                             <div class="mb-3">
                                 <label for="stock-name" class="form-label">股票名称 <span
                                         class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="stock-name" name="stock_name" required
+                                <input type="text" class="form-control" id="stock-name" name="stock_name"
                                     placeholder="例如: 平安银行">
                             </div>
                         </div>
@@ -262,7 +262,7 @@
                             <div class="mb-3">
                                 <label for="holding-stock-select" class="form-label">选择持仓股票 <span
                                         class="text-danger">*</span></label>
-                                <select class="form-select" id="holding-stock-select" name="holding_stock" required>
+                                <select class="form-select" id="holding-stock-select" name="holding_stock">
                                     <option value="">请选择要卖出的股票</option>
                                 </select>
                                 <div class="form-text">
@@ -277,7 +277,7 @@
                             <div class="mb-3">
                                 <label for="trade-type" class="form-label">交易类型 <span
                                         class="text-danger">*</span></label>
-                                <select class="form-select" id="trade-type" name="trade_type" required>
+                                <select class="form-select" id="trade-type" name="trade_type">
                                     <option value="">请选择交易类型</option>
                                     <option value="buy">买入</option>
                                     <option value="sell">卖出</option>
@@ -288,8 +288,7 @@
                             <div class="mb-3">
                                 <label for="trade-date" class="form-label">交易日期 <span
                                         class="text-danger">*</span></label>
-                                <input type="datetime-local" class="form-control" id="trade-date" name="trade_date"
-                                    required>
+                                <input type="datetime-local" class="form-control" id="trade-date" name="trade_date">
                             </div>
                         </div>
                     </div>
@@ -300,8 +299,8 @@
                                 <label for="price" class="form-label">价格 <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <span class="input-group-text">¥</span>
-                                    <input type="number" class="form-control" id="price" name="price" required
-                                        step="0.01" min="0.01" max="9999.99" placeholder="0.00">
+                                    <input type="number" class="form-control" id="price" name="price"
+                                        step="0.01" placeholder="0.00">
                                 </div>
                             </div>
                         </div>
@@ -309,8 +308,7 @@
                             <div class="mb-3">
                                 <label for="quantity" class="form-label">数量 <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <input type="number" class="form-control" id="quantity" name="quantity" required
-                                        min="100" step="100" placeholder="100">
+                                    <input type="number" class="form-control" id="quantity" name="quantity" step="100" placeholder="100">
                                     <span class="input-group-text">股</span>
                                 </div>
                                 <div class="input-hint" id="quantity-hint">股票数量必须是100的倍数</div>
@@ -320,7 +318,7 @@
 
                     <div class="mb-3">
                         <label for="reason" class="form-label">操作原因 <span class="text-danger">*</span></label>
-                        <select class="form-select" id="reason" name="reason" required>
+                        <select class="form-select" id="reason" name="reason">
                             <option value="">请选择操作原因</option>
                         </select>
                     </div>
@@ -346,7 +344,7 @@
                                     <div class="input-group">
                                         <span class="input-group-text">¥</span>
                                         <input type="number" class="form-control" id="stop-loss-price"
-                                            name="stop_loss_price" step="0.01" min="0" placeholder="0.00">
+                                            name="stop_loss_price" step="0.01" placeholder="0.00">
                                     </div>
                                     <small class="form-text text-muted">预计亏损比例: <span
                                             id="expected-loss-ratio">-</span></small>
@@ -362,7 +360,7 @@
                                         <label for="take-profit-ratio" class="form-label">止盈比例</label>
                                         <div class="input-group">
                                             <input type="number" class="form-control" id="take-profit-ratio"
-                                                name="take_profit_ratio" step="0.01" min="0" max="10"
+                                                name="take_profit_ratio" step="0.01"
                                                 placeholder="0.20">
                                             <span class="input-group-text">%</span>
                                         </div>
@@ -373,7 +371,7 @@
                                         <label for="sell-ratio" class="form-label">卖出比例</label>
                                         <div class="input-group">
                                             <input type="number" class="form-control" id="sell-ratio" name="sell_ratio"
-                                                step="0.01" min="0" max="1" placeholder="0.50">
+                                                step="0.01" placeholder="0.50">
                                             <span class="input-group-text">%</span>
                                         </div>
                                     </div>
@@ -448,7 +446,7 @@
                     </div>
                     <div class="col-md-6">
                         <h6>订正后数据</h6>
-                        <form id="correction-form">
+                        <form id="correction-form" novalidate>
                             <div class="mb-3">
                                 <label for="corrected-stock-code" class="form-label">股票代码</label>
                                 <input type="text" class="form-control" id="corrected-stock-code" name="stock_code"
@@ -461,13 +459,11 @@
                             </div>
                             <div class="mb-3">
                                 <label for="corrected-price" class="form-label">价格</label>
-                                <input type="number" class="form-control" id="corrected-price" name="price" step="0.01"
-                                    min="0">
+                                <input type="number" class="form-control" id="corrected-price" name="price" step="0.01">
                             </div>
                             <div class="mb-3">
                                 <label for="corrected-quantity" class="form-label">数量</label>
-                                <input type="number" class="form-control" id="corrected-quantity" name="quantity"
-                                    min="1">
+                                <input type="number" class="form-control" id="corrected-quantity" name="quantity">
                             </div>
                             <div class="mb-3">
                                 <label for="corrected-trade-date" class="form-label">交易日期</label>
@@ -486,7 +482,7 @@
 
                 <div class="mt-3">
                     <label for="correction-reason" class="form-label">订正原因 <span class="text-danger">*</span></label>
-                    <textarea class="form-control" id="correction-reason" rows="3" required
+                    <textarea class="form-control" id="correction-reason" rows="3"
                         placeholder="请详细说明订正的原因..."></textarea>
                     <div class="invalid-feedback"></div>
                 </div>
@@ -1237,8 +1233,8 @@
                 expectedProfitRatio.textContent = formatPercent(data.expected_profit_ratio || 0);
 
                 // 根据盈亏比例设置颜色
-                expectedLossRatio.className = data.expected_loss_ratio > 0 ? 'text-danger' : '';
-                expectedProfitRatio.className = data.expected_profit_ratio > 0 ? 'text-success' : '';
+                expectedLossRatio.className = data.expected_loss_ratio > 0 ? 'text-success' : '';
+                expectedProfitRatio.className = data.expected_profit_ratio > 0 ? 'text-danger' : '';
             } else {
                 expectedLossRatio.textContent = '-';
                 expectedProfitRatio.textContent = '-';
@@ -2377,8 +2373,8 @@
                         <span class="text-decoration-line-through">${change.old_value}</span>
                     </div>
                     <div class="col-md-4">
-                        <span class="text-success">新值: </span>
-                        <span class="fw-bold text-success">${change.new_value}</span>
+                        <span class="text-danger">新值: </span>
+                        <span class="fw-bold text-danger">${change.new_value}</span>
                     </div>
                 </div>
             `).join('');
@@ -2605,7 +2601,7 @@
                 <div class="row">
                     <div class="col-md-4">
                         <small class="text-muted">总预期收益率:</small>
-                        <div class="fw-bold text-success">${(calculationResult.total_expected_profit_ratio * 100).toFixed(2)}%</div>
+                        <div class="fw-bold text-danger">${(calculationResult.total_expected_profit_ratio * 100).toFixed(2)}%</div>
                     </div>
                     <div class="col-md-4">
                         <small class="text-muted">总卖出比例:</small>
@@ -2613,7 +2609,7 @@
                     </div>
                     <div class="col-md-4">
                         <small class="text-muted">预期收益金额:</small>
-                        <div class="fw-bold text-success">¥${calculationResult.expected_profit_amount?.toFixed(2) || '0.00'}</div>
+                        <div class="fw-bold text-danger">¥${calculationResult.expected_profit_amount?.toFixed(2) || '0.00'}</div>
                     </div>
                 </div>
             `;
@@ -3311,7 +3307,7 @@
                 debugLog(`   值: "${value}"`, 'info');
                 debugLog(`   is-invalid: ${isInvalid}`, isInvalid ? 'error' : 'success');
                 debugLog(`   is-valid: ${isValid}`, isValid ? 'success' : 'info');
-                debugLog(`   required: ${isRequired}`, 'info');
+                debugLog(`: ${isRequired}`, 'info');
                 if (pattern) debugLog(`   pattern: ${pattern}`, 'warning');
                 if (maxLength) debugLog(`   maxlength: ${maxLength}`, 'warning');
                 

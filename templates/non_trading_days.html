@@ -148,15 +148,15 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="addHolidayForm">
+                <form id="addHolidayForm" novalidate>
                     <div class="mb-3">
                         <label for="holidayDate" class="form-label">日期 <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="holidayDate" required>
+                        <input type="date" class="form-control" id="holidayDate">
                         <div class="invalid-feedback"></div>
                     </div>
                     <div class="mb-3">
                         <label for="holidayName" class="form-label">名称 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="holidayName" placeholder="例如：春节" required>
+                        <input type="text" class="form-control" id="holidayName" placeholder="例如：春节">
                         <div class="invalid-feedback"></div>
                     </div>
                     <div class="mb-3">
@@ -182,7 +182,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="editHolidayForm">
+                <form id="editHolidayForm" novalidate>
                     <input type="hidden" id="editHolidayId">
                     <div class="mb-3">
                         <label for="editHolidayDate" class="form-label">日期</label>
@@ -191,7 +191,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="editHolidayName" class="form-label">名称 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="editHolidayName" required>
+                        <input type="text" class="form-control" id="editHolidayName">
                         <div class="invalid-feedback"></div>
                     </div>
                     <div class="mb-3">

@@ -10,11 +10,11 @@
     <div class="container mt-5">
         <h2>持仓股票验证修复测试</h2>
         
-        <form id="trade-form">
+        <form id="trade-form" novalidate>
             <!-- 交易类型选择 -->
             <div class="mb-3">
                 <label for="trade-type" class="form-label">交易类型</label>
-                <select class="form-select" id="trade-type" name="trade_type" required>
+                <select class="form-select" id="trade-type" name="trade_type">
                     <option value="">请选择交易类型</option>
                     <option value="buy">买入</option>
                     <option value="sell">卖出</option>
@@ -36,7 +36,7 @@
             <!-- 持仓股票选择（卖出时显示） -->
             <div class="mb-3" id="holding-stock-group" style="display: none;">
                 <label for="holding-stock-select" class="form-label">持仓股票 <span class="text-danger">*</span></label>
-                <select class="form-select" id="holding-stock-select" name="holding_stock" required>
+                <select class="form-select" id="holding-stock-select" name="holding_stock">
                     <option value="">请选择要卖出的股票</option>
                     <option value="000001">000001 - 平安银行</option>
                     <option value="000002">000002 - 万科A</option>
@@ -46,25 +46,25 @@
             <!-- 价格 -->
             <div class="mb-3">
                 <label for="price" class="form-label">价格</label>
-                <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" required>
+                <input type="number" class="form-control" id="price" name="price" step="0.01">
             </div>
 
             <!-- 数量 -->
             <div class="mb-3">
                 <label for="quantity" class="form-label">数量</label>
-                <input type="number" class="form-control" id="quantity" name="quantity" min="100" step="100" required>
+                <input type="number" class="form-control" id="quantity" name="quantity" step="100">
             </div>
 
             <!-- 交易日期 -->
             <div class="mb-3">
                 <label for="trade-date" class="form-label">交易日期</label>
-                <input type="date" class="form-control" id="trade-date" name="trade_date" required>
+                <input type="date" class="form-control" id="trade-date" name="trade_date">
             </div>
 
             <!-- 操作原因 -->
             <div class="mb-3">
                 <label for="reason" class="form-label">操作原因</label>
-                <select class="form-select" id="reason" name="reason" required>
+                <select class="form-select" id="reason" name="reason">
                     <option value="">请选择操作原因</option>
                     <option value="技术分析">技术分析</option>
                     <option value="基本面分析">基本面分析</option>

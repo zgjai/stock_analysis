@@ -16,7 +16,7 @@
                         <h5>交易记录表单 - 清洁版本</h5>
                     </div>
                     <div class="card-body">
-                        <form id="trade-form">
+                        <form id="trade-form" novalidate>
                             <!-- 交易类型选择 -->
                             <div class="mb-3">
                                 <label for="trade-type" class="form-label">交易类型 <span class="text-danger">*</span></label>
@@ -70,7 +70,7 @@
                                         <label for="price" class="form-label">价格 <span class="text-danger">*</span></label>
                                         <div class="input-group">
                                             <span class="input-group-text">¥</span>
-                                            <input type="number" class="form-control" id="price" name="price" step="0.01" min="0.01" placeholder="0.00">
+                                            <input type="number" class="form-control" id="price" name="price" step="0.01" placeholder="0.00">
                                         </div>
                                     </div>
                                 </div>
@@ -78,7 +78,7 @@
                                     <div class="mb-3">
                                         <label for="quantity" class="form-label">数量 <span class="text-danger">*</span></label>
                                         <div class="input-group">
-                                            <input type="number" class="form-control" id="quantity" name="quantity" min="100" step="100" placeholder="100">
+                                            <input type="number" class="form-control" id="quantity" name="quantity" step="100" placeholder="100">
                                             <span class="input-group-text">股</span>
                                         </div>
                                         <div class="form-text">股票数量必须是100的倍数</div>

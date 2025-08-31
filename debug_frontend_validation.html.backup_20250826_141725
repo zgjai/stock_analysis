@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前端验证调试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        input { margin: 5px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { margin: 5px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .is-invalid { border-color: #dc3545 !important; }
+        .is-valid { border-color: #28a745 !important; }
+    </style>
+</head>
+<body>
+    <h1>前端验证调试工具</h1>
+    
+    <div class="test-section">
+        <h3>1. 测试Validators对象</h3>
+        <div id="validators-test"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. 测试股票代码输入框</h3>
+        <input type="text" id="test-stock-code" placeholder="输入股票代码" value="000776">
+        <button onclick="testStockCodeInput()">测试验证</button>
+        <div id="stock-code-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. 测试表单验证器</h3>
+        <form id="test-form">
+            <input type="text" name="stock_code" id="form-stock-code" placeholder="股票代码" value="000776" required>
+            <input type="text" name="stock_name" id="form-stock-name" placeholder="股票名称" value="广发证券" required>
+            <input type="number" name="price" id="form-price" placeholder="价格" value="19.453" required>
+            <input type="number" name="quantity" id="form-quantity" placeholder="数量" value="31100" required>
+            <button type="submit">提交测试</button>
+        </form>
+        <div id="form-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>4. 检查依赖文件</h3>
+        <div id="dependencies-check"></div>
+    </div>
+
+    <!-- 加载必要的JavaScript文件 -->
+    <script src="/static/js/utils_clean.js"></script>
+    <script src="/static/js/form-validation.js"></script>
+    
+    <script>
+        // 测试1: Validators对象
+        function testValidators() {
+            const testDiv = document.getElementById('validators-test');
+            let html = '';
+            
+            if (typeof Validators === 'undefined') {
+                html += '<div class="error">❌ Validators对象未定义</div>';
+                testDiv.innerHTML = html;
+                return;
+            }
+            
+            const testCases = [
+                { code: '000776', expected: true, desc: '有效股票代码' },
+                { code: '000001', expected: true, desc: '有效股票代码' },
+                { code: '00077', expected: false, desc: '少于6位' },
+                { code: '0007766', expected: false, desc: '多于6位' },
+                { code: '00077a', expected: false, desc: '包含字母' },
+                { code: '', expected: false, desc: '空字符串' },
+                { code: null, expected: false, desc: 'null值' }
+            ];
+            
+            testCases.forEach(test => {
+                try {
+                    const result = Validators.stockCode(test.code);
+                    const isCorrect = result === test.expected;
+                    const status = isCorrect ? '✅' : '❌';
+                    const className = isCorrect ? 'success' : 'error';
+                    html += `<div class="${className}">${status} ${test.desc}: "${test.code}" -> ${result} (期望: ${test.expected})</div>`;
+                } catch (error) {
+                    html += `<div class="error">❌ ${test.desc}: "${test.code}" -> 错误: ${error.message}</div>`;
+                }
+            });
+            
+            testDiv.innerHTML = html;
+        }
+        
+        // 测试2: 股票代码输入框
+        function testStockCodeInput() {
+            const input = document.getElementById('test-stock-code');
+            const resultDiv = document.getElementById('stock-code-result');
+            const value = input.value;
+            
+            let html = '';
+            
+            // 清除之前的样式
+            input.classList.remove('is-valid', 'is-invalid');
+            
+            try {
+                if (typeof Validators !== 'undefined' && Validators.stockCode) {
+                    const isValid = Validators.stockCode(value);
+                    if (isValid) {
+                        input.classList.add('is-valid');
+                        html += `<div class="success">✅ 股票代码 "${value}" 验证通过</div>`;
+                    } else {
+                        input.classList.add('is-invalid');
+                        html += `<div class="error">❌ 股票代码 "${value}" 验证失败</div>`;
+                    }
+                } else {
+                    html += '<div class="error">❌ Validators.stockCode 方法不存在</div>';
+                }
+            } catch (error) {
+                input.classList.add('is-invalid');
+                html += `<div class="error">❌ 验证过程出错: ${error.message}</div>`;
+            }
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        // 测试3: 表单验证器
+        function setupFormValidator() {
+            const form = document.getElementById('test-form');
+            const resultDiv = document.getElementById('form-result');
+            
+            if (typeof FormValidator === 'undefined') {
+                resultDiv.innerHTML = '<div class="error">❌ FormValidator类未定义</div>';
+                return;
+            }
+            
+            try {
+                const validator = new FormValidator(form, {
+                    realTimeValidation: true,
+                    showSuccessState: true
+                });
+                
+                // 添加股票代码验证规则
+                validator.addRule('stock_code', {
+                    validator: (value) => {
+                        console.log('验证股票代码:', value);
+                        return Validators.stockCode(value);
+                    },
+                    message: '请输入6位数字的股票代码'
+                });
+                
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const isValid = validator.validate();
+                    resultDiv.innerHTML = `<div class="${isValid ? 'success' : 'error'}">
+                        ${isValid ? '✅' : '❌'} 表单验证${isValid ? '通过' : '失败'}
+                    </div>`;
+                });
+                
+                resultDiv.innerHTML = '<div class="info">✅ 表单验证器已设置，请填写表单并提交测试</div>';
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 设置表单验证器失败: ${error.message}</div>`;
+            }
+        }
+        
+        // 测试4: 检查依赖
+        function checkDependencies() {
+            const checkDiv = document.getElementById('dependencies-check');
+            let html = '';
+            
+            const dependencies = [
+                { name: 'Validators', obj: window.Validators },
+                { name: 'FormValidator', obj: window.FormValidator },
+                { name: 'Validators.stockCode', obj: window.Validators?.stockCode },
+                { name: 'Validators.price', obj: window.Validators?.price },
+                { name: 'Validators.quantity', obj: window.Validators?.quantity }
+            ];
+            
+            dependencies.forEach(dep => {
+                const exists = typeof dep.obj !== 'undefined';
+                const status = exists ? '✅' : '❌';
+                const className = exists ? 'success' : 'error';
+                html += `<div class="${className}">${status} ${dep.name}: ${typeof dep.obj}</div>`;
+            });
+            
+            checkDiv.innerHTML = html;
+        }
+        
+        // 页面加载完成后运行测试
+        window.addEventListener('load', () => {
+            console.log('开始前端验证调试...');
+            
+            // 延迟执行，确保所有脚本都加载完成
+            setTimeout(() => {
+                testValidators();
+                checkDependencies();
+                setupFormValidator();
+                
+                // 自动测试股票代码输入
+                testStockCodeInput();
+            }, 100);
+        });
+        
+        // 监听输入变化
+        document.getElementById('test-stock-code').addEventListener('input', testStockCodeInput);
+    </script>
+</body>
+</html>

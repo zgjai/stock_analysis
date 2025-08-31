@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易记录语法修复测试</title>
+</head>
+<body>
+    <h1>交易记录语法修复测试</h1>
+    <div id="result"></div>
+    
+    <script>
+        // 测试修复后的代码片段
+        function testSyntaxFix() {
+            try {
+                // 模拟formData对象
+                const formData = {
+                    price: "100.50",
+                    quantity: "200",
+                    stop_loss_price: "95.00",
+                    take_profit_ratio: "10",
+                    sell_ratio: "50"
+                };
+                
+                // 处理数值字段 - 这是修复的代码段
+                formData.price = parseFloat(formData.price);
+                formData.quantity = parseInt(formData.quantity);
+                
+                if (formData.stop_loss_price) {
+                    formData.stop_loss_price = parseFloat(formData.stop_loss_price);
+                }
+                if (formData.take_profit_ratio) {
+                    formData.take_profit_ratio = parseFloat(formData.take_profit_ratio) / 100;
+                }
+                if (formData.sell_ratio) {
+                    formData.sell_ratio = parseFloat(formData.sell_ratio) / 100;
+                }
+                
+                console.log('处理后的数据:', formData);
+                document.getElementById('result').innerHTML = `
+                    <div style="color: green;">
+                        <h3>✅ 语法修复成功！</h3>
+                        <p>处理后的数据:</p>
+                        <pre>${JSON.stringify(formData, null, 2)}</pre>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('语法错误:', error);
+                document.getElementById('result').innerHTML = `
+                    <div style="color: red;">
+                        <h3>❌ 语法错误</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // 页面加载后执行测试
+        document.addEventListener('DOMContentLoaded', testSyntaxFix);
+    </script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}仪表板 - 股票交易记录系统{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">仪表板</li>
+{% endblock %}
+
+{% block page_title %}仪表板{% endblock %}
+
+{% block page_actions %}
+<button type="button" class="btn btn-primary" onclick="refreshData()">
+    <i class="bi bi-arrow-clockwise"></i>
+    刷新数据
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- 统计概览卡片 -->
+<div class="row mb-4">
+    <!-- 第一行：新增的收益指标 -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card stats-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-value" id="realized-profit">--</div>
+                        <div class="stats-label">已清仓收益</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="bi bi-check-circle fs-1 text-success opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card stats-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-value" id="current-holdings-profit">--</div>
+                        <div class="stats-label">当前持仓收益</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="bi bi-briefcase-fill fs-1 text-info opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card stats-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-value" id="total-trades">--</div>
+                        <div class="stats-label">总交易次数</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="bi bi-graph-up fs-1 text-primary opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card stats-secondary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-value" id="total-profit">--</div>
+                        <div class="stats-label">总收益率</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="bi bi-currency-dollar fs-1 text-secondary opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 第二行：其他指标 -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card stats-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-value" id="current-holdings">--</div>
+                        <div class="stats-label">当前持仓数量</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="bi bi-briefcase fs-1 text-info opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card stats-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-value" id="success-rate">--</div>
+                        <div class="stats-label">成功率</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="bi bi-trophy fs-1 text-warning opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card stats-light">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-value" id="total-investment">--</div>
+                        <div class="stats-label">总投入资金</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="bi bi-wallet2 fs-1 text-muted opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card stats-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-value" id="last-updated">--</div>
+                        <div class="stats-label">最后更新</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="bi bi-clock fs-1 text-dark opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 图表区域 -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">收益趋势图</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="profitChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">收益分布</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="distributionChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

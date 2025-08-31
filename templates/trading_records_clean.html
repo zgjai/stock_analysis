@@ -188,19 +188,19 @@
 
                 <!-- 交易表单 -->
                 <div id="trade-form-container" style="display: none;">
-                    <form id="trade-form">
+                    <form id="trade-form" novalidate>
                         <!-- 买入时的股票输入 -->
                         <div id="buy-stock-input" class="row" style="display: none;">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="stock-code" class="form-label">股票代码 <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="stock-code" name="stock_code" required placeholder="例如: 000001">
+                                    <input type="text" class="form-control" id="stock-code" name="stock_code" placeholder="例如: 000001">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="stock-name" class="form-label">股票名称 <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="stock-name" name="stock_name" required placeholder="例如: 平安银行">
+                                    <input type="text" class="form-control" id="stock-name" name="stock_name" placeholder="例如: 平安银行">
                                 </div>
                             </div>
                         </div>
@@ -210,7 +210,7 @@
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <label for="holding-stock-select" class="form-label">选择持仓股票 <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="holding-stock-select" name="holding_stock" required>
+                                    <select class="form-select" id="holding-stock-select" name="holding_stock">
                                         <option value="">请选择要卖出的股票</option>
                                     </select>
                                 </div>
@@ -221,7 +221,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="trade-type" class="form-label">交易类型 <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="trade-type" name="trade_type" required>
+                                    <select class="form-select" id="trade-type" name="trade_type">
                                         <option value="">请选择交易类型</option>
                                         <option value="buy">买入</option>
                                         <option value="sell">卖出</option>
@@ -231,7 +231,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="trade-date" class="form-label">交易日期 <span class="text-danger">*</span></label>
-                                    <input type="datetime-local" class="form-control" id="trade-date" name="trade_date" required>
+                                    <input type="datetime-local" class="form-control" id="trade-date" name="trade_date">
                                 </div>
                             </div>
                         </div>
@@ -242,7 +242,7 @@
                                     <label for="price" class="form-label">价格 <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <span class="input-group-text">¥</span>
-                                        <input type="number" class="form-control" id="price" name="price" required step="0.01" min="0.01" max="9999.99" placeholder="0.00">
+                                        <input type="number" class="form-control" id="price" name="price" step="0.01" placeholder="0.00">
                                     </div>
                                 </div>
                             </div>
@@ -250,7 +250,7 @@
                                 <div class="mb-3">
                                     <label for="quantity" class="form-label">数量 <span class="text-danger">*</span></label>
                                     <div class="input-group">
-                                        <input type="number" class="form-control" id="quantity" name="quantity" required min="100" step="100" placeholder="100">
+                                        <input type="number" class="form-control" id="quantity" name="quantity" step="100" placeholder="100">
                                         <span class="input-group-text">股</span>
                                     </div>
                                     <div class="form-text">股票数量必须是100的倍数</div>
@@ -260,7 +260,7 @@
 
                         <div class="mb-3">
                             <label for="reason" class="form-label">操作原因 <span class="text-danger">*</span></label>
-                            <select class="form-select" id="reason" name="reason" required>
+                            <select class="form-select" id="reason" name="reason">
                                 <option value="">请选择操作原因</option>
                             </select>
                         </div>

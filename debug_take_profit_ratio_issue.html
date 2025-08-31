@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>调试 take_profit_ratio 格式问题</title>
+</head>
+<body>
+    <h1>调试 take_profit_ratio 格式问题</h1>
+    
+    <div>
+        <h3>测试数据转换</h3>
+        <p>用户输入: 10 (表示10%)</p>
+        <p>期望结果: 0.10 (数据库存储格式)</p>
+        <p>当前转换结果: <span id="result"></span></p>
+    </div>
+
+    <script>
+        // 模拟当前的转换逻辑
+        let userInput = "10"; // 用户输入 10%
+        console.log('用户输入:', userInput);
+        
+        // 第一次转换 (在 handleTradeFormSubmit 中)
+        let converted = parseFloat(userInput) / 100;
+        console.log('转换后:', converted);
+        
+        document.getElementById('result').textContent = converted;
+        
+        // 验证数据库字段限制 Numeric(5, 4)
+        // 这意味着总共5位数字，其中4位是小数位
+        // 所以有效范围是 -9.9999 到 9.9999
+        // 但对于比例，我们期望 0.0000 到 1.0000
+        
+        console.log('数据库字段 Numeric(5, 4) 的有效范围: 0.0000 到 1.0000');
+        console.log('转换结果是否在有效范围内:', converted >= 0 && converted <= 1);
+        
+        // 测试一些边界值
+        const testValues = ['0', '1', '10', '50', '100', '150'];
+        console.log('\n测试不同输入值:');
+        testValues.forEach(value => {
+            const result = parseFloat(value) / 100;
+            const isValid = result >= 0 && result <= 1;
+            console.log(`输入: ${value}% -> 转换: ${result} -> 有效: ${isValid}`);
+        });
+    </script>
+</body>
+</html>

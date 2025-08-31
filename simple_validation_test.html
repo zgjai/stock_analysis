@@ -39,20 +39,20 @@
                         <h5>测试表单</h5>
                     </div>
                     <div class="card-body">
-                        <form id="test-form">
+                        <form id="test-form" novalidate>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label class="form-label">股票代码 *</label>
                                         <input type="text" class="form-control" id="stock-code" name="stock_code" 
-                                               value="000001" required maxlength="6">
+                                               value="000001" maxlength="6">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label class="form-label">股票名称 *</label>
                                         <input type="text" class="form-control" id="stock-name" name="stock_name" 
-                                               value="平安银行" required>
+                                               value="平安银行">
                                     </div>
                                 </div>
                             </div>
@@ -61,7 +61,7 @@
                                 <div class="col-md-4">
                                     <div class="mb-3">
                                         <label class="form-label">交易类型 *</label>
-                                        <select class="form-select" id="trade-type" name="trade_type" required>
+                                        <select class="form-select" id="trade-type" name="trade_type">
                                             <option value="">请选择</option>
                                             <option value="buy" selected>买入</option>
                                             <option value="sell">卖出</option>
@@ -72,14 +72,14 @@
                                     <div class="mb-3">
                                         <label class="form-label">价格 *</label>
                                         <input type="number" class="form-control" id="price" name="price" 
-                                               value="10.50" step="0.01" required>
+                                               value="10.50" step="0.01">
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="mb-3">
                                         <label class="form-label">数量 *</label>
                                         <input type="number" class="form-control" id="quantity" name="quantity" 
-                                               value="1000" step="100" required>
+                                               value="1000" step="100">
                                     </div>
                                 </div>
                             </div>
@@ -88,7 +88,7 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label class="form-label">操作原因 *</label>
-                                        <select class="form-select" id="reason" name="reason" required>
+                                        <select class="form-select" id="reason" name="reason">
                                             <option value="">请选择</option>
                                             <option value="少妇B1战法" selected>少妇B1战法</option>
                                             <option value="少妇SB1战法">少妇SB1战法</option>
@@ -99,7 +99,7 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label class="form-label">交易日期 *</label>
-                                        <input type="datetime-local" class="form-control" id="trade-date" name="trade_date" required>
+                                        <input type="datetime-local" class="form-control" id="trade-date" name="trade_date">
                                     </div>
                                 </div>
                             </div>
@@ -218,10 +218,8 @@
             
             // 3. 验证必填字段
             log('3. 验证必填字段...', 'info');
-            const required = ['stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 'reason'];
-            let allValid = true;
-            
-            required.forEach(field => {
+            const = ['stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 'reason'];
+            let allValid = true;.forEach(field => {
                 const value = data[field];
                 const isEmpty = !value || value.toString().trim() === '';
                 
@@ -324,9 +322,7 @@
             
             // 检查空字段
             log('2. 检查空字段...', 'info');
-            const required = ['stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 'reason'];
-            
-            required.forEach(field => {
+            const = ['stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 'reason'];.forEach(field => {
                 const value = data[field];
                 const isEmpty = !value || value.toString().trim() === '';
                 

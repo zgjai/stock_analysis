@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>收益分布颜色测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .color-box { 
+            display: inline-block; 
+            width: 30px; 
+            height: 30px; 
+            margin-right: 10px; 
+            border: 1px solid #ccc; 
+            vertical-align: middle;
+        }
+        .range-item { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px;
+        }
+        .negative { background-color: #f8f9fa; }
+        .positive { background-color: #fff5f5; }
+    </style>
+</head>
+<body>
+    <h1>收益分布区间颜色配置测试</h1>
+    
+    <h2>负收益区间 (绿色系)</h2>
+    <div class="range-item negative">
+        <span class="color-box" style="background-color: #0d5016;"></span>
+        (负无穷,-10%) - 深绿色 #0d5016
+    </div>
+    <div class="range-item negative">
+        <span class="color-box" style="background-color: #155724;"></span>
+        [-10%,-5%) - 较深绿色 #155724
+    </div>
+    <div class="range-item negative">
+        <span class="color-box" style="background-color: #1e7e34;"></span>
+        [-5%,-3%) - 中绿色 #1e7e34
+    </div>
+    <div class="range-item negative">
+        <span class="color-box" style="background-color: #28a745;"></span>
+        [-3%,-1%) - 标准绿色 #28a745
+    </div>
+    <div class="range-item negative">
+        <span class="color-box" style="background-color: #34ce57;"></span>
+        [-1%,0%) - 浅绿色 #34ce57
+    </div>
+    
+    <h2>正收益区间 (红色系)</h2>
+    <div class="range-item positive">
+        <span class="color-box" style="background-color: #f8d7da;"></span>
+        [0%,2%) - 很浅红色 #f8d7da
+    </div>
+    <div class="range-item positive">
+        <span class="color-box" style="background-color: #f5c6cb;"></span>
+        [2%,5%) - 浅红色 #f5c6cb
+    </div>
+    <div class="range-item positive">
+        <span class="color-box" style="background-color: #f1b0b7;"></span>
+        [5%,10%) - 较浅红色 #f1b0b7
+    </div>
+    <div class="range-item positive">
+        <span class="color-box" style="background-color: #ea868f;"></span>
+        [10%,15%) - 中红色 #ea868f
+    </div>
+    <div class="range-item positive">
+        <span class="color-box" style="background-color: #e35d6a;"></span>
+        [15%,20%) - 较深红色 #e35d6a
+    </div>
+    <div class="range-item positive">
+        <span class="color-box" style="background-color: #dc3545;"></span>
+        [20%,正无穷) - 深红色 #dc3545
+    </div>
+    
+    <h2>说明</h2>
+    <ul>
+        <li><strong>负收益区间</strong>：使用绿色系，亏损越大颜色越深</li>
+        <li><strong>正收益区间</strong>：使用红色系，盈利越大颜色越深</li>
+        <li>这符合中国股市的颜色习惯：红涨绿跌</li>
+    </ul>
+</body>
+</html>

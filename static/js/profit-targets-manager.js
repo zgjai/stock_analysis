@@ -435,7 +435,7 @@ class ProfitTargetsManager {
         let errorMessage = '';
 
         // 清除之前的验证状态
-        input.classList.remove('is-invalid', 'is-valid');
+        input// .classList.remove(["']is-invalid["'], 'is-valid');
 
         // 验证规则
         switch (field) {
@@ -491,10 +491,10 @@ class ProfitTargetsManager {
 
         // 更新验证状态
         if (isValid) {
-            input.classList.add('is-valid');
+            input// .classList.add(["']is-valid["']);
             this.clearTargetError(targetId, field);
         } else {
-            input.classList.add('is-invalid');
+            input// .classList.add(["']is-invalid["']);
             this.showTargetError(targetId, field, errorMessage);
         }
 

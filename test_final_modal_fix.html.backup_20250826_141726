@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最终模态框修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container py-4">
+        <h1 class="mb-4">🔧 最终模态框修复测试</h1>
+        
+        <div class="alert alert-info">
+            <h5>测试说明</h5>
+            <p>这个测试页面将验证所有修复是否完整，确保一次性解决所有问题。</p>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">🔍 对象检查</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="objects-status">检查中...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">🎯 Bootstrap检查</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="bootstrap-status">检查中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">🚀 功能测试</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <button class="btn btn-primary w-100 mb-2" onclick="testModalOpen()">
+                            <i class="fas fa-external-link-alt"></i> 测试打开模态框
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-success w-100 mb-2" onclick="testFloatingProfit()">
+                            <i class="fas fa-calculator"></i> 测试浮盈计算
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-info w-100 mb-2" onclick="testSaveFunction()">
+                            <i class="fas fa-save"></i> 测试保存功能
+                        </button>
+                    </div>
+                </div>
+                <div id="test-results" class="mt-3"></div>
+            </div>
+        </div>
+        
+        <!-- 模拟复盘模态框 -->
+        <div class="modal fade" id="reviewModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">复盘评分测试</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="review-form">
+                            <input type="hidden" id="review-stock-code">
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">股票代码</label>
+                                    <input type="text" class="form-control" id="display-stock-code" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">复盘日期</label>
+                                    <input type="date" class="form-control" id="review-date">
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">持仓天数</label>
+                                    <input type="number" class="form-control" id="holding-days" min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">保存状态</label>
+                                    <span id="save-status-display" class="badge bg-secondary">未保存</span>
+                                </div>
+                            </div>
+                            
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">浮盈计算测试</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <label class="form-label">当前价格</label>
+                                            <input type="number" class="form-control" id="current-price-input" step="0.01" value="11.50">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">成本价</label>
+                                            <div class="form-control-plaintext" id="buy-price-display">¥10.00</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">浮盈比例</label>
+                                            <div class="floating-profit-container">
+                                                <div class="form-control-plaintext fw-bold" id="floating-profit-ratio">--</div>
+                                                <small class="text-muted" id="profit-amount-display">--</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">决策结果</label>
+                                <select class="form-select" id="decision">
+                                    <option value="">请选择决策</option>
+                                    <option value="hold">继续持有</option>
+                                    <option value="sell_partial">部分止盈</option>
+                                    <option value="sell_all">清仓</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">决策理由</label>
+                                <textarea class="form-control" id="reason" rows="2" placeholder="测试理由"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="testSaveReview()">保存测试</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/review-emergency-fix.js"></script>
+    
+    <script>
+        let testResults = [];
+        
+        function addTestResult(test, success, message) {
+            testResults.push({ test, success, message, time: new Date().toLocaleTimeString() });
+            updateTestDisplay();
+        }
+        
+        function updateTestDisplay() {
+            const resultsEl = document.getElementById('test-results');
+            const html = testResults.map(result => {
+                const icon = result.success ? 'check-circle text-success' : 'times-circle text-danger';
+                const badge = result.success ? 'success' : 'danger';
+                return `
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-${icon} me-2"></i>
+                        <span class="badge bg-${badge} me-2">${result.time}</span>
+                        <strong>${result.test}:</strong>
+                        <span class="ms-2">${result.message}</span>
+                    </div>
+                `;
+            }).join('');
+            resultsEl.innerHTML = html || '<div class="text-muted">暂无测试结果</div>';
+        }
+        
+        function checkObjects() {
+            const checks = [
+                { name: 'bootstrap', obj: window.bootstrap },
+                { name: 'bootstrap.Modal', obj: window.bootstrap?.Modal },
+                { name: 'ReviewPageGlobals', obj: window.ReviewPageGlobals },
+                { name: 'openReviewModal', obj: window.openReviewModal },
+                { name: 'FloatingProfitCalculator', obj: window.FloatingProfitCalculator },
+                { name: 'ReviewSaveManager', obj: window.ReviewSaveManager },
+                { name: 'saveReview', obj: window.saveReview }
+            ];
+            
+            const results = checks.map(check => {
+                const exists = check.obj !== undefined;
+                const status = exists ? 'success' : 'danger';
+                const icon = exists ? 'check-circle' : 'times-circle';
+                
+                return `
+                    <div class="d-flex align-items-center mb-1">
+                        <i class="fas fa-${icon} text-${status} me-2"></i>
+                        <small>${check.name}: ${exists ? '✓' : '✗'}</small>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('objects-status').innerHTML = results;
+        }
+        
+        function checkBootstrap() {
+            const modal = document.getElementById('reviewModal');
+            let status = '';
+            
+            if (typeof bootstrap === 'undefined') {
+                status += '<div class="text-danger"><i class="fas fa-times-circle me-1"></i>Bootstrap未加载</div>';
+            } else {
+                status += '<div class="text-success"><i class="fas fa-check-circle me-1"></i>Bootstrap已加载</div>';
+                
+                if (bootstrap.Modal) {
+                    status += '<div class="text-success"><i class="fas fa-check-circle me-1"></i>Modal类可用</div>';
+                    
+                    try {
+                        const testModal = new bootstrap.Modal(modal);
+                        status += '<div class="text-success"><i class="fas fa-check-circle me-1"></i>Modal实例创建成功</div>';
+                    } catch (error) {
+                        status += `<div class="text-danger"><i class="fas fa-times-circle me-1"></i>Modal创建失败: ${error.message}</div>`;
+                    }
+                } else {
+                    status += '<div class="text-danger"><i class="fas fa-times-circle me-1"></i>Modal类不可用</div>';
+                }
+            }
+            
+            document.getElementById('bootstrap-status').innerHTML = status;
+        }
+        
+        function testModalOpen() {
+            try {
+                // 设置模拟数据
+                window.ReviewPageGlobals = window.ReviewPageGlobals || {};
+                window.ReviewPageGlobals.currentHoldings = [
+                    {
+                        stock_code: '000001',
+                        stock_name: '平安银行',
+                        avg_price: 10.00,
+                        total_quantity: 1000,
+                        holding_days: 15
+                    }
+                ];
+                
+                if (typeof window.openReviewModal === 'function') {
+                    window.openReviewModal('000001');
+                    addTestResult('模态框打开', true, '函数调用成功，请检查模态框是否显示');
+                } else {
+                    addTestResult('模态框打开', false, 'openReviewModal函数不存在');
+                }
+            } catch (error) {
+                addTestResult('模态框打开', false, error.message);
+            }
+        }
+        
+        function testFloatingProfit() {
+            try {
+                if (window.FloatingProfitCalculator) {
+                    const calculator = new window.FloatingProfitCalculator();
+                    calculator.setBuyPrice(10.00);
+                    calculator.setCurrentPrice(11.50);
+                    calculator.setQuantity(1000);
+                    addTestResult('浮盈计算', true, '计算器创建和计算成功');
+                } else {
+                    addTestResult('浮盈计算', false, 'FloatingProfitCalculator类不存在');
+                }
+            } catch (error) {
+                addTestResult('浮盈计算', false, error.message);
+            }
+        }
+        
+        function testSaveFunction() {
+            try {
+                if (typeof window.saveReview === 'function') {
+                    // 填写测试数据
+                    document.getElementById('review-stock-code').value = '000001';
+                    document.getElementById('review-date').value = new Date().toISOString().split('T')[0];
+                    document.getElementById('decision').value = 'hold';
+                    document.getElementById('reason').value = '测试保存功能';
+                    
+                    addTestResult('保存功能', true, 'saveReview函数存在，测试数据已填写');
+                } else {
+                    addTestResult('保存功能', false, 'saveReview函数不存在');
+                }
+            } catch (error) {
+                addTestResult('保存功能', false, error.message);
+            }
+        }
+        
+        function testSaveReview() {
+            if (typeof window.saveReview === 'function') {
+                window.saveReview().then(result => {
+                    addTestResult('实际保存', result, result ? '保存成功' : '保存失败');
+                }).catch(error => {
+                    addTestResult('实际保存', false, error.message);
+                });
+            } else {
+                addTestResult('实际保存', false, 'saveReview函数不存在');
+            }
+        }
+        
+        // 页面加载完成后执行检查
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                checkObjects();
+                checkBootstrap();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

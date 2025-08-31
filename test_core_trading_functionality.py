@@ -19,7 +19,7 @@ class TestTradingRecordsBasicFunctionality:
     def setup_trading_config(self):
         """设置交易配置"""
         Configuration.set_buy_reasons(['少妇B1战法', '少妇SB1战法', '少妇B2战法', '技术突破'])
-        Configuration.set_sell_reasons(['部分止盈', '止损', '下等马/草泥马', '技术破位'])
+        Configuration.set_sell_reasons(['部分止盈', '止损', '下等马/草泥马', '见顶信号', '技术破位'])
     
     # ========== 买入记录创建和查询测试 ==========
     

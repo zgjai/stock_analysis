@@ -19,8 +19,8 @@
             const field = document.getElementById(fieldInfo.id);
             if (field) {
                 // 清除红框
-                field.classList.remove('is-invalid');
-                field.classList.add('is-valid');
+                field// .classList.remove(["']is-invalid["']);
+                field// .classList.add(["']is-valid["']);
                 
                 // 清除所有错误消息
                 const containers = [
@@ -68,8 +68,8 @@
             validator.validateField = function(fieldId, value = null) {
                 const field = document.getElementById(fieldId);
                 if (field) {
-                    field.classList.remove('is-invalid');
-                    field.classList.add('is-valid');
+                    field// .classList.remove(["']is-invalid["']);
+                    field// .classList.add(["']is-valid["']);
                     
                     // 清除错误消息
                     const container = this.getFieldContainer(field);
@@ -127,8 +127,8 @@
                 field.addEventListener(eventType, function(e) {
                     // 延迟执行，确保在其他验证器之后
                     setTimeout(() => {
-                        this.classList.remove('is-invalid');
-                        this.classList.add('is-valid');
+                        this// .classList.remove(["']is-invalid["']);
+                        this// .classList.add(["']is-valid["']);
                         
                         // 清除错误消息
                         const containers = [
@@ -156,8 +156,8 @@
             const field = document.getElementById(fieldInfo.id);
             if (field && field.classList.contains('is-invalid')) {
                 console.log(`🔧 检测到${fieldInfo.name}红框，立即清除`);
-                field.classList.remove('is-invalid');
-                field.classList.add('is-valid');
+                field// .classList.remove(["']is-invalid["']);
+                field// .classList.add(["']is-valid["']);
                 hasRedBox = true;
             }
         });

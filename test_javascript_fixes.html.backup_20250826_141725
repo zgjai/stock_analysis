@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>JavaScript修复测试</h1>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>交易记录渲染测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>日期</th>
+                                        <th>股票</th>
+                                        <th>类型</th>
+                                        <th>价格</th>
+                                        <th>数量</th>
+                                        <th>金额</th>
+                                        <th>原因</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trades-table-body">
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted">
+                                            <div class="spinner-border spinner-border-sm me-2" role="status">
+                                                <span class="visually-hidden">加载中...</span>
+                                            </div>
+                                            加载中...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <button class="btn btn-primary" onclick="testTradesRendering()">测试交易记录渲染</button>
+                        <button class="btn btn-secondary" onclick="testEmptyTrades()">测试空数据</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>复盘记录渲染测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="reviews-list">
+                            <div class="text-center text-muted">
+                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                加载中...
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="testReviewsRendering()">测试复盘记录渲染</button>
+                        <button class="btn btn-secondary" onclick="testInvalidReviews()">测试无效数据</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 模拟工具函数
+        function formatDate(dateStr) {
+            return new Date(dateStr).toLocaleDateString('zh-CN');
+        }
+        
+        function showMessage(message, type) {
+            const results = document.getElementById('test-results');
+            const alertClass = type === 'error' ? 'alert-danger' : 
+                              type === 'warning' ? 'alert-warning' : 'alert-info';
+            results.innerHTML += `<div class="alert ${alertClass}">${message}</div>`;
+        }
+        
+        // 复盘记录渲染函数（修复后的版本）
+        function renderReviews(reviews) {
+            const container = document.getElementById('reviews-list');
+            
+            // 确保reviews是数组
+            if (!Array.isArray(reviews)) {
+                console.error('Error rendering reviews: reviews.map is not a function', reviews);
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-exclamation-triangle fs-1 d-block mb-2 text-warning"></i>
+                        <div class="mb-2">数据格式错误</div>
+                        <small class="text-muted">复盘记录数据不是数组格式</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            if (reviews.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-journal-plus fs-1 d-block mb-2"></i>
+                        <div class="mb-2">暂无复盘记录</div>
+                        <small class="text-muted">开始您的第一次复盘分析</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            try {
+                const html = reviews.map(review => `
+                    <div class="review-item border rounded p-3 mb-2">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                <strong>${review.stock_code || '未知'}</strong>
+                                <div class="small text-muted">${review.review_date || ''}</div>
+                            </div>
+                            <div class="col-md-2">
+                                <span class="badge bg-primary">${review.total_score || 0}/5</span>
+                            </div>
+                            <div class="col-md-2">
+                                <span class="badge bg-success">${review.decision || '未知'}</span>
+                            </div>
+                            <div class="col-md-2">
+                                <small class="text-muted">${review.holding_days || 0}天</small>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">${review.analysis || '无分析内容'}</small>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Error rendering reviews:', error);
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-exclamation-triangle fs-1 d-block mb-2 text-danger"></i>
+                        <div class="mb-2">复盘记录渲染失败</div>
+                        <small class="text-muted">${error.message}</small>
+                    </div>
+                `;
+            }
+        }
+        
+        // 交易记录渲染函数（修复后的版本）
+        function renderTradesTable(trades) {
+            const tbody = document.getElementById('trades-table-body');
+            
+            if (!trades || trades.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            <div class="mb-2">暂无交易记录</div>
+                            <button type="button" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-plus-circle"></i> 添加第一条记录
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            try {
+                tbody.innerHTML = trades.map(trade => `
+                    <tr ${trade.is_corrected ? 'class="table-warning"' : ''}>
+                        <td>${formatDate(trade.trade_date)}</td>
+                        <td>
+                            <div class="fw-bold">${trade.stock_code}</div>
+                            <small class="text-muted">${trade.stock_name}</small>
+                        </td>
+                        <td>
+                            <span class="badge ${trade.trade_type === 'buy' ? 'bg-success' : 'bg-danger'}">
+                                ${trade.trade_type === 'buy' ? '买入' : '卖出'}
+                            </span>
+                        </td>
+                        <td class="fw-bold">¥${trade.price.toFixed(2)}</td>
+                        <td>${trade.quantity.toLocaleString()}</td>
+                        <td class="fw-bold">¥${(trade.price * trade.quantity).toLocaleString()}</td>
+                        <td>
+                            <span class="badge bg-secondary">${trade.reason}</span>
+                        </td>
+                        <td>
+                            ${trade.is_corrected ? 
+                                '<span class="badge bg-warning">已订正</span>' : 
+                                '<span class="badge bg-success">正常</span>'
+                            }
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary" title="编辑">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-warning" title="订正">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error rendering trades:', error);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="bi bi-exclamation-triangle fs-1 d-block mb-2 text-danger"></i>
+                            <div class="mb-2">数据渲染失败</div>
+                            <button class="btn btn-outline-primary btn-sm" onclick="location.reload()">
+                                <i class="bi bi-arrow-clockwise"></i> 刷新页面
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        
+        // 测试函数
+        function testTradesRendering() {
+            const testTrades = [
+                {
+                    id: 1,
+                    trade_date: '2024-01-15',
+                    stock_code: '000001',
+                    stock_name: '平安银行',
+                    trade_type: 'buy',
+                    price: 12.50,
+                    quantity: 1000,
+                    reason: '少妇B1战法',
+                    is_corrected: false
+                },
+                {
+                    id: 2,
+                    trade_date: '2024-01-16',
+                    stock_code: '000002',
+                    stock_name: '万科A',
+                    trade_type: 'sell',
+                    price: 15.80,
+                    quantity: 500,
+                    reason: '部分止盈',
+                    is_corrected: true
+                }
+            ];
+            
+            renderTradesTable(testTrades);
+            showMessage('交易记录渲染测试完成', 'info');
+        }
+        
+        function testEmptyTrades() {
+            renderTradesTable([]);
+            showMessage('空交易记录测试完成', 'info');
+        }
+        
+        function testReviewsRendering() {
+            const testReviews = [
+                {
+                    id: 1,
+                    stock_code: '000001',
+                    review_date: '2024-01-15',
+                    total_score: 4,
+                    decision: 'hold',
+                    holding_days: 5,
+                    analysis: '技术面良好，继续持有'
+                },
+                {
+                    id: 2,
+                    stock_code: '000002',
+                    review_date: '2024-01-16',
+                    total_score: 2,
+                    decision: 'sell_partial',
+                    holding_days: 10,
+                    analysis: '盈利回吐，部分止盈'
+                }
+            ];
+            
+            renderReviews(testReviews);
+            showMessage('复盘记录渲染测试完成', 'info');
+        }
+        
+        function testInvalidReviews() {
+            // 测试各种无效数据
+            const testCases = [
+                { data: null, name: 'null值' },
+                { data: undefined, name: 'undefined值' },
+                { data: {}, name: '空对象' },
+                { data: "string", name: '字符串' },
+                { data: 123, name: '数字' },
+                { data: [], name: '空数组' }
+            ];
+            
+            testCases.forEach((testCase, index) => {
+                setTimeout(() => {
+                    renderReviews(testCase.data);
+                    showMessage(`测试 ${testCase.name} 完成`, 'warning');
+                }, index * 1000);
+            });
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            showMessage('JavaScript修复测试页面已加载', 'info');
+        });
+    </script>
+</body>
+</html>

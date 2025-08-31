@@ -16,10 +16,24 @@ class BaseModel(db.Model):
     def save(self):
         """保存模型到数据库"""
         try:
+            from flask import current_app
+            current_app.logger.info(f"=== BaseModel.save 开始 ===")
+            current_app.logger.info(f"模型类型: {self.__class__.__name__}")
+            current_app.logger.info(f"模型数据: {self.to_dict()}")
+            
+            current_app.logger.info("添加到数据库会话")
             db.session.add(self)
+            
+            current_app.logger.info("提交数据库事务")
             db.session.commit()
+            
+            current_app.logger.info(f"保存成功，ID: {self.id}")
             return self
         except Exception as e:
+            current_app.logger.error(f"BaseModel.save 发生错误: {str(e)}")
+            current_app.logger.error(f"错误类型: {type(e)}")
+            import traceback
+            current_app.logger.error(f"错误堆栈: {traceback.format_exc()}")
             db.session.rollback()
             raise e
     

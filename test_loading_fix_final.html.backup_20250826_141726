@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加载状态修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <!-- 模拟加载模态框 -->
+    <div class="modal fade show" id="loadingModal" style="display: block;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <p class="mt-2 mb-0">正在处理，请稍候...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+
+    <div class="container mt-4">
+        <h1>加载状态修复测试</h1>
+        
+        <div class="test-section">
+            <h3>1. 加载模态框状态检查</h3>
+            <div id="modal-status" class="status info">检查中...</div>
+            <button class="btn btn-primary" onclick="checkModalStatus()">重新检查</button>
+            <button class="btn btn-secondary" onclick="hideLoadingModal()">手动隐藏</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. 页面内容</h3>
+            <p>如果你能看到这个内容，说明页面已经正常加载。</p>
+            <p>如果看不到或者有遮罩，说明加载模态框没有正确隐藏。</p>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. 修复代码测试</h3>
+            <div id="fix-status" class="status info">等待测试...</div>
+            <button class="btn btn-success" onclick="testFixCode()">测试修复代码</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 立即执行修复代码（和交易记录页面中的一样）
+        (function() {
+            console.log('执行立即修复代码...');
+            const loadingModal = document.getElementById('loadingModal');
+            if (loadingModal) {
+                loadingModal.classList.remove('show');
+                loadingModal.style.display = 'none';
+                document.body.classList.remove('modal-open');
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) backdrop.remove();
+                console.log('加载模态框已隐藏');
+            }
+        })();
+
+        function checkModalStatus() {
+            const statusDiv = document.getElementById('modal-status');
+            const loadingModal = document.getElementById('loadingModal');
+            const backdrop = document.querySelector('.modal-backdrop');
+            
+            let status = '';
+            let isVisible = false;
+            
+            if (loadingModal) {
+                const isShown = loadingModal.classList.contains('show');
+                const displayStyle = loadingModal.style.display;
+                const isDisplayed = displayStyle !== 'none';
+                
+                status += `模态框存在: ✓<br>`;
+                status += `show类: ${isShown ? '✗ 存在' : '✓ 已移除'}<br>`;
+                status += `display样式: ${isDisplayed ? '✗ 显示中' : '✓ 已隐藏'}<br>`;
+                
+                isVisible = isShown || isDisplayed;
+            } else {
+                status += `模态框: ✗ 不存在<br>`;
+            }
+            
+            if (backdrop) {
+                status += `背景遮罩: ✗ 存在<br>`;
+                isVisible = true;
+            } else {
+                status += `背景遮罩: ✓ 已移除<br>`;
+            }
+            
+            const bodyHasModalOpen = document.body.classList.contains('modal-open');
+            status += `body.modal-open: ${bodyHasModalOpen ? '✗ 存在' : '✓ 已移除'}<br>`;
+            
+            if (isVisible || bodyHasModalOpen) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = '✗ 加载模态框仍然可见<br>' + status;
+            } else {
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = '✓ 加载模态框已正确隐藏<br>' + status;
+            }
+        }
+        
+        function hideLoadingModal() {
+            console.log('手动隐藏加载模态框...');
+            
+            const loadingModal = document.getElementById('loadingModal');
+            if (loadingModal) {
+                loadingModal.classList.remove('show');
+                loadingModal.style.display = 'none';
+            }
+            
+            document.body.classList.remove('modal-open');
+            
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) {
+                backdrop.remove();
+            }
+            
+            checkModalStatus();
+        }
+        
+        function testFixCode() {
+            const statusDiv = document.getElementById('fix-status');
+            
+            try {
+                // 先显示加载状态
+                const loadingModal = document.getElementById('loadingModal');
+                if (loadingModal) {
+                    loadingModal.classList.add('show');
+                    loadingModal.style.display = 'block';
+                    document.body.classList.add('modal-open');
+                    
+                    // 添加背景遮罩
+                    if (!document.querySelector('.modal-backdrop')) {
+                        const backdrop = document.createElement('div');
+                        backdrop.className = 'modal-backdrop fade show';
+                        document.body.appendChild(backdrop);
+                    }
+                }
+                
+                statusDiv.className = 'status info';
+                statusDiv.textContent = '已显示加载状态，3秒后自动隐藏...';
+                
+                // 3秒后执行修复代码
+                setTimeout(() => {
+                    // 执行修复代码
+                    if (loadingModal) {
+                        loadingModal.classList.remove('show');
+                        loadingModal.style.display = 'none';
+                        document.body.classList.remove('modal-open');
+                        const backdrop = document.querySelector('.modal-backdrop');
+                        if (backdrop) backdrop.remove();
+                    }
+                    
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✓ 修复代码执行成功！';
+                    
+                    checkModalStatus();
+                }, 3000);
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '✗ 修复代码执行失败: ' + error.message;
+            }
+        }
+        
+        // 页面加载后立即检查状态
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(checkModalStatus, 100);
+        });
+    </script>
+</body>
+</html>

@@ -49,31 +49,31 @@ class AnalyticsService(BaseService):
             # 计算总投入资金
             total_investment = cls._calculate_total_investment(trades)
             
-            # 计算总收益率
+            # 计算总收益率（以小数形式存储，前端显示时转换为百分比）
             total_profit = realized_profit + current_holdings_profit
-            total_return_rate = (total_profit / total_investment * 100) if total_investment > 0 else 0
+            total_return_rate = (total_profit / total_investment) if total_investment > 0 else 0
             
             # 统计交易次数
             buy_count = len([t for t in trades if t.trade_type == 'buy'])
             sell_count = len([t for t in trades if t.trade_type == 'sell'])
             
-            # 计算成功率（盈利的已清仓股票比例）
+            # 计算成功率（统一使用百分比形式）
             success_rate = cls._calculate_success_rate(trades)
             
             return {
                 'total_investment': float(total_investment),
-                # 新增的独立收益指标
-                'realized_profit': float(realized_profit),  # 已清仓收益
+                # 新的准确收益指标
+                'realized_profit': float(realized_profit),  # 已实现收益（包括分批止盈）
                 'current_holdings_profit': float(current_holdings_profit),  # 当前持仓收益
-                # 保持向后兼容性
-                'closed_profit': float(closed_profit),
-                'floating_profit': float(floating_profit),
+                # 保持向后兼容性（旧字段）
+                'closed_profit': float(realized_profit),  # 使用新的已实现收益
+                'holding_profit': float(current_holdings_profit),  # 持仓浮盈浮亏
                 'total_profit': float(total_profit),
-                'total_return_rate': float(total_return_rate),
+                'total_return_rate': float(total_return_rate),  # 小数形式（如0.02表示2%）
                 'current_holdings_count': len(holdings),
                 'total_buy_count': buy_count,
                 'total_sell_count': sell_count,
-                'success_rate': float(success_rate),
+                'success_rate': float(success_rate),  # 百分比形式（如41.46表示41.46%）
                 'last_updated': datetime.now().isoformat()
             }
         except Exception as e:
@@ -267,11 +267,10 @@ class AnalyticsService(BaseService):
             for month, stats in monthly_stats.items():
                 if stats['has_data']:
                     # 计算当月已完成交易的收益情况
-                    month_profit, month_success, month_cost = cls._calculate_monthly_realized_profit_and_success(
+                    month_profit, month_success_trades, month_cost = cls._calculate_monthly_realized_profit_and_success(
                         trades, month, year
                     )
                     stats['profit_amount'] = month_profit
-                    stats['success_count'] = month_success
                     
                     # 计算月度收益率：基于该月已完成交易的成本
                     if month_cost > 0:
@@ -279,7 +278,10 @@ class AnalyticsService(BaseService):
                     else:
                         stats['profit_rate'] = 0 if month_profit == 0 else None
                     
-                    stats['success_rate'] = (month_success / len(stats['stocks']) * 100) if len(stats['stocks']) > 0 else 0
+                    # 修正成功率计算：计算该月盈利股票数占该月交易股票数的比例
+                    month_success_stocks = cls._calculate_monthly_success_stocks(trades, month, year)
+                    stats['success_count'] = month_success_stocks
+                    stats['success_rate'] = (month_success_stocks / len(stats['stocks']) * 100) if len(stats['stocks']) > 0 else 0
                 else:
                     # 无数据月份保持默认值
                     stats['profit_rate'] = None
@@ -405,53 +407,89 @@ class AnalyticsService(BaseService):
     
     @classmethod
     def _calculate_current_holdings(cls, trades: List[TradeRecord]) -> Dict[str, Dict[str, Any]]:
-        """计算当前持仓情况"""
-        holdings = defaultdict(lambda: {
-            'stock_name': '',
-            'quantity': 0,
-            'total_cost': 0,
-            'avg_cost': 0,
-            'current_price': 0,
-            'market_value': 0,
-            'profit_amount': 0,
-            'profit_rate': 0
-        })
+        """计算当前持仓情况（使用FIFO方法确保成本计算一致性）"""
+        stock_trades = defaultdict(list)
         
-        # 计算每只股票的持仓
+        # 按股票分组交易记录
         for trade in trades:
-            stock_code = trade.stock_code
-            holdings[stock_code]['stock_name'] = trade.stock_name
+            stock_trades[trade.stock_code].append(trade)
+        
+        holdings = {}
+        
+        for stock_code, stock_trade_list in stock_trades.items():
+            # 按时间排序
+            stock_trade_list.sort(key=lambda x: x.trade_date)
             
-            if trade.trade_type == 'buy':
-                holdings[stock_code]['quantity'] += trade.quantity
-                holdings[stock_code]['total_cost'] += float(trade.price * trade.quantity)
-            elif trade.trade_type == 'sell':
-                holdings[stock_code]['quantity'] -= trade.quantity
-                # 按比例减少成本
-                if holdings[stock_code]['quantity'] > 0:
-                    cost_ratio = trade.quantity / (holdings[stock_code]['quantity'] + trade.quantity)
-                    holdings[stock_code]['total_cost'] *= (1 - cost_ratio)
-        
-        # 移除已清仓的股票
-        holdings = {k: v for k, v in holdings.items() if v['quantity'] > 0}
-        
-        # 计算平均成本和当前市值
-        for stock_code, holding in holdings.items():
-            if holding['quantity'] > 0:
-                holding['avg_cost'] = holding['total_cost'] / holding['quantity']
-                
+            # 使用FIFO方法计算剩余持仓和成本
+            holding_info = cls._calculate_fifo_holdings(stock_trade_list)
+            
+            if holding_info['quantity'] > 0:
                 # 获取当前价格
                 latest_price = StockPrice.get_latest_price(stock_code)
                 if latest_price:
-                    holding['current_price'] = float(latest_price.current_price)
+                    current_price = float(latest_price.current_price)
                 else:
-                    holding['current_price'] = holding['avg_cost']  # 如果没有价格数据，使用成本价
+                    current_price = holding_info['avg_cost']  # 如果没有价格数据，使用成本价
                 
-                holding['market_value'] = holding['current_price'] * holding['quantity']
-                holding['profit_amount'] = holding['market_value'] - holding['total_cost']
-                holding['profit_rate'] = holding['profit_amount'] / holding['total_cost'] if holding['total_cost'] > 0 else 0
+                market_value = current_price * holding_info['quantity']
+                profit_amount = market_value - holding_info['total_cost']
+                profit_rate = profit_amount / holding_info['total_cost'] if holding_info['total_cost'] > 0 else 0
+                
+                holdings[stock_code] = {
+                    'stock_name': holding_info['stock_name'],
+                    'quantity': holding_info['quantity'],
+                    'total_cost': holding_info['total_cost'],
+                    'avg_cost': holding_info['avg_cost'],
+                    'current_price': current_price,
+                    'market_value': market_value,
+                    'profit_amount': profit_amount,
+                    'profit_rate': profit_rate
+                }
         
-        return dict(holdings)
+        return holdings
+    
+    @classmethod
+    def _calculate_fifo_holdings(cls, stock_trades: List[TradeRecord]) -> Dict[str, Any]:
+        """使用FIFO方法计算单只股票的剩余持仓"""
+        buy_queue = []  # 买入队列
+        stock_name = stock_trades[0].stock_name if stock_trades else ''
+        
+        for trade in stock_trades:
+            if trade.trade_type == 'buy':
+                buy_queue.append({
+                    'quantity': trade.quantity,
+                    'price': float(trade.price),
+                    'remaining': trade.quantity
+                })
+            elif trade.trade_type == 'sell':
+                sell_quantity = trade.quantity
+                
+                # 从买入队列中匹配卖出
+                while sell_quantity > 0 and buy_queue:
+                    buy_item = buy_queue[0]
+                    
+                    # 计算本次匹配的数量
+                    match_quantity = min(sell_quantity, buy_item['remaining'])
+                    
+                    # 更新数量
+                    buy_item['remaining'] -= match_quantity
+                    sell_quantity -= match_quantity
+                    
+                    # 如果买入项目已完全匹配，从队列中移除
+                    if buy_item['remaining'] <= 0:
+                        buy_queue.pop(0)
+        
+        # 计算剩余持仓
+        total_quantity = sum(item['remaining'] for item in buy_queue)
+        total_cost = sum(item['remaining'] * item['price'] for item in buy_queue)
+        avg_cost = total_cost / total_quantity if total_quantity > 0 else 0
+        
+        return {
+            'stock_name': stock_name,
+            'quantity': total_quantity,
+            'total_cost': total_cost,
+            'avg_cost': avg_cost
+        }
     
     @classmethod
     def _calculate_closed_positions_profit(cls, trades: List[TradeRecord]) -> float:
@@ -586,10 +624,11 @@ class AnalyticsService(BaseService):
     
     @classmethod
     def _calculate_realized_profit(cls, trades: List[TradeRecord]) -> float:
-        """计算已清仓收益（按股票分组计算完整买卖周期的收益）
+        """计算已实现收益（使用FIFO方法匹配所有买卖交易）
         
         Requirements: 1.1, 1.3
         - 汇总所有已完成的交易（买入-卖出配对）
+        - 包括分批止盈的收益
         """
         stock_trades = defaultdict(list)
         
@@ -603,24 +642,51 @@ class AnalyticsService(BaseService):
             # 按时间排序
             stock_trade_list.sort(key=lambda x: x.trade_date)
             
-            # 计算该股票的收益
-            position = 0  # 当前持仓
-            total_cost = 0  # 总成本
-            total_revenue = 0  # 总收入
-            
-            for trade in stock_trade_list:
-                if trade.trade_type == 'buy':
-                    position += trade.quantity
-                    total_cost += float(trade.price * trade.quantity)
-                elif trade.trade_type == 'sell':
-                    position -= trade.quantity
-                    total_revenue += float(trade.price * trade.quantity)
-            
-            # 如果已清仓（持仓为0），计算收益
-            if position == 0:
-                total_realized_profit += (total_revenue - total_cost)
+            # 使用FIFO方法计算已实现收益
+            realized_profit = cls._calculate_fifo_realized_profit(stock_trade_list)
+            total_realized_profit += realized_profit
         
         return total_realized_profit
+    
+    @classmethod
+    def _calculate_fifo_realized_profit(cls, stock_trades: List[TradeRecord]) -> float:
+        """使用FIFO方法计算单只股票的已实现收益"""
+        buy_queue = []  # 买入队列：[{'quantity': int, 'price': float, 'remaining': int}]
+        realized_profit = 0
+        
+        for trade in stock_trades:
+            if trade.trade_type == 'buy':
+                buy_queue.append({
+                    'quantity': trade.quantity,
+                    'price': float(trade.price),
+                    'remaining': trade.quantity
+                })
+            elif trade.trade_type == 'sell':
+                sell_quantity = trade.quantity
+                sell_price = float(trade.price)
+                
+                # 从买入队列中匹配卖出
+                while sell_quantity > 0 and buy_queue:
+                    buy_item = buy_queue[0]
+                    
+                    # 计算本次匹配的数量
+                    match_quantity = min(sell_quantity, buy_item['remaining'])
+                    
+                    # 计算本次匹配的收益
+                    cost = match_quantity * buy_item['price']
+                    revenue = match_quantity * sell_price
+                    profit = revenue - cost
+                    realized_profit += profit
+                    
+                    # 更新数量
+                    buy_item['remaining'] -= match_quantity
+                    sell_quantity -= match_quantity
+                    
+                    # 如果买入项目已完全匹配，从队列中移除
+                    if buy_item['remaining'] <= 0:
+                        buy_queue.pop(0)
+        
+        return realized_profit
     
     @classmethod
     def _calculate_current_holdings_profit(cls, holdings: Dict[str, Dict[str, Any]]) -> float:
@@ -634,10 +700,11 @@ class AnalyticsService(BaseService):
     @classmethod
     def _calculate_monthly_realized_profit_and_success(cls, trades: List[TradeRecord], 
                                                      month: int, year: int) -> Tuple[float, int, float]:
-        """计算指定月份的已实现收益、成功股票数和投入成本
+        """计算指定月份的总收益、成功股票数和投入成本
         
         Requirements: 5.2
-        - 使用每月的已实现收益和损失
+        - 按买入时间归属收益：该月买入的股票产生的收益都算作该月收益
+        - 包括已实现收益和持仓浮盈浮亏
         """
         from calendar import monthrange
         
@@ -646,7 +713,7 @@ class AnalyticsService(BaseService):
         last_day = monthrange(year, month)[1]
         month_end = datetime(year, month, last_day, 23, 59, 59)
         
-        # 获取该月完成的交易（在该月内既有买入又有卖出完成清仓的股票）
+        # 获取该月买入的交易产生的收益（包括已实现和未实现）
         month_profit = 0
         success_count = 0
         month_cost = 0
@@ -656,19 +723,19 @@ class AnalyticsService(BaseService):
         for trade in trades:
             stock_trades[trade.stock_code].append(trade)
         
-        # 分析每只股票在该月的交易情况
+        # 分析每只股票，计算该月买入产生的总收益
         for stock_code, stock_trade_list in stock_trades.items():
             # 按时间排序
             stock_trade_list.sort(key=lambda x: x.trade_date)
             
-            # 计算该月内完成的交易周期
-            monthly_completed_trades = cls._get_monthly_completed_trades(
+            # 计算该月买入产生的总收益（已实现 + 持仓浮盈浮亏）
+            monthly_total_profits = cls._get_monthly_buy_total_profits(
                 stock_trade_list, month_start, month_end
             )
             
-            for completed_trade in monthly_completed_trades:
-                profit = completed_trade['profit']
-                cost = completed_trade['cost']
+            for buy_profit in monthly_total_profits:
+                profit = buy_profit['total_profit']
+                cost = buy_profit['cost']
                 
                 month_profit += profit
                 month_cost += cost
@@ -679,20 +746,95 @@ class AnalyticsService(BaseService):
         return month_profit, success_count, month_cost
     
     @classmethod
-    def _get_monthly_completed_trades(cls, stock_trades: List[TradeRecord], 
-                                    month_start: datetime, month_end: datetime) -> List[Dict]:
-        """获取指定月份内完成的交易周期"""
-        completed_trades = []
+    def _calculate_monthly_success_stocks(cls, trades: List[TradeRecord], month: int, year: int) -> int:
+        """计算指定月份成功（盈利）的股票数量
+        
+        Returns:
+            int: 该月有交易且整体盈利的股票数量
+        """
+        from calendar import monthrange
+        
+        # 计算该月的日期范围
+        month_start = datetime(year, month, 1)
+        last_day = monthrange(year, month)[1]
+        month_end = datetime(year, month, last_day, 23, 59, 59)
+        
+        # 获取该月有交易的股票
+        monthly_stocks = set()
+        for trade in trades:
+            if month_start <= trade.trade_date <= month_end:
+                monthly_stocks.add(trade.stock_code)
+        
+        # 按股票分组所有交易记录
+        stock_trades = defaultdict(list)
+        for trade in trades:
+            stock_trades[trade.stock_code].append(trade)
+        
+        success_stocks = 0
+        
+        # 对每只该月有交易的股票，计算其总体收益情况
+        for stock_code in monthly_stocks:
+            if stock_code in stock_trades:
+                stock_trade_list = stock_trades[stock_code]
+                stock_trade_list.sort(key=lambda x: x.trade_date)
+                
+                # 计算该股票的总体收益（已实现 + 持仓浮盈浮亏）
+                total_profit = cls._calculate_stock_total_profit(stock_trade_list)
+                
+                if total_profit > 0:
+                    success_stocks += 1
+        
+        return success_stocks
+    
+    @classmethod
+    def _calculate_stock_total_profit(cls, stock_trades: List[TradeRecord]) -> float:
+        """计算单只股票的总体收益（已实现收益 + 持仓浮盈浮亏）"""
+        from models.stock_price import StockPrice
+        
+        # 计算已实现收益
+        realized_profit = cls._calculate_fifo_realized_profit(stock_trades)
+        
+        # 计算持仓浮盈浮亏
+        holding_info = cls._calculate_fifo_holdings(stock_trades)
+        floating_profit = 0
+        
+        if holding_info['quantity'] > 0:
+            stock_code = stock_trades[0].stock_code
+            latest_price = StockPrice.get_latest_price(stock_code)
+            if latest_price:
+                current_price = float(latest_price.current_price)
+                market_value = current_price * holding_info['quantity']
+                floating_profit = market_value - holding_info['total_cost']
+            # 如果没有价格数据，浮盈浮亏为0（按成本价计算）
+        
+        return realized_profit + floating_profit
+    
+    @classmethod
+    def _get_monthly_buy_total_profits(cls, stock_trades: List[TradeRecord], 
+                                     month_start: datetime, month_end: datetime) -> List[Dict]:
+        """获取指定月份买入的股票产生的总收益（已实现收益 + 持仓浮盈浮亏）"""
+        from models.stock_price import StockPrice
+        
+        monthly_profits = []
         
         # 使用FIFO方法匹配买入和卖出
         buy_queue = []  # 买入队列
+        stock_code = stock_trades[0].stock_code if stock_trades else None
+        
+        # 获取当前价格
+        current_price = None
+        if stock_code:
+            latest_price = StockPrice.get_latest_price(stock_code)
+            if latest_price:
+                current_price = float(latest_price.current_price)
         
         for trade in stock_trades:
             if trade.trade_type == 'buy':
                 buy_queue.append({
                     'trade': trade,
                     'remaining_quantity': trade.quantity,
-                    'unit_cost': float(trade.price)
+                    'unit_cost': float(trade.price),
+                    'is_monthly_buy': month_start <= trade.trade_date <= month_end  # 标记是否为该月买入
                 })
             elif trade.trade_type == 'sell':
                 sell_quantity = trade.quantity
@@ -707,13 +849,90 @@ class AnalyticsService(BaseService):
                     # 计算本次匹配的数量
                     match_quantity = min(sell_quantity, buy_item['remaining_quantity'])
                     
-                    # 如果卖出发生在指定月份内，记录为该月完成的交易
-                    if month_start <= sell_date <= month_end:
+                    # 如果买入发生在指定月份内，记录该交易的已实现收益
+                    if buy_item['is_monthly_buy']:
+                        cost = match_quantity * buy_item['unit_cost']
+                        revenue = match_quantity * sell_price
+                        realized_profit = revenue - cost
+                        
+                        monthly_profits.append({
+                            'type': 'realized',
+                            'buy_date': buy_trade.trade_date,
+                            'sell_date': sell_date,
+                            'quantity': match_quantity,
+                            'buy_price': buy_item['unit_cost'],
+                            'sell_price': sell_price,
+                            'cost': cost,
+                            'revenue': revenue,
+                            'total_profit': realized_profit
+                        })
+                    
+                    # 更新数量
+                    buy_item['remaining_quantity'] -= match_quantity
+                    sell_quantity -= match_quantity
+                    
+                    # 如果买入项目已完全匹配，从队列中移除
+                    if buy_item['remaining_quantity'] <= 0:
+                        buy_queue.pop(0)
+        
+        # 处理剩余持仓（该月买入但未卖出的部分）
+        if current_price is not None:
+            for buy_item in buy_queue:
+                if buy_item['is_monthly_buy'] and buy_item['remaining_quantity'] > 0:
+                    cost = buy_item['remaining_quantity'] * buy_item['unit_cost']
+                    market_value = buy_item['remaining_quantity'] * current_price
+                    unrealized_profit = market_value - cost
+                    
+                    monthly_profits.append({
+                        'type': 'unrealized',
+                        'buy_date': buy_item['trade'].trade_date,
+                        'quantity': buy_item['remaining_quantity'],
+                        'buy_price': buy_item['unit_cost'],
+                        'current_price': current_price,
+                        'cost': cost,
+                        'market_value': market_value,
+                        'total_profit': unrealized_profit
+                    })
+        
+        return monthly_profits
+    
+    @classmethod
+    def _get_monthly_buy_based_profits(cls, stock_trades: List[TradeRecord], 
+                                     month_start: datetime, month_end: datetime) -> List[Dict]:
+        """获取指定月份买入的股票产生的已实现收益（保留向后兼容）"""
+        buy_based_profits = []
+        
+        # 使用FIFO方法匹配买入和卖出
+        buy_queue = []  # 买入队列
+        
+        for trade in stock_trades:
+            if trade.trade_type == 'buy':
+                buy_queue.append({
+                    'trade': trade,
+                    'remaining_quantity': trade.quantity,
+                    'unit_cost': float(trade.price),
+                    'is_monthly_buy': month_start <= trade.trade_date <= month_end  # 标记是否为该月买入
+                })
+            elif trade.trade_type == 'sell':
+                sell_quantity = trade.quantity
+                sell_price = float(trade.price)
+                sell_date = trade.trade_date
+                
+                # 从买入队列中匹配
+                while sell_quantity > 0 and buy_queue:
+                    buy_item = buy_queue[0]
+                    buy_trade = buy_item['trade']
+                    
+                    # 计算本次匹配的数量
+                    match_quantity = min(sell_quantity, buy_item['remaining_quantity'])
+                    
+                    # 如果买入发生在指定月份内，记录该交易的收益
+                    if buy_item['is_monthly_buy']:
                         cost = match_quantity * buy_item['unit_cost']
                         revenue = match_quantity * sell_price
                         profit = revenue - cost
                         
-                        completed_trades.append({
+                        buy_based_profits.append({
                             'buy_date': buy_trade.trade_date,
                             'sell_date': sell_date,
                             'quantity': match_quantity,
@@ -732,4 +951,4 @@ class AnalyticsService(BaseService):
                     if buy_item['remaining_quantity'] <= 0:
                         buy_queue.pop(0)
         
-        return completed_trades
+        return buy_based_profits

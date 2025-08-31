@@ -49,27 +49,36 @@ def get_stock_quantity_rule(stock_code: str) -> dict:
         }
 
 
-def validate_stock_quantity(stock_code: str, quantity: int) -> tuple[bool, str]:
+def validate_stock_quantity(stock_code: str, quantity) -> tuple[bool, str]:
     """
     验证股票数量是否符合规则
     
     Args:
         stock_code: 股票代码
-        quantity: 股票数量
+        quantity: 股票数量（可以是字符串或整数）
         
     Returns:
         tuple: (是否有效, 错误消息)
     """
-    if quantity is None or quantity <= 0:
+    if quantity is None:
+        return False, "数量不能为空"
+    
+    # 确保quantity是整数类型
+    try:
+        quantity_int = int(quantity)
+    except (ValueError, TypeError):
+        return False, "数量必须是整数"
+    
+    if quantity_int <= 0:
         return False, "数量必须大于0"
     
     rule = get_stock_quantity_rule(stock_code)
     
     if rule['multiple_required']:
-        if quantity % rule['multiple_value'] != 0:
+        if quantity_int % rule['multiple_value'] != 0:
             return False, rule['error_message']
     
-    if quantity < rule['min_quantity']:
+    if quantity_int < rule['min_quantity']:
         return False, rule['error_message']
     
     return True, ""

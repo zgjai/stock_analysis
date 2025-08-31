@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调试监控系统演示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .demo-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn.danger {
+            background: #dc3545;
+        }
+        .btn.danger:hover {
+            background: #c82333;
+        }
+        .console-note {
+            background: #e9ecef;
+            padding: 10px;
+            border-left: 4px solid #007bff;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🐛 调试监控系统演示</h1>
+    <p>这个页面演示了任务10实现的调试监控和错误处理功能。</p>
+
+    <div class="demo-section">
+        <h2>📊 系统状态</h2>
+        <p>点击按钮查看调试监控系统的状态和功能：</p>
+        <button class="btn" onclick="showSystemStatus()">查看系统状态</button>
+        <button class="btn" onclick="checkDependencies()">检查依赖</button>
+        <button class="btn" onclick="runTests()">运行功能测试</button>
+        <button class="btn" onclick="performHealthCheck()">健康检查</button>
+    </div>
+
+    <div class="demo-section">
+        <h2>⚡ 性能监控</h2>
+        <p>测试性能监控功能：</p>
+        <button class="btn" onclick="showPerformanceReport()">性能报告</button>
+        <button class="btn" onclick="measurePageMetrics()">页面指标</button>
+        <button class="btn" onclick="simulateSlowOperation()">模拟慢操作</button>
+    </div>
+
+    <div class="demo-section">
+        <h2>🚨 错误处理</h2>
+        <p>测试错误监控和处理功能：</p>
+        <button class="btn danger" onclick="triggerJSError()">触发JS错误</button>
+        <button class="btn danger" onclick="triggerPromiseRejection()">触发Promise拒绝</button>
+        <button class="btn danger" onclick="triggerResourceError()">触发资源错误</button>
+        <button class="btn" onclick="showErrorReport()">查看错误报告</button>
+    </div>
+
+    <div class="demo-section">
+        <h2>📁 日志管理</h2>
+        <p>测试日志记录和导出功能：</p>
+        <button class="btn" onclick="exportLogs()">导出日志</button>
+        <button class="btn" onclick="clearCache()">清理缓存</button>
+        <button class="btn" onclick="resetDebugState()">重置状态</button>
+    </div>
+
+    <div class="console-note">
+        <strong>💡 提示：</strong> 请打开浏览器开发者工具的控制台查看详细的调试信息和日志输出。
+    </div>
+
+    <!-- 模拟依赖 -->
+    <script>
+        // 模拟消息系统
+        function showErrorMessage(message) {
+            alert('错误: ' + message);
+            console.error('🚨 用户错误消息:', message);
+        }
+        
+        function showSuccessMessage(message) {
+            console.log('✅ 成功消息:', message);
+        }
+        
+        function showWarningMessage(message) {
+            console.warn('⚠️ 警告消息:', message);
+        }
+        
+        function showInfoMessage(message) {
+            console.info('ℹ️ 信息消息:', message);
+        }
+    </script>
+
+    <!-- 加载调试监控系统 -->
+    <script src="static/js/debug-monitoring.js"></script>
+
+    <script>
+        // 演示函数
+        function showSystemStatus() {
+            console.log('📊 显示系统状态');
+            if (typeof debugTools !== 'undefined') {
+                debugTools.getSystemStatus();
+            } else {
+                console.error('❌ 调试工具不可用');
+            }
+        }
+
+        function checkDependencies() {
+            console.log('🔍 检查依赖');
+            if (typeof debugTools !== 'undefined') {
+                debugTools.checkDependencies();
+            } else {
+                console.error('❌ 调试工具不可用');
+            }
+        }
+
+        function runTests() {
+            console.log('🧪 运行功能测试');
+            if (typeof debugTools !== 'undefined') {
+                debugTools.runFunctionalTests();
+            } else {
+                console.error('❌ 调试工具不可用');
+            }
+        }
+
+        function performHealthCheck() {
+            console.log('🏥 执行健康检查');
+            if (typeof debugTools !== 'undefined') {
+                debugTools.healthCheck();
+            } else {
+                console.error('❌ 调试工具不可用');
+            }
+        }
+
+        function showPerformanceReport() {
+            console.log('⚡ 显示性能报告');
+            if (typeof debugTools !== 'undefined') {
+                debugTools.performanceReport();
+            } else {
+                console.error('❌ 调试工具不可用');
+            }
+        }
+
+        function measurePageMetrics() {
+            console.log('📈 测量页面指标');
+            if ('performance' in window) {
+                const navigation = performance.getEntriesByType('navigation')[0];
+                console.group('📈 页面性能指标');
+                console.log('DNS查询:', (navigation.domainLookupEnd - navigation.domainLookupStart).toFixed(2) + 'ms');
+                console.log('TCP连接:', (navigation.connectEnd - navigation.connectStart).toFixed(2) + 'ms');
+                console.log('页面加载:', (navigation.loadEventEnd - navigation.navigationStart).toFixed(2) + 'ms');
+                console.groupEnd();
+            } else {
+                console.warn('⚠️ Performance API 不支持');
+            }
+        }
+
+        function simulateSlowOperation() {
+            console.log('🐌 模拟慢操作');
+            const start = performance.now();
+            
+            // 模拟一个耗时操作
+            let result = 0;
+            for (let i = 0; i < 10000000; i++) {
+                result += Math.random();
+            }
+            
+            const end = performance.now();
+            const duration = end - start;
+            
+            console.log(`⏱️ 慢操作完成，耗时: ${duration.toFixed(2)}ms`);
+            
+            if (duration > 50) {
+                console.warn('⚠️ 检测到长任务:', duration.toFixed(2) + 'ms');
+            }
+        }
+
+        function triggerJSError() {
+            console.log('💥 触发JavaScript错误');
+            setTimeout(() => {
+                throw new Error('这是一个演示用的JavaScript错误');
+            }, 100);
+        }
+
+        function triggerPromiseRejection() {
+            console.log('💥 触发Promise拒绝');
+            setTimeout(() => {
+                Promise.reject(new Error('这是一个演示用的Promise拒绝错误'));
+            }, 100);
+        }
+
+        function triggerResourceError() {
+            console.log('💥 触发资源加载错误');
+            const img = document.createElement('img');
+            img.src = 'nonexistent-image-' + Date.now() + '.jpg';
+            img.onerror = () => {
+                console.log('📷 图片加载失败（这是预期的）');
+            };
+            document.body.appendChild(img);
+            
+            // 清理
+            setTimeout(() => {
+                if (img.parentNode) {
+                    img.parentNode.removeChild(img);
+                }
+            }, 1000);
+        }
+
+        function showErrorReport() {
+            console.log('📋 显示错误报告');
+            if (typeof debugTools !== 'undefined') {
+                debugTools.errorReport();
+            } else {
+                console.error('❌ 调试工具不可用');
+            }
+        }
+
+        function exportLogs() {
+            console.log('📁 导出日志');
+            if (typeof debugTools !== 'undefined') {
+                debugTools.exportLogs();
+            } else {
+                console.error('❌ 调试工具不可用');
+            }
+        }
+
+        function clearCache() {
+            console.log('🧹 清理缓存');
+            if (typeof debugTools !== 'undefined') {
+                debugTools.clearCache();
+            } else {
+                console.error('❌ 调试工具不可用');
+            }
+        }
+
+        function resetDebugState() {
+            console.log('🔄 重置调试状态');
+            if (typeof debugTools !== 'undefined') {
+                debugTools.reset();
+            } else {
+                console.error('❌ 调试工具不可用');
+            }
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 调试监控系统演示页面已加载');
+            console.log('💡 请使用上面的按钮测试各种调试功能');
+            console.log('🔧 调试工具可通过 debugTools 对象访问');
+            
+            // 延迟显示系统状态
+            setTimeout(() => {
+                if (typeof debugTools !== 'undefined') {
+                    console.log('✅ 调试监控系统已就绪');
+                    console.log('📊 可用的调试工具:', Object.keys(debugTools));
+                } else {
+                    console.error('❌ 调试监控系统未正确加载');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

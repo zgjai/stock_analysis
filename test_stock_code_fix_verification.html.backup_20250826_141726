@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票代码修复验证</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .test-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        .test-result {
+            background: #212529;
+            color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+        }
+        .status-success { color: #28a745; }
+        .status-error { color: #dc3545; }
+        .status-warning { color: #ffc107; }
+        .status-info { color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1><i class="bi bi-bug me-2"></i>股票代码修复验证</h1>
+                <p class="text-muted">验证交易记录保存时股票代码是否正确传递给后端API</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3><i class="bi bi-clipboard-check me-2"></i>快速测试</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <button type="button" class="btn btn-primary me-2" onclick="runQuickTest()">
+                        <i class="bi bi-play-circle"></i> 运行快速测试
+                    </button>
+                    <button type="button" class="btn btn-success me-2" onclick="testRealApiCall()">
+                        <i class="bi bi-cloud-arrow-up"></i> 测试真实API调用
+                    </button>
+                    <button type="button" class="btn btn-warning me-2" onclick="testFormSerialization()">
+                        <i class="bi bi-list-check"></i> 测试表单序列化
+                    </button>
+                    <button type="button" class="btn btn-info" onclick="clearResults()">
+                        <i class="bi bi-trash"></i> 清空结果
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3><i class="bi bi-form-check me-2"></i>模拟交易表单</h3>
+            <form id="test-trade-form">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="test-stock-code" class="form-label">股票代码 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="test-stock-code" name="stock_code" required
+                                placeholder="例如: 000001" maxlength="6" pattern="[0-9]{6}" value="000001">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="test-stock-name" class="form-label">股票名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="test-stock-name" name="stock_name" required
+                                placeholder="例如: 平安银行" value="平安银行">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="test-trade-type" class="form-label">交易类型 <span class="text-danger">*</span></label>
+                            <select class="form-select" id="test-trade-type" name="trade_type" required>
+                                <option value="">请选择交易类型</option>
+                                <option value="buy" selected>买入</option>
+                                <option value="sell">卖出</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="test-price" class="form-label">价格 <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="test-price" name="price" required
+                                step="0.01" min="0.01" placeholder="0.00" value="10.50">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="test-quantity" class="form-label">数量 <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="test-quantity" name="quantity" required
+                                min="100" step="100" placeholder="100" value="1000">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="test-reason" class="form-label">操作原因 <span class="text-danger">*</span></label>
+                            <select class="form-select" id="test-reason" name="reason" required>
+                                <option value="">请选择操作原因</option>
+                                <option value="少妇B1战法" selected>少妇B1战法</option>
+                                <option value="少妇SB1战法">少妇SB1战法</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="test-trade-date" class="form-label">交易日期 <span class="text-danger">*</span></label>
+                            <input type="datetime-local" class="form-control" id="test-trade-date" name="trade_date" required>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="test-section">
+            <h3><i class="bi bi-terminal me-2"></i>测试结果</h3>
+            <div id="test-results" class="test-result">等待测试...</div>
+        </div>
+
+        <div class="test-section">
+            <h3><i class="bi bi-info-circle me-2"></i>修复说明</h3>
+            <div class="alert alert-info">
+                <h6>本次修复的内容：</h6>
+                <ul class="mb-0">
+                    <li><strong>表单数据获取增强：</strong>在表单提交时，如果FormUtils.serialize()没有获取到关键字段，会直接从DOM元素获取</li>
+                    <li><strong>事件处理优化：</strong>修复了表单验证器和交易管理器之间的事件传递问题</li>
+                    <li><strong>数据验证加强：</strong>在发送API请求前，会验证所有必填字段是否存在</li>
+                    <li><strong>调试工具：</strong>添加了详细的调试日志和表单数据检查工具</li>
+                </ul>
+            </div>
+            
+            <div class="alert alert-warning">
+                <h6>如果问题仍然存在：</h6>
+                <ol class="mb-0">
+                    <li>检查浏览器控制台是否有JavaScript错误</li>
+                    <li>运行 <code>debugTradeForm()</code> 查看表单数据</li>
+                    <li>确认所有必填字段都已填写</li>
+                    <li>检查网络连接和服务器状态</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        // 设置当前时间为默认交易日期
+        document.getElementById('test-trade-date').value = new Date().toISOString().slice(0, 16);
+
+        // 结果输出函数
+        function logResult(message, type = 'info') {
+            const results = document.getElementById('test-results');
+            const timestamp = new Date().toLocaleTimeString();
+            const typeClass = `status-${type}`;
+            
+            const logLine = `[${timestamp}] ${message}`;
+            results.innerHTML += `<span class="${typeClass}">${logLine}</span>\n`;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '测试结果已清空，等待新的测试...\n';
+        }
+
+        // FormUtils.serialize 实现（从utils.js复制）
+        const FormUtils = {
+            serialize: (form) => {
+                const formData = new FormData(form);
+                const data = {};
+                
+                for (let [key, value] of formData.entries()) {
+                    if (data[key]) {
+                        if (Array.isArray(data[key])) {
+                            data[key].push(value);
+                        } else {
+                            data[key] = [data[key], value];
+                        }
+                    } else {
+                        data[key] = value;
+                    }
+                }
+                
+                return data;
+            }
+        };
+
+        // 快速测试
+        function runQuickTest() {
+            clearResults();
+            logResult('=== 开始快速测试 ===', 'info');
+            
+            const form = document.getElementById('test-trade-form');
+            
+            // 1. 检查表单元素
+            logResult('1. 检查表单元素...', 'info');
+            if (!form) {
+                logResult('❌ 表单元素未找到', 'error');
+                return;
+            }
+            logResult('✅ 表单元素存在', 'success');
+            
+            // 2. 检查必填字段
+            logResult('2. 检查必填字段...', 'info');
+            const requiredFields = ['stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 'reason'];
+            let allFieldsValid = true;
+            
+            requiredFields.forEach(fieldName => {
+                const element = document.getElementById(`test-${fieldName.replace('_', '-')}`);
+                if (!element) {
+                    logResult(`❌ 字段元素未找到: ${fieldName}`, 'error');
+                    allFieldsValid = false;
+                    return;
+                }
+                
+                const value = element.value.trim();
+                if (!value) {
+                    logResult(`❌ 必填字段为空: ${fieldName}`, 'error');
+                    allFieldsValid = false;
+                } else {
+                    logResult(`✅ ${fieldName}: "${value}"`, 'success');
+                }
+            });
+            
+            if (!allFieldsValid) {
+                logResult('❌ 必填字段检查失败', 'error');
+                return;
+            }
+            
+            // 3. 测试表单序列化
+            logResult('3. 测试表单序列化...', 'info');
+            const serializedData = FormUtils.serialize(form);
+            logResult('序列化结果:', 'info');
+            logResult(JSON.stringify(serializedData, null, 2), 'info');
+            
+            // 4. 检查关键字段
+            logResult('4. 检查关键字段...', 'info');
+            requiredFields.forEach(field => {
+                const value = serializedData[field];
+                if (!value || value.trim() === '') {
+                    logResult(`❌ 序列化后字段为空: ${field}`, 'error');
+                    allFieldsValid = false;
+                } else {
+                    logResult(`✅ ${field}: "${value}"`, 'success');
+                }
+            });
+            
+            if (allFieldsValid) {
+                logResult('🎉 快速测试通过！表单数据序列化正常', 'success');
+            } else {
+                logResult('❌ 快速测试失败！发现数据序列化问题', 'error');
+            }
+        }
+
+        // 测试表单序列化
+        function testFormSerialization() {
+            clearResults();
+            logResult('=== 测试表单序列化 ===', 'info');
+            
+            const form = document.getElementById('test-trade-form');
+            
+            // 原生FormData测试
+            logResult('1. 原生FormData测试:', 'info');
+            const formData = new FormData(form);
+            for (let [key, value] of formData.entries()) {
+                logResult(`  ${key}: "${value}" (${typeof value})`, 'info');
+            }
+            
+            // FormUtils.serialize测试
+            logResult('2. FormUtils.serialize测试:', 'info');
+            const serialized = FormUtils.serialize(form);
+            logResult(JSON.stringify(serialized, null, 2), 'info');
+            
+            // 直接DOM获取测试
+            logResult('3. 直接DOM获取测试:', 'info');
+            const directData = {
+                stock_code: document.getElementById('test-stock-code').value,
+                stock_name: document.getElementById('test-stock-name').value,
+                trade_type: document.getElementById('test-trade-type').value,
+                price: document.getElementById('test-price').value,
+                quantity: document.getElementById('test-quantity').value,
+                reason: document.getElementById('test-reason').value,
+                trade_date: document.getElementById('test-trade-date').value
+            };
+            logResult(JSON.stringify(directData, null, 2), 'info');
+            
+            // 比较结果
+            logResult('4. 结果比较:', 'info');
+            const keys = Object.keys(directData);
+            let hasDiscrepancy = false;
+            
+            keys.forEach(key => {
+                const serializedValue = serialized[key];
+                const directValue = directData[key];
+                
+                if (serializedValue !== directValue) {
+                    logResult(`❌ 不一致: ${key} - 序列化:"${serializedValue}" vs 直接:"${directValue}"`, 'error');
+                    hasDiscrepancy = true;
+                } else {
+                    logResult(`✅ 一致: ${key} = "${serializedValue}"`, 'success');
+                }
+            });
+            
+            if (!hasDiscrepancy) {
+                logResult('🎉 表单序列化测试通过！', 'success');
+            } else {
+                logResult('❌ 表单序列化存在问题！', 'error');
+            }
+        }
+
+        // 测试真实API调用
+        async function testRealApiCall() {
+            clearResults();
+            logResult('=== 测试真实API调用 ===', 'info');
+            
+            const form = document.getElementById('test-trade-form');
+            const formData = FormUtils.serialize(form);
+            
+            // 数据预处理（模拟修复后的逻辑）
+            logResult('1. 数据预处理...', 'info');
+            
+            // 如果关键字段缺失，从DOM直接获取
+            if (!formData.stock_code || formData.stock_code.trim() === '') {
+                formData.stock_code = document.getElementById('test-stock-code').value.trim();
+                logResult('从DOM获取股票代码: ' + formData.stock_code, 'warning');
+            }
+            
+            if (!formData.stock_name || formData.stock_name.trim() === '') {
+                formData.stock_name = document.getElementById('test-stock-name').value.trim();
+                logResult('从DOM获取股票名称: ' + formData.stock_name, 'warning');
+            }
+            
+            // 数值字段转换
+            if (formData.price) {
+                formData.price = parseFloat(formData.price);
+            }
+            if (formData.quantity) {
+                formData.quantity = parseInt(formData.quantity);
+            }
+            
+            logResult('预处理后的数据:', 'info');
+            logResult(JSON.stringify(formData, null, 2), 'info');
+            
+            // 发送API请求
+            logResult('2. 发送API请求...', 'info');
+            try {
+                const response = await axios.post('/api/trades', formData, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                });
+                
+                logResult('✅ API调用成功!', 'success');
+                logResult('响应状态: ' + response.status, 'success');
+                logResult('响应数据:', 'success');
+                logResult(JSON.stringify(response.data, null, 2), 'success');
+                
+            } catch (error) {
+                logResult('❌ API调用失败!', 'error');
+                
+                if (error.response) {
+                    logResult(`HTTP错误 ${error.response.status}:`, 'error');
+                    logResult(JSON.stringify(error.response.data, null, 2), 'error');
+                    
+                    // 分析具体错误
+                    if (error.response.status === 422) {
+                        logResult('这是数据验证错误，检查必填字段是否正确传递', 'warning');
+                    }
+                } else if (error.request) {
+                    logResult('网络错误: 无法连接到服务器', 'error');
+                } else {
+                    logResult('请求错误: ' + error.message, 'error');
+                }
+            }
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            logResult('页面加载完成，可以开始测试', 'info');
+            logResult('提示: 点击上方按钮进行各种测试', 'info');
+        });
+    </script>
+</body>
+</html>

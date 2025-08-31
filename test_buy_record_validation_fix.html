@@ -21,20 +21,20 @@
     <h1>测试买入记录验证修复</h1>
     <p>这个页面用于测试股票代码验证修复后，买入记录是否能正常添加。</p>
     
-    <form id="testForm">
+    <form id="testForm" novalidate>
         <div class="form-group">
             <label for="stock_code">股票代码 *</label>
-            <input type="text" id="stock_code" name="stock_code" value="000776" required>
+            <input type="text" id="stock_code" name="stock_code" value="000776">
         </div>
         
         <div class="form-group">
             <label for="stock_name">股票名称 *</label>
-            <input type="text" id="stock_name" name="stock_name" value="广发证券" required>
+            <input type="text" id="stock_name" name="stock_name" value="广发证券">
         </div>
         
         <div class="form-group">
             <label for="trade_type">交易类型 *</label>
-            <select id="trade_type" name="trade_type" required>
+            <select id="trade_type" name="trade_type">
                 <option value="buy" selected>买入</option>
                 <option value="sell">卖出</option>
             </select>
@@ -42,22 +42,22 @@
         
         <div class="form-group">
             <label for="price">价格 *</label>
-            <input type="number" id="price" name="price" value="19.453" step="0.001" required>
+            <input type="number" id="price" name="price" value="19.453" step="0.001">
         </div>
         
         <div class="form-group">
             <label for="quantity">数量 *</label>
-            <input type="number" id="quantity" name="quantity" value="31100" required>
+            <input type="number" id="quantity" name="quantity" value="31100">
         </div>
         
         <div class="form-group">
             <label for="trade_date">交易日期 *</label>
-            <input type="datetime-local" id="trade_date" name="trade_date" value="2025-08-04T12:36" required>
+            <input type="datetime-local" id="trade_date" name="trade_date" value="2025-08-04T12:36">
         </div>
         
         <div class="form-group">
             <label for="reason">操作原因 *</label>
-            <textarea id="reason" name="reason" rows="3" required>单针二十战法</textarea>
+            <textarea id="reason" name="reason" rows="3">单针二十战法</textarea>
         </div>
         
         <button type="submit">提交买入记录</button>

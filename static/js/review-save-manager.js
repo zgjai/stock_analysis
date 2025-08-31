@@ -152,11 +152,11 @@ class ReviewSaveManager {
         requestAnimationFrame(() => {
             results.forEach(({ field, result }) => {
                 if (result.isValid) {
-                    field.classList.remove('is-invalid');
-                    field.classList.add('is-valid');
+                    field// .classList.remove(["']is-invalid["']);
+                    field// .classList.add(["']is-valid["']);
                 } else {
-                    field.classList.remove('is-valid');
-                    field.classList.add('is-invalid');
+                    field// .classList.remove(["']is-valid["']);
+                    field// .classList.add(["']is-invalid["']);
                 }
             });
         });

@@ -14,19 +14,19 @@
             <strong>测试目标：</strong>验证填写了价格和数量后不再出现"价格不能为空"错误
         </div>
         
-        <form id="test-trade-form" data-validate>
+        <form id="test-trade-form" novalidate>
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="stock-code" class="form-label">股票代码 *</label>
-                        <input type="text" class="form-control" id="stock-code" name="stock_code" required
+                        <input type="text" class="form-control" id="stock-code" name="stock_code"
                                placeholder="000001" value="000001">
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="stock-name" class="form-label">股票名称 *</label>
-                        <input type="text" class="form-control" id="stock-name" name="stock_name" required
+                        <input type="text" class="form-control" id="stock-name" name="stock_name"
                                placeholder="平安银行" value="平安银行">
                     </div>
                 </div>
@@ -36,7 +36,7 @@
                 <div class="col-md-4">
                     <div class="mb-3">
                         <label for="trade-type" class="form-label">交易类型 *</label>
-                        <select class="form-select" id="trade-type" name="trade_type" required>
+                        <select class="form-select" id="trade-type" name="trade_type">
                             <option value="">请选择</option>
                             <option value="buy" selected>买入</option>
                             <option value="sell">卖出</option>
@@ -48,16 +48,15 @@
                         <label for="price" class="form-label">价格 *</label>
                         <div class="input-group">
                             <span class="input-group-text">¥</span>
-                            <input type="number" class="form-control" id="price" name="price" required
-                                   step="0.01" min="0.01" max="9999.99" placeholder="0.00" value="19.50">
+                            <input type="number" class="form-control" id="price" name="price"
+                                   step="0.01" placeholder="0.00" value="19.50">
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="mb-3">
                         <label for="quantity" class="form-label">数量 *</label>
-                        <input type="number" class="form-control" id="quantity" name="quantity" required
-                               min="1" placeholder="100" value="100">
+                        <input type="number" class="form-control" id="quantity" name="quantity" placeholder="100" value="100">
                     </div>
                 </div>
             </div>

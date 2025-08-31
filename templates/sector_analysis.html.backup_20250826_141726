@@ -1,0 +1,797 @@
+{% extends "base.html" %}
+
+{% block title %}板块分析 - 股票交易记录系统{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">板块分析</li>
+{% endblock %}
+
+{% block page_title %}板块分析{% endblock %}
+
+{% block content %}
+<!-- 操作控制区域 -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <button type="button" class="btn btn-primary" onclick="refreshSectorData()" 
+                        title="获取最新板块数据，当天数据支持实时更新">
+                    <i class="fas fa-sync-alt"></i> 刷新板块数据
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="loadSectorRanking()">
+                    <i class="fas fa-list"></i> 重新加载
+                </button>
+            </div>
+            <div>
+                <span class="badge bg-info" id="data-status">数据状态: 未知</span>
+                <span class="badge bg-secondary" id="last-update">最后更新: --</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 板块排名表格 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line text-primary"></i> 今日板块涨幅排名
+                </h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="toggleChartView()">
+                        <i class="fas fa-chart-bar"></i> 图表视图
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- 筛选控件 -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="rankingFilter" class="form-label">显示排名</label>
+                        <select class="form-select" id="rankingFilter" onchange="filterSectorRanking()">
+                            <option value="all">全部</option>
+                            <option value="top10">前10名</option>
+                            <option value="top20">前20名</option>
+                            <option value="top50">前50名</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="changeFilter" class="form-label">涨跌幅筛选</label>
+                        <select class="form-select" id="changeFilter" onchange="filterSectorRanking()">
+                            <option value="all">全部</option>
+                            <option value="positive">仅上涨</option>
+                            <option value="negative">仅下跌</option>
+                            <option value="strong">强势(>3%)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="searchSector" class="form-label">搜索板块</label>
+                        <input type="text" class="form-control" id="searchSector" 
+                               placeholder="输入板块名称..." onkeyup="filterSectorRanking()">
+                    </div>
+                </div>
+                
+                <!-- 表格视图 -->
+                <div id="sector-table-view">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>排名</th>
+                                    <th>板块名称</th>
+                                    <th>涨跌幅</th>
+                                    <th>成交量</th>
+                                    <th>总市值</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sector-ranking-tbody">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fas fa-spinner fa-spin"></i> 加载中...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 图表视图 -->
+                <div id="sector-chart-view" style="display: none;">
+                    <canvas id="sectorChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TOPK板块统计 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-trophy text-warning"></i> TOPK板块统计分析
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- 统计控件 -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="statsDays" class="form-label">统计天数</label>
+                        <select class="form-select" id="statsDays" onchange="loadTopPerformers()">
+                            <option value="7">最近7天</option>
+                            <option value="15">最近15天</option>
+                            <option value="30" selected>最近30天</option>
+                            <option value="60">最近60天</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="topK" class="form-label">TOPK数量</label>
+                        <select class="form-select" id="topK" onchange="loadTopPerformers()">
+                            <option value="5">TOP5</option>
+                            <option value="10" selected>TOP10</option>
+                            <option value="20">TOP20</option>
+                            <option value="30">TOP30</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <button class="btn btn-outline-primary" onclick="loadTopPerformers()">
+                            <i class="fas fa-search"></i> 查询统计
+                        </button>
+                        <button class="btn btn-outline-secondary ms-2" onclick="exportTopPerformers()">
+                            <i class="fas fa-download"></i> 导出数据
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 统计结果 -->
+                <div id="top-performers-result">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-chart-pie"></i>
+                        <p class="mb-0 mt-2">请选择统计参数并点击查询</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 历史板块表现 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history text-info"></i> 历史板块表现
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- 历史查询控件 -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="historyStartDate" class="form-label">开始日期</label>
+                        <input type="date" class="form-control" id="historyStartDate">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="historyEndDate" class="form-label">结束日期</label>
+                        <input type="date" class="form-control" id="historyEndDate">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="historySector" class="form-label">指定板块</label>
+                        <input type="text" class="form-control" id="historySector" 
+                               placeholder="留空查看所有板块">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-outline-primary w-100" onclick="loadSectorHistory()">
+                            <i class="fas fa-search"></i> 查询
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 历史数据结果 -->
+                <div id="sector-history-result">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-calendar-alt"></i>
+                        <p class="mb-0 mt-2">请选择日期范围并点击查询</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let sectorRankingData = [];
+let filteredSectorData = [];
+let sectorChart = null;
+let isChartView = false;
+
+// 初始化板块分析页面
+function initSectorAnalysis() {
+    console.log('Sector analysis page initialized');
+    
+    // 设置默认日期
+    setupDefaultDates();
+    
+    // 加载板块排名数据
+    loadSectorRanking();
+    
+    // 加载TOPK统计
+    loadTopPerformers();
+}
+
+// 设置默认日期
+function setupDefaultDates() {
+    const today = new Date();
+    const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    
+    document.getElementById('historyEndDate').value = today.toISOString().split('T')[0];
+    document.getElementById('historyStartDate').value = oneWeekAgo.toISOString().split('T')[0];
+}
+
+// 刷新板块数据
+async function refreshSectorData() {
+    const refreshBtn = document.querySelector('button[onclick="refreshSectorData()"]');
+    const originalHtml = refreshBtn.innerHTML;
+    
+    try {
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 刷新中...';
+        refreshBtn.disabled = true;
+        
+        updateDataStatus('刷新中...', 'warning');
+        
+        const response = await apiClient.refreshSectorData();
+        
+        if (response.success) {
+            const message = response.updated ? 
+                `板块数据已更新 (${response.count}条记录)` : 
+                `板块数据刷新成功 (${response.count}条记录)`;
+            showMessage(message, 'success');
+            updateDataStatus('数据已更新', 'success');
+            
+            // 重新加载排名数据
+            await loadSectorRanking();
+        } else {
+            showMessage('刷新失败: ' + (response.error?.message || '未知错误'), 'error');
+            updateDataStatus('刷新失败', 'danger');
+        }
+    } catch (error) {
+        console.error('Refresh sector data error:', error);
+        showMessage('刷新失败: ' + error.message, 'error');
+        updateDataStatus('刷新失败', 'danger');
+    } finally {
+        refreshBtn.innerHTML = originalHtml;
+        refreshBtn.disabled = false;
+    }
+}
+
+// 加载板块排名数据
+async function loadSectorRanking() {
+    try {
+        showSectorLoading();
+        updateDataStatus('加载中...', 'info');
+        
+        const response = await apiClient.getSectorRanking();
+        
+        if (response.success) {
+            sectorRankingData = response.data || [];
+            filteredSectorData = [...sectorRankingData];
+            
+            renderSectorRanking();
+            updateDataStatus('数据已加载', 'success');
+            
+            // 更新最后更新时间
+            if (sectorRankingData.length > 0) {
+                const lastUpdate = sectorRankingData[0].record_date || new Date().toISOString().split('T')[0];
+                document.getElementById('last-update').textContent = `最后更新: ${lastUpdate}`;
+            }
+        } else {
+            showMessage('加载板块排名失败: ' + (response.error?.message || '未知错误'), 'error');
+            updateDataStatus('加载失败', 'danger');
+            showSectorEmptyState();
+        }
+    } catch (error) {
+        console.error('Load sector ranking error:', error);
+        showMessage('加载板块排名失败: ' + error.message, 'error');
+        updateDataStatus('加载失败', 'danger');
+        showSectorEmptyState();
+    }
+}
+
+// 渲染板块排名
+function renderSectorRanking() {
+    if (isChartView) {
+        renderSectorChart();
+    } else {
+        renderSectorTable();
+    }
+}
+
+// 渲染板块排名表格
+function renderSectorTable() {
+    const tbody = document.getElementById('sector-ranking-tbody');
+    
+    if (filteredSectorData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">
+                    <i class="fas fa-inbox"></i>
+                    <p class="mb-0 mt-2">暂无数据</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    const rowsHtml = filteredSectorData.map((sector, index) => {
+        const changePercent = parseFloat(sector.change_percent || 0);
+        const changeClass = changePercent > 0 ? 'text-success' : changePercent < 0 ? 'text-danger' : 'text-muted';
+        const changeIcon = changePercent > 0 ? 'fa-arrow-up' : changePercent < 0 ? 'fa-arrow-down' : 'fa-minus';
+        
+        return `
+            <tr>
+                <td>
+                    <span class="badge bg-${index < 3 ? 'warning' : 'secondary'}">
+                        ${sector.rank_position || index + 1}
+                    </span>
+                </td>
+                <td>
+                    <strong>${sector.sector_name}</strong>
+                    ${sector.sector_code ? `<br><small class="text-muted">${sector.sector_code}</small>` : ''}
+                </td>
+                <td>
+                    <span class="${changeClass}">
+                        <i class="fas ${changeIcon}"></i>
+                        ${changePercent.toFixed(2)}%
+                    </span>
+                </td>
+                <td>
+                    ${sector.volume ? formatNumber(sector.volume) : '--'}
+                </td>
+                <td>
+                    ${sector.market_cap ? formatCurrency(sector.market_cap) : '--'}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewSectorDetail('${sector.sector_name}')">
+                        <i class="fas fa-eye"></i> 详情
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    tbody.innerHTML = rowsHtml;
+}
+
+// 渲染板块排名图表
+function renderSectorChart() {
+    const ctx = document.getElementById('sectorChart').getContext('2d');
+    
+    // 销毁现有图表
+    if (sectorChart) {
+        sectorChart.destroy();
+    }
+    
+    // 取前20个板块数据
+    const chartData = filteredSectorData.slice(0, 20);
+    
+    const labels = chartData.map(sector => sector.sector_name);
+    const data = chartData.map(sector => parseFloat(sector.change_percent || 0));
+    const colors = data.map(value => value > 0 ? 'rgba(40, 167, 69, 0.8)' : 'rgba(220, 53, 69, 0.8)');
+    
+    sectorChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '涨跌幅 (%)',
+                data: data,
+                backgroundColor: colors,
+                borderColor: colors.map(color => color.replace('0.8', '1')),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '板块涨跌幅排名 (前20名)'
+                },
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '涨跌幅 (%)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 切换图表视图
+function toggleChartView() {
+    isChartView = !isChartView;
+    
+    const tableView = document.getElementById('sector-table-view');
+    const chartView = document.getElementById('sector-chart-view');
+    const toggleBtn = document.querySelector('button[onclick="toggleChartView()"]');
+    
+    if (isChartView) {
+        tableView.style.display = 'none';
+        chartView.style.display = 'block';
+        toggleBtn.innerHTML = '<i class="fas fa-table"></i> 表格视图';
+        renderSectorChart();
+    } else {
+        tableView.style.display = 'block';
+        chartView.style.display = 'none';
+        toggleBtn.innerHTML = '<i class="fas fa-chart-bar"></i> 图表视图';
+    }
+}
+
+// 筛选板块排名
+function filterSectorRanking() {
+    const rankingFilter = document.getElementById('rankingFilter').value;
+    const changeFilter = document.getElementById('changeFilter').value;
+    const searchTerm = document.getElementById('searchSector').value.toLowerCase().trim();
+    
+    let filtered = [...sectorRankingData];
+    
+    // 排名筛选
+    if (rankingFilter !== 'all') {
+        const limit = parseInt(rankingFilter.replace('top', ''));
+        filtered = filtered.slice(0, limit);
+    }
+    
+    // 涨跌幅筛选
+    if (changeFilter !== 'all') {
+        filtered = filtered.filter(sector => {
+            const changePercent = parseFloat(sector.change_percent || 0);
+            switch (changeFilter) {
+                case 'positive':
+                    return changePercent > 0;
+                case 'negative':
+                    return changePercent < 0;
+                case 'strong':
+                    return changePercent > 3;
+                default:
+                    return true;
+            }
+        });
+    }
+    
+    // 搜索筛选
+    if (searchTerm) {
+        filtered = filtered.filter(sector => 
+            sector.sector_name.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    filteredSectorData = filtered;
+    renderSectorRanking();
+}
+
+// 加载TOPK板块统计
+async function loadTopPerformers() {
+    const days = document.getElementById('statsDays').value;
+    const topK = document.getElementById('topK').value;
+    const resultContainer = document.getElementById('top-performers-result');
+    
+    try {
+        resultContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-spinner fa-spin"></i> 加载统计数据...
+            </div>
+        `;
+        
+        const response = await apiClient.getTopPerformingSectors(days, topK);
+        
+        if (response.success) {
+            const performers = response.data || [];
+            renderTopPerformers(performers, days, topK);
+        } else {
+            showMessage('加载TOPK统计失败: ' + (response.error?.message || '未知错误'), 'error');
+            resultContainer.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p class="mb-0 mt-2">加载失败</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Load top performers error:', error);
+        showMessage('加载TOPK统计失败: ' + error.message, 'error');
+        resultContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p class="mb-0 mt-2">加载失败</p>
+            </div>
+        `;
+    }
+}
+
+// 渲染TOPK板块统计
+function renderTopPerformers(performers, days, topK) {
+    const resultContainer = document.getElementById('top-performers-result');
+    
+    if (performers.length === 0) {
+        resultContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-inbox"></i>
+                <p class="mb-0 mt-2">暂无统计数据</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const performersHtml = `
+        <div class="mb-3">
+            <h6>最近${days}天TOP${topK}板块统计 (共${performers.length}个板块)</h6>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>排名</th>
+                        <th>板块名称</th>
+                        <th>进榜次数</th>
+                        <th>平均排名</th>
+                        <th>最佳排名</th>
+                        <th>最新排名</th>
+                        <th>趋势</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${performers.map((performer, index) => `
+                        <tr>
+                            <td>
+                                <span class="badge bg-${index < 3 ? 'warning' : 'secondary'}">
+                                    ${index + 1}
+                                </span>
+                            </td>
+                            <td><strong>${performer.sector_name}</strong></td>
+                            <td>
+                                <span class="badge bg-primary">${performer.appearances}</span>
+                            </td>
+                            <td>${parseFloat(performer.avg_rank || 0).toFixed(1)}</td>
+                            <td>
+                                <span class="badge bg-success">${performer.best_rank || '--'}</span>
+                            </td>
+                            <td>${performer.latest_rank || '--'}</td>
+                            <td>
+                                <span class="badge bg-${getTrendColor(performer.trend)}">
+                                    <i class="fas fa-${getTrendIcon(performer.trend)}"></i>
+                                    ${getTrendText(performer.trend)}
+                                </span>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    resultContainer.innerHTML = performersHtml;
+}
+
+// 加载板块历史数据
+async function loadSectorHistory() {
+    const startDate = document.getElementById('historyStartDate').value;
+    const endDate = document.getElementById('historyEndDate').value;
+    const sectorName = document.getElementById('historySector').value.trim();
+    const resultContainer = document.getElementById('sector-history-result');
+    
+    if (!startDate || !endDate) {
+        showMessage('请选择开始和结束日期', 'warning');
+        return;
+    }
+    
+    if (new Date(startDate) > new Date(endDate)) {
+        showMessage('开始日期不能晚于结束日期', 'warning');
+        return;
+    }
+    
+    try {
+        resultContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-spinner fa-spin"></i> 加载历史数据...
+            </div>
+        `;
+        
+        const params = {
+            start_date: startDate,
+            end_date: endDate
+        };
+        
+        if (sectorName) {
+            params.sector_name = sectorName;
+        }
+        
+        const response = await apiClient.getSectorHistory(params);
+        
+        if (response.success) {
+            const historyData = response.data || [];
+            renderSectorHistory(historyData, startDate, endDate, sectorName);
+        } else {
+            showMessage('加载历史数据失败: ' + (response.error?.message || '未知错误'), 'error');
+            resultContainer.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p class="mb-0 mt-2">加载失败</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Load sector history error:', error);
+        showMessage('加载历史数据失败: ' + error.message, 'error');
+        resultContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p class="mb-0 mt-2">加载失败</p>
+            </div>
+        `;
+    }
+}
+
+// 渲染板块历史数据
+function renderSectorHistory(historyData, startDate, endDate, sectorName) {
+    const resultContainer = document.getElementById('sector-history-result');
+    
+    if (historyData.length === 0) {
+        resultContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-inbox"></i>
+                <p class="mb-0 mt-2">指定时间范围内暂无数据</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const historyHtml = `
+        <div class="mb-3">
+            <h6>
+                ${sectorName ? `${sectorName} ` : ''}历史表现 
+                (${startDate} 至 ${endDate}, 共${historyData.length}条记录)
+            </h6>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>日期</th>
+                        <th>板块名称</th>
+                        <th>涨跌幅</th>
+                        <th>排名</th>
+                        <th>成交量</th>
+                        <th>总市值</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${historyData.map(record => {
+                        const changePercent = parseFloat(record.change_percent || 0);
+                        const changeClass = changePercent > 0 ? 'text-success' : changePercent < 0 ? 'text-danger' : 'text-muted';
+                        const changeIcon = changePercent > 0 ? 'fa-arrow-up' : changePercent < 0 ? 'fa-arrow-down' : 'fa-minus';
+                        
+                        return `
+                            <tr>
+                                <td>${record.record_date}</td>
+                                <td><strong>${record.sector_name}</strong></td>
+                                <td>
+                                    <span class="${changeClass}">
+                                        <i class="fas ${changeIcon}"></i>
+                                        ${changePercent.toFixed(2)}%
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-${record.rank_position <= 10 ? 'warning' : 'secondary'}">
+                                        ${record.rank_position || '--'}
+                                    </span>
+                                </td>
+                                <td>${record.volume ? formatNumber(record.volume) : '--'}</td>
+                                <td>${record.market_cap ? formatCurrency(record.market_cap) : '--'}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    resultContainer.innerHTML = historyHtml;
+}
+
+// 查看板块详情
+function viewSectorDetail(sectorName) {
+    // 这里可以实现板块详情查看功能
+    showMessage(`查看 ${sectorName} 详情功能待实现`, 'info');
+}
+
+// 导出TOPK数据
+function exportTopPerformers() {
+    // 这里可以实现数据导出功能
+    showMessage('导出功能待实现', 'info');
+}
+
+// 更新数据状态
+function updateDataStatus(status, type) {
+    const statusElement = document.getElementById('data-status');
+    statusElement.textContent = `数据状态: ${status}`;
+    statusElement.className = `badge bg-${type}`;
+}
+
+// 显示加载状态
+function showSectorLoading() {
+    document.getElementById('sector-ranking-tbody').innerHTML = `
+        <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+                <i class="fas fa-spinner fa-spin"></i> 加载中...
+            </td>
+        </tr>
+    `;
+}
+
+// 显示空状态
+function showSectorEmptyState() {
+    document.getElementById('sector-ranking-tbody').innerHTML = `
+        <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p class="mb-0 mt-2">加载失败</p>
+            </td>
+        </tr>
+    `;
+}
+
+// 获取趋势颜色
+function getTrendColor(trend) {
+    switch (trend) {
+        case 'up': return 'success';
+        case 'down': return 'danger';
+        default: return 'secondary';
+    }
+}
+
+// 获取趋势图标
+function getTrendIcon(trend) {
+    switch (trend) {
+        case 'up': return 'arrow-up';
+        case 'down': return 'arrow-down';
+        default: return 'minus';
+    }
+}
+
+// 获取趋势文本
+function getTrendText(trend) {
+    switch (trend) {
+        case 'up': return '上升';
+        case 'down': return '下降';
+        default: return '稳定';
+    }
+}
+
+// 页面初始化
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.pathname.includes('sector-analysis') || window.location.pathname.includes('sector_analysis')) {
+        initSectorAnalysis();
+    }
+});
+</script>
+{% endblock %}

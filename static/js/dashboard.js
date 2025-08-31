@@ -103,9 +103,9 @@ function updateStatsCards(data) {
         // 根据盈亏情况设置颜色
         realizedProfitElement.className = 'stats-value';
         if (realizedProfit > 0) {
-            realizedProfitElement.style.color = '#28a745'; // 绿色表示盈利
+            realizedProfitElement.style.color = '#dc3545'; // 红色表示盈利
         } else if (realizedProfit < 0) {
-            realizedProfitElement.style.color = '#dc3545'; // 红色表示亏损
+            realizedProfitElement.style.color = '#28a745'; // 绿色表示亏损
         } else {
             realizedProfitElement.style.color = '#6c757d'; // 灰色表示持平
         }
@@ -119,9 +119,9 @@ function updateStatsCards(data) {
         // 根据盈亏情况设置颜色
         currentHoldingsProfitElement.className = 'stats-value';
         if (holdingsProfit > 0) {
-            currentHoldingsProfitElement.style.color = '#28a745'; // 绿色表示盈利
+            currentHoldingsProfitElement.style.color = '#dc3545'; // 红色表示盈利
         } else if (holdingsProfit < 0) {
-            currentHoldingsProfitElement.style.color = '#dc3545'; // 红色表示亏损
+            currentHoldingsProfitElement.style.color = '#28a745'; // 绿色表示亏损
         } else {
             currentHoldingsProfitElement.style.color = '#6c757d'; // 灰色表示持平
         }
@@ -137,14 +137,14 @@ function updateStatsCards(data) {
     // 更新总收益率
     const totalProfitElement = document.getElementById('total-profit');
     if (totalProfitElement) {
-        const profit = (data.total_return_rate || 0) / 100; // 转换为小数
+        const profit = data.total_return_rate || 0; // 后端已返回小数形式，直接使用
         totalProfitElement.textContent = Formatters.percentage(profit);
         // 移除之前的颜色类，根据盈亏情况添加新的颜色
         totalProfitElement.className = 'stats-value';
         if (profit > 0) {
-            totalProfitElement.style.color = '#28a745'; // 绿色表示盈利
+            totalProfitElement.style.color = '#dc3545'; // 红色表示盈利
         } else if (profit < 0) {
-            totalProfitElement.style.color = '#dc3545'; // 红色表示亏损
+            totalProfitElement.style.color = '#28a745'; // 绿色表示亏损
         } else {
             totalProfitElement.style.color = '#6c757d'; // 灰色表示持平
         }
@@ -159,7 +159,7 @@ function updateStatsCards(data) {
     // 更新成功率
     const successRateElement = document.getElementById('success-rate');
     if (successRateElement) {
-        const rate = (data.success_rate || 0) / 100; // 转换为小数
+        const rate = data.success_rate || 0; // 后端已返回小数形式，直接使用
         successRateElement.textContent = Formatters.percentage(rate);
     }
 

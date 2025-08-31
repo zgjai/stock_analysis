@@ -1,0 +1,3018 @@
+{% extends "base.html" %}
+
+{% block title %}复盘分析 - 股票交易记录系统{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">复盘分析</li>
+{% endblock %}
+
+{% block page_title %}复盘分析{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-optimizations.css') }}">
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+
+    /* 浮盈计算器样式 */
+    .floating-profit-container {
+        position: relative;
+    }
+
+    .floating-profit-container.profit {
+        background-color: rgba(25, 135, 84, 0.1);
+        border-radius: 4px;
+        padding: 2px 4px;
+    }
+
+    .floating-profit-container.loss {
+        background-color: rgba(220, 53, 69, 0.1);
+        border-radius: 4px;
+        padding: 2px 4px;
+    }
+
+    .floating-profit-container.neutral {
+        background-color: rgba(108, 117, 125, 0.1);
+        border-radius: 4px;
+        padding: 2px 4px;
+    }
+
+    #floating-profit-ratio {
+        font-size: 1.1em;
+        font-weight: bold;
+    }
+
+    /* 持仓列表增强样式 */
+    .holding-item {
+        transition: all 0.2s ease;
+        border: 1px solid #dee2e6;
+        background-color: #fff;
+    }
+
+    .holding-item:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+        border-color: #007bff;
+    }
+
+    .holding-item .fw-bold {
+        font-size: 1.1rem;
+    }
+
+    .holding-item .text-success {
+        color: #28a745 !important;
+        font-weight: 600;
+    }
+
+    .holding-item .text-danger {
+        color: #dc3545 !important;
+        font-weight: 600;
+    }
+
+    /* 持仓天数显示样式 */
+    .holding-days-display {
+        position: relative;
+        cursor: help;
+    }
+
+    .holding-days-display .text-info {
+        color: #0d6efd !important;
+        font-weight: 600;
+    }
+
+    .holding-days-display:hover .text-info {
+        color: #0a58ca !important;
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="review-page">
+    <div class="row">
+        <!-- 当前持仓列表 -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">当前持仓</h5>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary" onclick="refreshHoldings()">
+                                <i class="fas fa-sync-alt"></i> 刷新
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="refreshHoldingsWithPrices()">
+                                <i class="fas fa-dollar-sign"></i> 刷新价格
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="toggleAutoRefresh()"
+                                id="auto-refresh-btn">
+                                <i class="fas fa-play"></i> 自动刷新
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted" id="price-update-status">
+                            <i class="fas fa-clock"></i> 价格更新时间: <span id="last-price-update">--</span>
+                        </small>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="holdings-list">
+                        <div class="text-center text-muted">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            加载中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 复盘记录历史 -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">复盘记录</h5>
+                </div>
+                <div class="card-body">
+                    <div id="reviews-list">
+                        <div class="text-center text-muted">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            加载中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 持仓提醒和操作面板 -->
+        <div class="col-lg-4">
+            <!-- 快速复盘面板 -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">快速复盘</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">选择股票</label>
+                        <select class="form-select" id="quick-review-stock">
+                            <option value="">请选择持仓股票</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary w-100" onclick="openQuickReview()">开始复盘</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 复盘评分模态框 -->
+    <div class="modal fade" id="reviewModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">复盘评分</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="review-form">
+                        <input type="hidden" id="review-stock-code">
+                        <input type="hidden" id="review-id">
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">股票代码</label>
+                                <input type="text" class="form-control" id="display-stock-code" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">复盘日期</label>
+                                <input type="date" class="form-control" id="review-date" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">持仓天数</label>
+                                <input type="number" class="form-control" id="holding-days" min="1" required>
+                            </div>
+                        </div>
+
+                        <!-- 当前价格和浮盈计算 -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">浮盈计算</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label class="form-label">当前价格</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control" id="current-price-input"
+                                                placeholder="输入当前价格" step="0.01" min="0.01" max="9999.99">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">成本价</label>
+                                        <div class="form-control-plaintext" id="buy-price-display">--</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">浮盈比例</label>
+                                        <div class="floating-profit-container">
+                                            <div class="form-control-plaintext fw-bold" id="floating-profit-ratio">--
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">评分标准 (每项1分，总分5分)</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="price-up-score"
+                                                value="1">
+                                            <label class="form-check-label" for="price-up-score">收盘价上升</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="bbi-score" value="1">
+                                            <label class="form-check-label" for="bbi-score">不破BBI线</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="volume-score" value="1">
+                                            <label class="form-check-label" for="volume-score">无放量阴线</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="trend-score" value="1">
+                                            <label class="form-check-label" for="trend-score">趋势还在向上</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="j-score" value="1">
+                                            <label class="form-check-label" for="j-score">J没死叉</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <strong>总分: <span id="total-score" class="text-primary">0</span>/5</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">分析内容</label>
+                            <textarea class="form-control" id="analysis" rows="3" placeholder="请输入分析内容..."></textarea>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">决策结果</label>
+                                <select class="form-select" id="decision" required>
+                                    <option value="">请选择决策</option>
+                                    <option value="hold">继续持有</option>
+                                    <option value="sell_partial">部分止盈</option>
+                                    <option value="sell_all">清仓</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">决策理由</label>
+                            <textarea class="form-control" id="reason" rows="2" placeholder="请输入决策理由..."
+                                required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="save-review-btn"
+                        onclick="saveReview()">保存复盘</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- 紧急语法修复脚本 - 必须最先加载 -->
+<script src="{{ url_for('static', filename='js/emergency-syntax-fix.js') }}"></script>
+
+<!-- 紧急修复脚本 - 必须最先加载 -->
+<script src="{{ url_for('static', filename='js/review-emergency-fix.js') }}"></script>
+
+<!-- 工具函数库 - 提供性能优化工具 -->
+<script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+
+<!-- 性能优化工具 - 提供高级优化功能 -->
+<script src="{{ url_for('static', filename='js/performance-optimizations.js') }}"></script>
+
+<!-- 统一消息系统 - 必须在其他脚本之前加载 -->
+<script src="{{ url_for('static', filename='js/unified-message-system.js') }}"></script>
+
+<!-- API客户端 - 必须在保存管理器之前加载 -->
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+
+<!-- 复盘保存管理器 - 依赖API客户端 -->
+<script src="{{ url_for('static', filename='js/review-save-manager.js') }}"></script>
+
+<!-- 调试监控系统 - 提供错误监控和调试支持 -->
+<script src="{{ url_for('static', filename='js/debug-monitoring.js') }}"></script>
+<script>
+    // 备用 ReviewSaveManager 类定义 - 防止外部文件加载失败
+    if (typeof ReviewSaveManager === 'undefined') {
+        class ReviewSaveManager {
+            constructor(formSelector = '#review-form') {
+                this.form = document.querySelector(formSelector);
+                this.hasUnsavedChanges = false;
+                this.isSaving = false;
+                this.originalFormData = {};
+                this.saveButton = null;
+
+                if (this.form) {
+                    this.init();
+                }
+            }
+
+            init() {
+                this.setupFormElements();
+                this.setupEventListeners();
+                this.captureOriginalFormData();
+                console.log('ReviewSaveManager (备用版本) 初始化完成');
+            }
+
+            setupFormElements() {
+                this.saveButton = document.querySelector('#reviewModal .btn-primary[onclick*="saveReview"]') ||
+                    document.querySelector('#reviewModal .modal-footer .btn-primary');
+
+                if (this.saveButton) {
+                    this.saveButton.removeAttribute('onclick');
+                    this.saveButton.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.saveReview();
+                    });
+                }
+            }
+
+            setupEventListeners() {
+                if (!this.form) return;
+
+                const formElements = this.form.querySelectorAll('input, select, textarea');
+                formElements.forEach(element => {
+                    element.addEventListener('input', () => this.detectChanges());
+                    element.addEventListener('change', () => this.detectChanges());
+                });
+            }
+
+            detectChanges() {
+                if (this.isSaving) return;
+
+                const currentFormData = this.getCurrentFormData();
+                const hasChanges = JSON.stringify(this.originalFormData) !== JSON.stringify(currentFormData);
+
+                if (hasChanges !== this.hasUnsavedChanges) {
+                    this.hasUnsavedChanges = hasChanges;
+                    this.updateSaveButtonState();
+                }
+            }
+
+            getCurrentFormData() {
+                const formData = {};
+                if (!this.form) return formData;
+
+                const elements = this.form.querySelectorAll('input, select, textarea');
+                elements.forEach(element => {
+                    const name = element.name || element.id;
+                    if (!name) return;
+
+                    if (element.type === 'checkbox') {
+                        formData[name] = element.checked;
+                    } else if (element.type === 'radio') {
+                        if (element.checked) {
+                            formData[name] = element.value;
+                        }
+                    } else {
+                        formData[name] = element.value;
+                    }
+                });
+
+                return formData;
+            }
+
+            captureOriginalFormData() {
+                this.originalFormData = this.getCurrentFormData();
+                this.hasUnsavedChanges = false;
+                this.updateSaveButtonState();
+            }
+
+            updateSaveButtonState() {
+                if (!this.saveButton) return;
+
+                if (this.isSaving) {
+                    this.saveButton.disabled = true;
+                    this.saveButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>保存中...';
+                } else if (this.hasUnsavedChanges) {
+                    this.saveButton.disabled = false;
+                    this.saveButton.innerHTML = '保存复盘';
+                    this.saveButton.classList.remove('btn-outline-primary');
+                    this.saveButton.classList.add('btn-primary');
+                } else {
+                    this.saveButton.disabled = true;
+                    this.saveButton.innerHTML = '已保存';
+                    this.saveButton.classList.remove('btn-primary');
+                    this.saveButton.classList.add('btn-outline-primary');
+                }
+            }
+
+            async saveReview() {
+                if (this.isSaving || !this.hasUnsavedChanges) return;
+
+                this.isSaving = true;
+                this.updateSaveButtonState();
+
+                try {
+                    const reviewData = this.collectReviewData();
+                    const reviewId = document.getElementById('review-id')?.value || null;
+
+                    if (typeof apiClient !== 'undefined' && apiClient.saveReview) {
+                        const response = await apiClient.saveReview(reviewData, reviewId);
+
+                        if (response.success) {
+                            this.captureOriginalFormData();
+                            if (typeof showSuccessMessage === 'function') {
+                                showSuccessMessage('复盘保存成功');
+                            }
+                            if (typeof loadReviews === 'function') {
+                                loadReviews();
+                            }
+                        } else {
+                            throw new Error(response.error?.message || '保存失败');
+                        }
+                    } else {
+                        throw new Error('API客户端未初始化');
+                    }
+                } catch (error) {
+                    console.error('保存复盘失败:', error);
+                    if (typeof showErrorMessage === 'function') {
+                        showErrorMessage('保存失败: ' + error.message);
+                    }
+                } finally {
+                    this.isSaving = false;
+                    this.updateSaveButtonState();
+                }
+            }
+
+            collectReviewData() {
+                return {
+                    stock_code: document.getElementById('review-stock-code')?.value || '',
+                    review_date: document.getElementById('review-date')?.value || '',
+                    holding_days: parseInt(document.getElementById('holding-days')?.value) || 0,
+                    current_price: parseFloat(document.getElementById('current-price-input')?.value) || null,
+                    price_up_score: document.getElementById('price-up-score')?.checked ? 1 : 0,
+                    bbi_score: document.getElementById('bbi-score')?.checked ? 1 : 0,
+                    volume_score: document.getElementById('volume-score')?.checked ? 1 : 0,
+                    trend_score: document.getElementById('trend-score')?.checked ? 1 : 0,
+                    j_score: document.getElementById('j-score')?.checked ? 1 : 0,
+                    analysis: document.getElementById('analysis')?.value || '',
+                    decision: document.getElementById('decision')?.value || '',
+                    reason: document.getElementById('reason')?.value || ''
+                };
+            }
+        }
+
+        console.log('✅ 备用 ReviewSaveManager 类已定义');
+    }
+
+    // 全局API客户端和保存管理器实例 - 使用条件声明避免重复
+    if (typeof window.apiClient === 'undefined') {
+        window.apiClient = null;
+    }
+    if (typeof window.reviewSaveManager === 'undefined') {
+        window.reviewSaveManager = null;
+    }
+
+    // 依赖检查函数 - 增强版本，包含性能优化工具和调试监控检查
+    function checkDependencies() {
+        console.log('🔍 检查JavaScript依赖...');
+
+        const dependencies = [
+            { name: 'PerformanceUtils', check: () => typeof PerformanceUtils !== 'undefined', critical: false },
+            { name: 'debounce', check: () => typeof debounce !== 'undefined', critical: true },
+            { name: 'throttle', check: () => typeof throttle !== 'undefined', critical: true },
+            { name: 'UnifiedMessageSystem', check: () => typeof UnifiedMessageSystem !== 'undefined', critical: true },
+            { name: 'ApiClient', check: () => typeof ApiClient !== 'undefined', critical: true },
+            { name: 'ReviewSaveManager', check: () => typeof ReviewSaveManager !== 'undefined', critical: true },
+            { name: 'Bootstrap', check: () => typeof bootstrap !== 'undefined', critical: true },
+            { name: 'DebugMonitoringSystem', check: () => typeof DebugMonitoringSystem !== 'undefined', critical: false },
+            { name: 'debugTools', check: () => typeof debugTools !== 'undefined', critical: false },
+            { name: 'logInitializationProgress', check: () => typeof logInitializationProgress === 'function', critical: false }
+        ];
+
+        const missing = dependencies.filter(dep => !dep.check());
+        const criticalMissing = missing.filter(dep => dep.critical !== false);
+
+        if (missing.length > 0) {
+            const missingNames = missing.map(dep => dep.name).join(', ');
+            console.error('❌ 缺少依赖:', missingNames);
+
+            // 区分关键和非关键依赖
+            if (criticalMissing.length > 0) {
+                const criticalNames = criticalMissing.map(dep => dep.name).join(', ');
+                console.error('🚨 关键依赖缺失:', criticalNames);
+
+                // 如果消息系统可用，使用它；否则使用fallback
+                if (typeof showErrorMessage === 'function') {
+                    showErrorMessage(`关键依赖加载失败: ${criticalNames}。请刷新页面重试。`);
+                } else {
+                    alert(`关键依赖加载失败: ${criticalNames}。请刷新页面重试。`);
+                }
+                return false;
+            } else {
+                // 只有非关键依赖缺失，显示警告但继续
+                const nonCriticalNames = missing.map(dep => dep.name).join(', ');
+                console.warn('⚠️ 非关键依赖缺失:', nonCriticalNames);
+
+                if (typeof showWarningMessage === 'function') {
+                    showWarningMessage(`部分功能可能受限: ${nonCriticalNames}`);
+                }
+            }
+        }
+
+        console.log('✅ 依赖检查完成');
+        return true;
+    }
+
+    // 初始化API客户端
+    function initializeApiClient() {
+        console.log('🔧 初始化API客户端...');
+
+        try {
+            if (typeof ApiClient !== 'undefined') {
+                // 如果已经存在实例，直接使用
+                if (window.apiClient && typeof window.apiClient.get === 'function') {
+                    console.log('✅ API客户端已存在，跳过初始化');
+                    return true;
+                }
+                window.apiClient = new ApiClient();
+                console.log('✅ API客户端初始化成功');
+                return true;
+            } else {
+                console.error('❌ ApiClient类未找到');
+                showErrorMessage('API客户端加载失败，请刷新页面重试');
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ API客户端初始化失败:', error);
+            showErrorMessage('API客户端初始化失败: ' + error.message);
+            return false
+        }
+    }
+
+    // 初始化复盘保存管理器
+    function initializeReviewSaveManager() {
+        console.log('🔧 初始化复盘保存管理器...');
+
+        try {
+            if (typeof ReviewSaveManager !== 'undefined') {
+                // 如果已经存在实例，直接使用
+                if (window.reviewSaveManager && typeof window.reviewSaveManager.saveReview === 'function') {
+                    console.log('✅ 复盘保存管理器已存在，跳过初始化');
+                    return true;
+                }
+                window.reviewSaveManager = new ReviewSaveManager('#review-form');
+                console.log('✅ 复盘保存管理器初始化成功');
+                return true;
+            } else {
+                console.error('❌ ReviewSaveManager类未找到');
+                showErrorMessage('保存管理器加载失败，请刷新页面重试');
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ 复盘保存管理器初始化失败:', error);
+            showErrorMessage('保存管理器初始化失败: ' + error.message);
+            return false
+        }
+    }
+
+    // 消息显示函数 - 使用统一消息系统
+    // 这些函数现在由unified-message-system.js提供
+    // 保留这里的注释以便理解消息系统的使用方式
+    // showErrorMessage(message, options) - 显示错误消息
+    // showSuccessMessage(message, options) - 显示成功消息
+    // showWarningMessage(message, options) - 显示警告消息
+    // showInfoMessage(message, options) - 显示信息消息
+    // 示例用法:
+    // showErrorMessage('保存失败，请重试')
+    // showSuccessMessage('保存成功', { position: 'toast' })
+    // showWarningMessage('数据可能不完整', { duration: 4000 })
+    // showInfoMessage('正在加载数据...', { dismissible: false })
+
+    // 页面初始化主函数 - 实现分步初始化流程，包含错误处理和详细日志记录
+    function initializeReviewPage() {
+        console.log('🚀 开始初始化复盘页面');
+        console.time('页面初始化耗时');
+
+        // 记录初始化开始
+        if (typeof logInitializationProgress === 'function') {
+            logInitializationProgress('复盘页面初始化', 'start', {
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                url: window.location.href
+            });
+        }
+
+        // 定义初始化步骤，按依赖顺序排列
+        const initSteps = [
+            {
+                name: '依赖检查',
+                fn: checkDependencies,
+                critical: true, // 关键步骤，失败则停止后续初始化
+                description: '检查JavaScript依赖是否正确加载'
+            },
+            {
+                name: 'API客户端初始化',
+                fn: initializeApiClient,
+                critical: true,
+                description: '初始化API客户端实例'
+            },
+            {
+                name: '保存管理器初始化',
+                fn: initializeReviewSaveManager,
+                critical: true,
+                description: '初始化复盘保存管理器实例'
+            },
+            {
+                name: '事件绑定',
+                fn: bindReviewEvents,
+                critical: false,
+                description: '绑定页面事件处理器'
+            },
+            {
+                name: '保存状态管理集成',
+                fn: integrateReviewSaveStateManagement,
+                critical: false,
+                description: '集成保存状态管理功能'
+            },
+            {
+                name: '数据加载',
+                fn: loadAllData,
+                critical: false,
+                description: '加载页面初始数据'
+            }
+        ];
+
+        let successCount = 0;
+        let criticalFailure = false;
+        const results = [];
+
+        // 分步执行初始化
+        for (let i = 0; i < initSteps.length; i++) {
+            const step = initSteps[i];
+            const stepStartTime = performance.now();
+
+            console.group(`📋 步骤 ${i + 1}/${initSteps.length}: ${step.name}`);
+            console.log(`📝 描述: ${step.description}`);
+            console.log(`🔧 开始执行...`);
+
+            // 记录步骤开始
+            logInitializationProgress(step.name, 'start', {
+                stepIndex: i + 1,
+                totalSteps: initSteps.length,
+                description: step.description,
+                critical: step.critical
+            });
+
+            try {
+                // 执行初始化步骤
+                const result = step.fn();
+                const stepEndTime = performance.now();
+                const stepDuration = (stepEndTime - stepStartTime).toFixed(2);
+
+                if (result === false) {
+                    console.error(`❌ ${step.name}失败`);
+                    console.log(`⏱️ 耗时: ${stepDuration}ms`);
+
+                    // 记录步骤失败
+                    logInitializationProgress(step.name, 'error', {
+                        error: '函数返回false',
+                        duration: stepDuration,
+                        critical: step.critical
+                    });
+
+                    results.push({
+                        step: step.name,
+                        success: false,
+                        error: '函数返回false',
+                        duration: stepDuration,
+                        critical: step.critical
+                    });
+
+                    if (step.critical) {
+                        console.error(`🚨 关键步骤失败，停止后续初始化`);
+                        logInitializationProgress('初始化流程', 'error', {
+                            reason: '关键步骤失败',
+                            failedStep: step.name
+                        });
+                        criticalFailure = true;
+                        console.groupEnd();
+                        break;
+                    }
+                } else {
+                    console.log(`✅ ${step.name}成功`);
+                    console.log(`⏱️ 耗时: ${stepDuration}ms`);
+                    successCount++;
+
+                    // 记录步骤成功
+                    logInitializationProgress(step.name, 'success', {
+                        duration: stepDuration,
+                        critical: step.critical
+                    });
+
+                    results.push({
+                        step: step.name,
+                        success: true,
+                        duration: stepDuration,
+                        critical: step.critical
+                    });
+                }
+            } catch (error) {
+                const stepEndTime = performance.now();
+                const stepDuration = (stepEndTime - stepStartTime).toFixed(2);
+
+                console.error(`❌ ${step.name}异常:`, error);
+                console.log(`⏱️ 耗时: ${stepDuration}ms`);
+
+                // 记录步骤异常
+                logInitializationProgress(step.name, 'error', {
+                    error: error.message || error.toString(),
+                    stack: error.stack,
+                    duration: stepDuration,
+                    critical: step.critical
+                });
+
+                results.push({
+                    step: step.name,
+                    success: false,
+                    error: error.message || error.toString(),
+                    duration: stepDuration,
+                    critical: step.critical
+                });
+
+                // 显示用户友好的错误消息
+                if (typeof showErrorMessage === 'function') {
+                    showErrorMessage(`${step.name}失败: ${error.message || '未知错误'}`);
+                }
+
+                if (step.critical) {
+                    console.error(`🚨 关键步骤异常，停止后续初始化`);
+                    logInitializationProgress('初始化流程', 'error', {
+                        reason: '关键步骤异常',
+                        failedStep: step.name,
+                        error: error.message
+                    });
+                    criticalFailure = true;
+                    console.groupEnd();
+                    break;
+                }
+            }
+
+            console.groupEnd();
+
+            // 在步骤之间添加小延迟，避免阻塞UI
+            if (i < initSteps.length - 1) {
+                setTimeout(() => { }, 10);
+            }
+        }
+
+        console.timeEnd('页面初始化耗时');
+
+        // 记录初始化结果
+        console.group('📊 初始化结果汇总');
+        console.table(results);
+        console.log(`✅ 成功步骤: ${successCount}/${initSteps.length}`);
+        console.log(`❌ 失败步骤: ${initSteps.length - successCount}/${initSteps.length}`);
+        console.log(`🚨 关键失败: ${criticalFailure ? '是' : '否'}`);
+        console.groupEnd();
+
+        // 根据结果显示相应消息并记录最终状态
+        if (criticalFailure) {
+            console.error('🚨 复盘页面初始化失败，关键功能无法使用');
+
+            logInitializationProgress('初始化完成', 'error', {
+                successCount,
+                totalSteps: initSteps.length,
+                criticalFailure: true,
+                results,
+            });
+
+            if (typeof showErrorMessage === 'function') {
+                showErrorMessage('页面初始化失败，请刷新页面重试');
+            }
+            return false;
+        } else if (successCount === initSteps.length) {
+            console.log('🎉 复盘页面初始化完全成功');
+
+            logInitializationProgress('初始化完成', 'success', {
+                successCount,
+                totalSteps: initSteps.length,
+                criticalFailure: false,
+                results,
+            });
+
+            if (typeof showSuccessMessage === 'function') {
+                showSuccessMessage('复盘页面初始化成功');
+            }
+
+            // 执行集成验证（延迟执行，避免阻塞）
+            setTimeout(() => {
+                if (typeof verifySaveStateManagementIntegration === 'function') {
+                    verifySaveStateManagementIntegration()
+                }
+            }, 1000);
+
+            return true;
+        } else {
+            console.warn('⚠️ 复盘页面初始化部分成功，某些功能可能无法正常使用');
+
+            logInitializationProgress('初始化完成', 'warning', {
+                successCount,
+                totalSteps: initSteps.length,
+                criticalFailure: false,
+                results,
+            });
+
+            if (typeof showWarningMessage === 'function') {
+                showWarningMessage(`页面初始化部分成功 (${successCount}/${initSteps.length})，某些功能可能受限`);
+            }
+            return true; // 部分成功仍然返回true，允许页面继续使用
+        }
+    }
+
+    // 验证JavaScript文件加载状态（保持向后兼容）
+    function verifyJavaScriptDependencies() {
+        return checkDependencies()
+    }
+
+    // 简化的复盘分析页面管理
+    let reviewModal = null;
+    let currentHoldings = [];
+    let currentReviews = [];
+
+    // 页面初始化 - 在DOMContentLoaded事件中调用初始化函数
+    document.addEventListener('DOMContentLoaded', async function () {
+        console.log('🌟 DOM加载完成，开始复盘页面初始化流程');
+        console.log('📅 初始化时间:', new Date().toLocaleString('zh-CN'));
+        console.log('🌐 用户代理:', navigator.userAgent);
+
+        try {
+            // 执行主初始化流程
+            const initSuccess = initializeReviewPage();
+
+            // 初始化Bootstrap模态框（独立于主流程）
+            initializeBootstrapModal()
+
+            // 记录初始化完成
+            console.log('🏁 复盘页面初始化流程完成');
+            console.log('📊 初始化结果:', initSuccess ? '成功' : '失败');
+
+            // 如果初始化成功，执行后续操作
+            if (initSuccess) {
+                console.log('🎯 开始执行后续初始化操作');
+
+                // 延迟执行非关键操作，避免阻塞主流程
+                setTimeout(() => {
+                    performPostInitializationTasks();
+                }, 100);
+            } else {
+                console.error('🚨 初始化失败，页面功能可能受限');
+            }
+        } catch (error) {
+            console.error('🚨 页面初始化过程中发生未捕获的异常:', error);
+            if (typeof showErrorMessage === 'function') {
+                showErrorMessage('页面初始化异常: ' + error.message);
+            } else {
+                alert('页面初始化异常，请刷新页面重试');
+            }
+        }
+    });
+
+    // 初始化Bootstrap模态框
+    function initializeBootstrapModal() {
+        console.log('🔧 初始化Bootstrap模态框');
+
+        const modalElement = document.getElementById('reviewModal');
+        if (!modalElement) {
+            console.warn('⚠️ 复盘模态框元素未找到');
+            return false;
+        }
+
+        try {
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                reviewModal = new bootstrap.Modal(modalElement);
+                console.log('✅ Bootstrap模态框初始化成功');
+                return true;
+            } else {
+                console.error('❌ Bootstrap Modal类未找到');
+                if (typeof showWarningMessage === 'function') {
+                    showWarningMessage('Bootstrap Modal未加载，模态框功能可能无法正常使用');
+                }
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Bootstrap模态框初始化失败:', error);
+            if (typeof showErrorMessage === 'function') {
+                showErrorMessage('模态框初始化失败: ' + error.message)
+            }
+            return false;
+        }
+    }
+
+    // 执行后续初始化任务
+    function performPostInitializationTasks() {
+        console.log('🎯 执行后续初始化任务');
+
+        const tasks = [
+            {
+                name: '设置自动刷新',
+                fn: () => {
+                    // 这里可以添加自动刷新逻辑
+                    console.log('⏰ 自动刷新设置完成');
+                    return true;
+                }
+            },
+            {
+                name: '注册全局错误处理',
+                fn: () => {
+                    window.addEventListener('error', function (event) {
+                        console.error('🚨 全局JavaScript错误:', event.error);
+                    });
+                    window.addEventListener('unhandledrejection', function (event) {
+                        console.error('🚨 未处理的Promise拒绝:', event.reason);
+                    });
+                    console.log('🛡️ 全局错误处理注册完成');
+                    return true;
+                }
+            },
+            {
+                name: '性能监控',
+                fn: () => {
+                    if ('performance' in window) {
+                        const loadTime = performance.now();
+                        console.log(`⚡ 页面加载性能: ${loadTime.toFixed(2)}ms`);
+                    }
+                    return true;
+                }
+            }
+        ];
+
+        tasks.forEach(task => {
+            try {
+                task.fn();
+                console.log(`✅ ${task.name}完成`);
+            } catch (error) {
+                console.error(`❌ ${task.name}失败:`, error);
+            }
+        });
+
+        console.log('🎉 后续初始化任务完成');
+    }
+
+    // 绑定复盘页面相关事件
+    function bindReviewEvents() {
+        console.log('🔗 绑定复盘页面事件');
+
+        try {
+            // 绑定评分复选框事件
+            bindScoreCheckboxes();
+
+            // 绑定浮盈计算器事件
+            bindFloatingProfitCalculator();
+
+            // 绑定模态框事件
+            bindModalEvents();
+
+            console.log('✅ 复盘页面事件绑定成功');
+            return true;
+        } catch (error) {
+            console.error('❌ 复盘页面事件绑定失败:', error);
+            return false;
+        }
+    }
+
+    function bindScoreCheckboxes() {
+        console.log('🔗 绑定评分复选框事件');
+
+        const checkboxes = ['price-up-score', 'bbi-score', 'volume-score', 'trend-score', 'j-score'];
+        let boundCount = 0;
+
+        checkboxes.forEach(id => {
+            const checkbox = document.getElementById(id);
+            if (checkbox) {
+                checkbox.addEventListener('change', calculateTotalScore);
+                boundCount++;
+            } else {
+                console.warn(`⚠️ 评分复选框 ${id} 未找到`);
+            }
+        });
+
+        console.log(`✅ 评分复选框事件绑定完成: ${boundCount}/${checkboxes.length}`);
+        return boundCount > 0;
+    }
+
+    function bindFloatingProfitCalculator() {
+        console.log('🔗 绑定浮盈计算器事件');
+
+        const currentPriceInput = document.getElementById('current-price-input');
+        if (currentPriceInput) {
+            currentPriceInput.addEventListener('input', calculateFloatingProfit);
+            console.log('✅ 浮盈计算器事件绑定成功');
+            return true;
+        } else {
+            console.warn('⚠️ 当前价格输入框未找到');
+            return false;
+        }
+    }
+
+    function bindModalEvents() {
+        console.log('🔗 绑定模态框事件');
+
+        const modalElement = document.getElementById('reviewModal');
+        if (modalElement) {
+            // 绑定模态框显示事件
+            modalElement.addEventListener('shown.bs.modal', function () {
+                console.log('📋 复盘模态框已显示');
+                // 聚焦到第一个输入框
+                const firstInput = modalElement.querySelector('input:not([readonly]):not([type="hidden"])');
+                if (firstInput) {
+                    firstInput.focus();
+                }
+            });
+
+            // 绑定模态框隐藏事件
+            modalElement.addEventListener('hide.bs.modal', function (event) {
+                console.log('📋 复盘模态框准备隐藏');
+                // 这里可以添加未保存更改的检查逻辑
+                if (reviewSaveManager && reviewSaveManager.hasUnsavedChanges && reviewSaveManager.hasUnsavedChanges()) {
+                    if (!confirm('您有未保存的更改，确定要关闭吗？')) {
+                        event.preventDefault();
+                        return false;
+                    }
+                }
+            });
+
+            console.log('✅ 模态框事件绑定成功');
+            return true;
+        } else {
+            console.warn('⚠️ 复盘模态框元素未找到');
+            return false;
+        }
+    }
+
+    // 集成保存状态管理功能
+    function integrateReviewSaveStateManagement() {
+        console.log('🔗 集成保存状态管理功能');
+
+        try {
+            if (!window.reviewSaveManager) {
+                console.warn('⚠️ 保存管理器未初始化，跳过状态管理集成');
+                return false;
+            }
+
+            // 确保保存管理器已正确绑定到表单
+            const form = document.querySelector('#review-form');
+            if (!form) {
+                console.error('❌ 复盘表单未找到');
+                return false;
+            }
+
+            // 验证保存按钮状态管理
+            const saveBtn = document.querySelector('#save-review-btn');
+            if (saveBtn) {
+                console.log('✅ 保存按钮找到，状态管理已集成');
+
+                // 确保保存管理器正确绑定到表单和按钮
+                if (window.reviewSaveManager.form !== form) {
+                    console.log('🔧 重新绑定表单到保存管理器');
+                    window.reviewSaveManager.form = form;
+                }
+
+                if (window.reviewSaveManager.saveButton !== saveBtn) {
+                    console.log('🔧 重新绑定保存按钮到保存管理器');
+                    window.reviewSaveManager.saveButton = saveBtn;
+                }
+
+            } else {
+                console.warn('⚠️ 保存按钮未找到，但继续执行');
+                // 不返回false，因为按钮可能稍后动态创建
+            }
+
+            // 验证保存管理器的关键方法
+            if (typeof window.reviewSaveManager.saveReview === 'function') {
+                console.log('✅ 保存管理器方法验证通过');
+            } else {
+                console.error('❌ 保存管理器缺少关键方法');
+                return false;
+            }
+
+            console.log('✅ 保存状态管理集成成功');
+            return true;
+        } catch (error) {
+            console.error('❌ 保存状态管理集成失败:', error);
+            return false;
+        }
+    }
+
+    // 加载所有页面数据
+    function loadAllData() {
+        console.log('📊 加载页面数据');
+
+        try {
+            // 加载持仓数据
+            if (typeof refreshHoldings === 'function') {
+                refreshHoldings();
+            } else {
+                console.warn('⚠️ refreshHoldings函数未定义');
+            }
+
+            // 加载复盘记录
+            if (typeof loadReviews === 'function') {
+                loadReviews();
+            } else {
+                console.warn('⚠️ loadReviews函数未定义');
+            }
+
+            console.log('✅ 数据加载完成');
+            return true;
+        } catch (error) {
+            console.error('❌ 数据加载失败:', error);
+            return false;
+        }
+    }
+
+    // 验证保存状态管理集成
+    function verifySaveStateManagementIntegration() {
+        console.log('🔍 验证保存状态管理集成');
+
+        if (!reviewSaveManager) {
+            console.error('❌ 保存管理器未初始化');
+            return false;
+        }
+
+        try {
+            // 检查保存管理器的关键方法
+            const requiredMethods = ['saveReview', 'hasUnsavedChanges'];
+            const missingMethods = requiredMethods.filter(method =>
+                typeof reviewSaveManager[method] !== 'function'
+            );
+
+            if (missingMethods.length > 0) {
+                console.error('❌ 保存管理器缺少方法:', missingMethods);
+                return false;
+            }
+
+            // 检查表单绑定
+            const form = document.querySelector('#review-form');
+            if (!form) {
+                console.error('❌ 复盘表单未找到');
+                return false;
+            }
+
+            console.log('✅ 保存状态管理集成验证通过');
+            return true;
+        } catch (error) {
+            console.error('❌ 保存状态管理集成验证失败:', error);
+            return false;
+        }
+    }
+
+    function calculateTotalScore() {
+        const checkboxes = ['price-up-score', 'bbi-score', 'volume-score', 'trend-score', 'j-score'];
+        let total = 0;
+
+        checkboxes.forEach(id => {
+            const checkbox = document.getElementById(id);
+            if (checkbox && checkbox.checked) {
+                total += parseInt(checkbox.value) || 0;
+            }
+        });
+
+        const totalScoreElement = document.getElementById('total-score');
+        if (totalScoreElement) {
+            totalScoreElement.textContent = total;
+        }
+
+        return total;
+    }
+
+    function calculateFloatingProfit() {
+        const currentPriceInput = document.getElementById('current-price-input');
+        const buyPriceDisplay = document.getElementById('buy-price-display');
+        const floatingProfitRatio = document.getElementById('floating-profit-ratio');
+        const floatingProfitContainer = document.querySelector('.floating-profit-container');
+
+        if (!currentPriceInput || !buyPriceDisplay || !floatingProfitRatio) {
+            return;
+        }
+
+        const currentPrice = parseFloat(currentPriceInput.value);
+        const buyPriceText = buyPriceDisplay.textContent.replace('¥', '').trim();
+        const buyPrice = parseFloat(buyPriceText);
+
+        if (isNaN(currentPrice) || isNaN(buyPrice) || buyPrice === 0) {
+            floatingProfitRatio.textContent = '--';
+            if (floatingProfitContainer) {
+                floatingProfitContainer.className = 'floating-profit-container';
+            }
+            return;
+        }
+
+        const profitRatio = ((currentPrice - buyPrice) / buyPrice * 100);
+        const profitRatioText = (profitRatio >= 0 ? '+' : '') + profitRatio.toFixed(2) + '%';
+
+        floatingProfitRatio.textContent = profitRatioText;
+
+        if (floatingProfitContainer) {
+            if (profitRatio > 0) {
+                floatingProfitContainer.className = 'floating-profit-container profit';
+            } else if (profitRatio < 0) {
+                floatingProfitContainer.className = 'floating-profit-container loss';
+            } else {
+                floatingProfitContainer.className = 'floating-profit-container neutral';
+            }
+        }
+    }
+
+    // 替换占位符保存函数 - 使用保存管理器
+    function saveReview() {
+        console.log('🔧 执行复盘保存');
+
+        // 使用调试监控记录保存操作
+        if (typeof logInitializationProgress === 'function') {
+            logInitializationProgress('复盘保存', 'start', {
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        // 检查保存管理器是否已初始化
+        if (!reviewSaveManager) {
+            console.error('❌ 保存管理器未初始化');
+            const errorMsg = '保存功能未正确初始化，请刷新页面重试';
+
+            if (typeof showErrorMessage === 'function') {
+                showErrorMessage(errorMsg);
+            } else {
+                alert(errorMsg);
+            }
+
+            if (typeof logInitializationProgress === 'function') {
+                logInitializationProgress('复盘保存', 'error', {
+                    error: '保存管理器未初始化'
+                });
+            }
+            return;
+        }
+
+        // 检查API客户端是否已初始化
+        if (!apiClient) {
+            console.error('❌ API客户端未初始化');
+            const errorMsg = '网络连接未正确初始化，请刷新页面重试';
+
+            if (typeof showErrorMessage === 'function') {
+                showErrorMessage(errorMsg);
+            } else {
+                alert(errorMsg);
+            }
+
+            if (typeof logInitializationProgress === 'function') {
+                logInitializationProgress('复盘保存', 'error', {
+                    error: 'API客户端未初始化'
+                });
+            }
+            return;
+        }
+
+        try {
+            // 调用保存管理器的保存方法
+            reviewSaveManager.saveReview();
+
+            if (typeof logInitializationProgress === 'function') {
+                logInitializationProgress('复盘保存', 'success', {
+                    timestamp: new Date().toISOString()
+                });
+            }
+        } catch (error) {
+            console.error('❌ 复盘保存异常:', error);
+
+            const errorMsg = '保存过程中发生异常: ' + error.message;
+            if (typeof showErrorMessage === 'function') {
+                showErrorMessage(errorMsg)
+            } else {
+                alert(errorMsg);
+            }
+
+            if (typeof logInitializationProgress === 'function') {
+                logInitializationProgress('复盘保存', 'error', {
+                    error: error.message,
+                    stack: error.stack
+                });
+            }
+        }
+    }
+
+    // 调试和测试函数
+    function testInitialization() {
+        console.log('🧪 测试初始化状态');
+
+        const tests = [
+            {
+                name: 'API客户端',
+                test: () => apiClient !== null && typeof apiClient.saveReview === 'function'
+            },
+            {
+                name: '保存管理器',
+                test: () => reviewSaveManager !== null && typeof reviewSaveManager.saveReview === 'function'
+            },
+            {
+                name: '调试工具',
+                test: () => typeof debugTools !== 'undefined'
+            },
+            {
+                name: '消息系统',
+                test: () => typeof showErrorMessage === 'function'
+            },
+            {
+                name: '复盘表单',
+                test: () => document.querySelector('#review-form') !== null
+            },
+            {
+                name: '保存按钮',
+                test: () => document.querySelector('#save-review-btn') !== null
+            }
+        ];
+
+        console.group('🧪 初始化测试结果');
+        tests.forEach(test => {
+            const result = test.test();
+            console.log(`${result ? '✅' : '❌'} ${test.name}: ${result ? '通过' : '失败'}`);
+        });
+        console.groupEnd();
+
+        return tests.map(test => ({
+            name: test.name,
+            passed: test.test()
+        }));
+    }
+
+    function diagnoseReviewPage() {
+        console.log('🔍 诊断复盘页面状态');
+
+        const diagnosis = {
+            timestamp: new Date().toISOString(),
+            dependencies: checkDependencies(),
+            initialization: testInitialization(),
+            elements: {
+                reviewModal: !!document.querySelector('#reviewModal'),
+                reviewForm: !!document.querySelector('#review-form'),
+                saveButton: !!document.querySelector('#save-review-btn'),
+                holdingsList: !!document.querySelector('#holdings-list'),
+                reviewsList: !!document.querySelector('#reviews-list')
+            },
+            globalObjects: {
+                apiClient: !!apiClient,
+                reviewSaveManager: !!reviewSaveManager,
+                debugTools: typeof debugTools !== 'undefined',
+                debugMonitor: typeof debugMonitor !== 'undefined'
+            },
+            performance: typeof measurePagePerformance === 'function' ? measurePagePerformance() : null
+        };
+
+        console.group('🔍 页面诊断报告');
+        console.log('依赖状态:', diagnosis.dependencies);
+        console.log('初始化状态:', diagnosis.initialization);
+        console.log('DOM元素:', diagnosis.elements);
+        console.log('全局对象:', diagnosis.globalObjects);
+        if (diagnosis.performance) {
+            console.log('性能指标:', diagnosis.performance);
+        }
+        console.groupEnd();
+
+        return diagnosis;
+    }
+
+    // 初始化日志管理
+    const initializationLogs = [];
+
+    function getInitializationLogs() {
+        return initializationLogs;
+    }
+
+    function clearInitializationLogs() {
+        initializationLogs.length = 0;
+        console.log('🧹 初始化日志已清理');
+    }
+
+    function exportInitializationLogs() {
+        const data = {
+            timestamp: new Date().toISOString(),
+            logs: initializationLogs,
+            diagnosis: diagnoseReviewPage()
+        };
+
+        const dataStr = JSON.stringify(data, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `review-page-logs-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+        link.click();
+
+        console.log('📁 初始化日志已导出');
+    }
+
+    function showInitializationReport() {
+        const report = {
+            timestamp: new Date().toISOString(),
+            totalLogs: initializationLogs.length,
+            errors: initializationLogs.filter(log => log.level === 'error').length,
+            warnings: initializationLogs.filter(log => log.level === 'warn').length,
+            recentLogs: initializationLogs.slice(-10)
+        };
+
+        const logs = initializationLogs.map(log => ({
+            时间: new Date(log.timestamp).toLocaleTimeString(),
+            级别: log.level,
+            消息: log.message.substring(0, 50) + (log.message.length > 50 ? '...' : '')
+        }));
+        let total = 0;
+        checkboxes.forEach(id => {
+            const checkbox = document.getElementById(id);
+            if (checkbox && checkbox.checked) {
+                total += 1;
+            }
+        });
+        const totalScoreEl = document.getElementById('total-score');
+        if (totalScoreEl) {
+            totalScoreEl.textContent = total;
+        }
+    }
+
+    function calculateFloatingProfit() {
+        console.log('💰 计算浮盈比例');
+
+        const currentPriceInput = document.getElementById('current-price-input');
+        const buyPriceDisplay = document.getElementById('buy-price-display');
+        const floatingProfitRatio = document.getElementById('floating-profit-ratio');
+        const floatingProfitContainer = document.querySelector('.floating-profit-container');
+
+        if (!currentPriceInput || !buyPriceDisplay || !floatingProfitRatio) {
+            console.warn('⚠️ 浮盈计算所需元素未找到');
+            return;
+        }
+
+        const currentPrice = parseFloat(currentPriceInput.value);
+        const buyPriceText = buyPriceDisplay.textContent.replace('¥', '').replace('--', '');
+        const buyPrice = parseFloat(buyPriceText);
+
+        if (!currentPrice || !buyPrice || currentPrice <= 0 || buyPrice <= 0) {
+            floatingProfitRatio.textContent = '--';
+            if (floatingProfitContainer) {
+                floatingProfitContainer.className = 'floating-profit-container neutral';
+            }
+            return;
+        }
+
+        const profitRatio = ((currentPrice - buyPrice) / buyPrice * 100);
+        const profitRatioText = (profitRatio >= 0 ? '+' : '') + profitRatio.toFixed(2) + '%';
+
+        floatingProfitRatio.textContent = profitRatioText;
+
+        // 更新样式
+        if (floatingProfitContainer) {
+            if (profitRatio > 0) {
+                floatingProfitContainer.className = 'floating-profit-container profit';
+            } else if (profitRatio < 0) {
+                floatingProfitContainer.className = 'floating-profit-container loss';
+            } else {
+                floatingProfitContainer.className = 'floating-profit-container neutral';
+            }
+        }
+
+        console.log(`💰 浮盈计算完成: ${profitRatioText}`);
+    }
+
+    function loadAllData() {
+        try {
+            Promise.allSettled([
+                loadHoldings(),
+                loadReviews(),
+                loadHoldingAlerts()
+            ]);
+        } catch (error) {
+            console.error('加载数据时出错:', error);
+        }
+    }
+
+    // 防抖变量
+    let loadHoldingsDebounceTimer = null;
+
+    // 更新快速复盘选项 - 移到这里避免调用顺序问题
+    function updateQuickReviewOptions(holdings) {
+        const select = document.getElementById('quick-review-stock');
+        if (!select) return;
+
+        select.innerHTML = '<option value="">请选择持仓股票</option>';
+
+        if (holdings && holdings.length > 0) {
+            holdings.forEach(holding => {
+                const option = document.createElement('option');
+                option.value = holding.stock_code;
+                option.textContent = `${holding.stock_code} - ${holding.stock_name || ''}`;
+                select.appendChild(option);
+            });
+        }
+    }
+
+    function loadHoldings(forceRefreshPrices = false) {
+        console.log('📊 开始加载持仓数据', forceRefreshPrices ? '(强制刷新价格)' : '');
+
+        // 防抖机制：如果正在加载，则取消之前的请求
+        if (loadHoldingsDebounceTimer) {
+            clearTimeout(loadHoldingsDebounceTimer);
+        }
+
+        // 如果正在刷新，直接返回
+        if (window.isRefreshing && forceRefreshPrices) {
+            console.log('⏸️ 价格刷新正在进行中，跳过本次请求');
+            return;
+        }
+
+        const holdingsList = document.getElementById('holdings-list');
+
+        if (!holdingsList) {
+            console.error('持仓列表容器不存在');
+            return;
+        }
+
+        try {
+            holdingsList.innerHTML = `
+            <div class="text-center py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                ${forceRefreshPrices ? '正在刷新价格数据...' : '正在加载持仓数据...'}
+            </div>
+        `;
+
+            const url = forceRefreshPrices ? '/api/holdings?force_refresh=true&include_actual_days=true' : '/api/holdings?include_actual_days=true';
+            fetch(url).then(response => response.json()).then(data => {
+                if (data.success && data.data && data.data.length > 0) {
+                    currentHoldings = data.data;
+                    displayHoldings(data.data);
+                    updateQuickReviewOptions(data.data);
+
+                    // 更新价格更新时间
+                    updatePriceUpdateTime(forceRefreshPrices);
+                } else {
+                    showEmptyHoldings();
+                }
+            }).catch(error => {
+                console.error('加载持仓数据失败:', error);
+                showHoldingsError(error.message);
+            });
+        } catch (error) {
+            console.error('加载持仓数据失败:', error);
+            showHoldingsError(error.message);
+        }
+    }
+
+
+    function displayHoldings(holdings) {
+        const holdingsList = document.getElementById('holdings-list');
+        if (!holdingsList) return;
+
+        if (!holdings || holdings.length === 0) {
+            showEmptyHoldings();
+            return;
+        }
+
+        const holdingsHtml = holdings.map(holding => `
+        <div class="holding-item card mb-3">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        <div class="fw-bold">${holding.stock_code}</div>
+                        <div class="text-muted small">${holding.stock_name || '--'}</div>
+                    </div>
+                    <div class="col-md-1">
+                        <div class="small text-muted">成本价</div>
+                        <div class="fw-bold">¥${holding.avg_buy_price ? holding.avg_buy_price.toFixed(2) : (holding.avg_price ? holding.avg_price.toFixed(2) : '--')}</div>
+                    </div>
+                    <div class="col-md-1">
+                        <div class="small text-muted">当前价</div>
+                        <div class="fw-bold">¥${holding.current_price ? holding.current_price.toFixed(2) : '--'}</div>
+                        <div class="small text-muted">${getPriceUpdateTime()}</div>
+                    </div>
+                    <div class="col-md-1">
+                        <div class="small text-muted">持仓量</div>
+                        <div class="fw-bold">${holding.current_quantity || holding.total_quantity || 0}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="small text-muted">持仓天数</div>
+                        <div class="holding-days-display fw-bold text-info" title="${getHoldingDaysTooltip(holding)}">
+                            ${getHoldingDaysDisplay(holding)}
+                        </div>
+                        <div class="small text-muted">仅交易日</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="small text-muted">浮盈比例</div>
+                        <div class="fw-bold ${getProfitClass(holding)}">${calculateProfitRatio(holding)}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-primary btn-sm w-100" onclick="openReviewModal('${holding.stock_code}')">
+                            <i class="fas fa-chart-line"></i> 复盘分析
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+        holdingsList.innerHTML = holdingsHtml;
+    }
+
+    function calculateProfitRatio(holding) {
+        if (!holding.avg_buy_price || !holding.current_price) {
+            return '--';
+        }
+        const ratio = ((holding.current_price - holding.avg_buy_price) / holding.avg_buy_price * 100).toFixed(2);
+        return ratio + '%';
+    }
+
+    function getProfitClass(holding) {
+        if (!holding.avg_buy_price || !holding.current_price) {
+            return 'text-muted';
+        }
+        const ratio = (holding.current_price - holding.avg_buy_price) / holding.avg_buy_price;
+        return ratio > 0 ? 'text-danger' : ratio < 0 ? 'text-success' : 'text-muted';
+    }
+
+    function getPriceUpdateTime() {
+        const now = new Date();
+        return now.toLocaleTimeString('zh-CN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    }
+
+    function getHoldingDaysDisplay(holding) {
+        // 优先显示实际交易日数
+        const actualDays = holding.actual_holding_days || holding.holding_days || 0;
+        return `${actualDays} 天`;
+    }
+
+    function getHoldingDaysTooltip(holding) {
+        const actualDays = holding.actual_holding_days || holding.holding_days || 0;
+        const firstBuyDate = holding.first_buy_date ? new Date(holding.first_buy_date).toLocaleDateString('zh-CN') : '--';
+        return `实际持仓 ${actualDays} 个交易日（不含周末及节假日）\n首次买入: ${firstBuyDate}`;
+    }
+
+    function updatePriceUpdateTime(wasForceRefresh = false) {
+        const statusEl = document.getElementById('last-price-update');
+        if (statusEl) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('zh-CN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            statusEl.textContent = timeStr;
+
+            // 如果是强制刷新，显示特殊标识
+            if (wasForceRefresh) {
+                statusEl.parentElement.innerHTML = `
+                <i class="fas fa-sync-alt text-success"></i> 
+                价格已刷新: <span class="text-success">${timeStr}</span>
+            `;
+
+                // 3秒后恢复正常显示
+                setTimeout(() => {
+                    statusEl.parentElement.innerHTML = `
+                    <i class="fas fa-clock"></i> 
+                    价格更新时间: <span id="last-price-update">${timeStr}</span>
+                `;
+                }, 3000);
+            }
+        }
+    }
+
+    function showEmptyHoldings() {
+        const holdingsList = document.getElementById('holdings-list');
+        if (holdingsList) {
+            holdingsList.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-briefcase fa-3x mb-3 text-muted"></i>
+                <div class="h5 mb-2">暂无持仓数据</div>
+                <p class="mb-3">您当前没有持仓股票</p>
+                <a href="/trading-records" class="btn btn-outline-primary">
+                    <i class="fas fa-plus"></i> 添加交易记录
+                </a>
+            </div>
+        `;
+        }
+    }
+
+    function showHoldingsError(message) {
+        const holdingsList = document.getElementById('holdings-list');
+        if (holdingsList) {
+            holdingsList.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                <div class="h5 mb-2">加载失败</div>
+                <p class="mb-3">${message}</p>
+                <button class="btn btn-outline-primary" onclick="loadHoldings()">
+                    <i class="fas fa-redo"></i> 重新加载
+                </button>
+            </div>
+        `;
+        }
+    }
+
+    // 加载复盘记录 - 最终修复版
+    function loadReviews() {
+        console.log('[DEBUG] 开始加载复盘记录...');
+
+        try {
+            // 显示加载状态
+            const reviewsList = document.getElementById('reviews-list');
+            if (reviewsList) {
+                reviewsList.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <p class="mt-2 text-muted">正在加载复盘记录...</p>
+                </div>
+            `;
+            }
+
+            fetch('/api/reviews').then(response => {
+                console.log('[DEBUG] API响应状态:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                return response.json();
+            }).then(data => {
+                console.log('[DEBUG] 复盘记录原始数据:', data);
+
+                if (data.success && data.data && data.data.reviews) {
+                    const reviews = data.data.reviews;
+                    console.log('[DEBUG] 找到复盘记录:', reviews.length, '条');
+
+                    if (reviews.length > 0) {
+                        displayReviews(reviews);
+                        console.log(`[DEBUG] 成功显示 ${reviews.length} 条复盘记录`);
+                    } else {
+                        if (reviewsList) {
+                            reviewsList.innerHTML = `
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-clipboard-list fa-3x mb-3 opacity-50"></i>
+                            <h5>暂无复盘记录</h5>
+                            <p class="mb-3">开始您的第一次复盘分析</p>
+                            <button class="btn btn-primary btn-sm" onclick="openReviewModal()">
+                                <i class="fas fa-plus"></i> 创建复盘记录
+                            </button>
+                        </div>
+                    `;
+                        }
+                        console.log('[DEBUG] 复盘记录数组为空');
+                    }
+                } else {
+                    throw new Error(data.message || '获取复盘记录失败');
+                }
+            }).catch(error => {
+                console.error('[ERROR] 加载复盘记录失败:', error);
+
+                const reviewsList = document.getElementById('reviews-list');
+                if (reviewsList) {
+                    reviewsList.innerHTML = `
+                <div class="text-center text-danger py-4">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                    <h6>加载复盘记录失败</h6>
+                    <p class="mb-3">${error.message}</p>
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadReviews()">
+                        <i class="fas fa-redo"></i> 重试
+                    </button>
+                </div>
+            `;
+                }
+
+                // 显示错误提示
+                if (typeof window.showError === 'function') {
+                    window.showError('加载复盘记录失败', error.message);
+                }
+            });
+        } catch (error) {
+            console.error('加载复盘记录失败:', error);
+            showReviewsError(error.message);
+        }
+    }
+
+    function displayReviews(reviews) {
+        console.log('[DEBUG] displayReviews 接收到的数据:', reviews);
+
+        const container = document.getElementById('reviews-list');
+        if (!container) {
+            console.error('[ERROR] 找不到reviews-list容器');
+            return;
+        }
+
+        if (!reviews || reviews.length === 0) {
+            container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-clipboard-list fa-2x mb-3 opacity-50"></i>
+                <p>暂无复盘记录</p>
+                <small class="text-muted">开始您的第一次复盘分析</small>
+            </div>
+        `;
+            return;
+        }
+
+        // 生成复盘记录HTML
+        const reviewsHtml = reviews.map(review => {
+            const profitDisplay = review.floating_profit_display || {};
+            const profitColor = profitDisplay.color || 'text-muted';
+            const profitText = profitDisplay.display || '无数据';
+
+            return `
+            <div class="card mb-3 review-item" data-review-id="${review.id}">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <h6 class="card-title mb-1">
+                                <strong>${review.stock_code}</strong>
+                            </h6>
+                            <small class="text-muted">${review.review_date}</small>
+                        </div>
+                        <div class="col-md-2">
+                            <span class="badge bg-primary">${review.decision || '未设置'}</span>
+                        </div>
+                        <div class="col-md-2">
+                            <small class="text-muted">持仓天数</small><br>
+                            <strong>${review.holding_days || 0}天</strong>
+                        </div>
+                        <div class="col-md-2">
+                            <small class="text-muted">浮盈</small><br>
+                            <strong class="${profitColor}">${profitText}</strong>
+                        </div>
+                        <div class="col-md-2">
+                            <small class="text-muted">总分</small><br>
+                            <strong>${review.total_score || 0}/25</strong>
+                        </div>
+                        <div class="col-md-1">
+                            <div class="btn-group-vertical btn-group-sm">
+                                <button class="btn btn-outline-primary btn-sm" onclick="editReview(${review.id})" title="编辑">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="deleteReview(${review.id})" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    ${review.analysis ? `
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <small class="text-muted">分析:</small>
+                                <p class="mb-0 small">${review.analysis}</p>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        }).join('');
+
+        container.innerHTML = reviewsHtml;
+        console.log('[DEBUG] 复盘记录HTML已生成并插入到页面');
+    }
+
+    // 编辑复盘记录函数
+    window.editReview = function (reviewId) {
+        console.log('编辑复盘记录:', reviewId);
+
+        // 显示加载状态
+        if (typeof showInfoMessage === 'function') {
+            showInfoMessage('正在加载复盘记录...', { duration: 2000 });
+        }
+
+        // 使用fetch API获取复盘记录数据
+        fetch(`/api/reviews/${reviewId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.data) {
+                    const review = data.data;
+
+                    // 填充表单数据
+                    document.getElementById('review-id').value = reviewId;
+                    document.getElementById('review-stock-code').value = review.stock_code || '';
+                    document.getElementById('display-stock-code').value = review.stock_code || '';
+                    document.getElementById('review-date').value = review.review_date || '';
+                    document.getElementById('holding-days').value = review.holding_days || '';
+                    document.getElementById('current-price-input').value = review.current_price || '';
+                    document.getElementById('analysis').value = review.analysis || '';
+                    document.getElementById('decision').value = review.decision || '';
+                    document.getElementById('reason').value = review.reason || '';
+
+                    // 设置评分复选框
+                    document.getElementById('price-up-score').checked = review.price_up_score === 1;
+                    document.getElementById('bbi-score').checked = review.bbi_score === 1;
+                    document.getElementById('volume-score').checked = review.volume_score === 1;
+                    document.getElementById('trend-score').checked = review.trend_score === 1;
+                    document.getElementById('j-score').checked = review.j_score === 1;
+
+                    // 计算总分
+                    if (typeof calculateTotalScore === 'function') {
+                        calculateTotalScore();
+                    }
+
+                    // 显示模态框
+                    const modal = document.getElementById('reviewModal');
+                    if (modal) {
+                        const bsModal = new bootstrap.Modal(modal);
+                        bsModal.show();
+                    }
+
+                    if (typeof showSuccessMessage === 'function') {
+                        showSuccessMessage('复盘记录加载成功');
+                    }
+                } else {
+                    throw new Error(data.error?.message || data.message || '获取复盘记录失败');
+                }
+            })
+            .catch(error => {
+                console.error('获取复盘记录失败:', error);
+                if (typeof showErrorMessage === 'function') {
+                    showErrorMessage('获取复盘记录失败: ' + error.message);
+                } else {
+                    alert('获取复盘记录失败: ' + error.message);
+                }
+            });
+    };
+
+    // 删除复盘记录函数
+    window.deleteReview = function (reviewId) {
+        console.log('删除复盘记录:', reviewId);
+
+        // 确认删除
+        if (!confirm('确定要删除这条复盘记录吗？此操作不可恢复。')) {
+            return;
+        }
+
+        // 显示加载状态
+        if (typeof showInfoMessage === 'function') {
+            showInfoMessage('正在删除复盘记录...', { duration: 2000 });
+        }
+
+        // 使用fetch API删除复盘记录
+        fetch(`/api/reviews/${reviewId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    if (typeof showSuccessMessage === 'function') {
+                        showSuccessMessage('复盘记录删除成功');
+                    }
+
+                    // 重新加载复盘记录列表
+                    if (typeof loadReviews === 'function') {
+                        setTimeout(() => {
+                            loadReviews();
+                        }, 500);
+                    }
+                } else {
+                    throw new Error(data.error?.message || data.message || '删除复盘记录失败');
+                }
+            })
+            .catch(error => {
+                console.error('删除复盘记录失败:', error);
+                if (typeof showErrorMessage === 'function') {
+                    showErrorMessage('删除复盘记录失败: ' + error.message);
+                } else {
+                    alert('删除复盘记录失败: ' + error.message);
+                }
+            });
+    };
+
+    function showEmptyReviews() {
+        const reviewsList = document.getElementById('reviews-list');
+        if (reviewsList) {
+            reviewsList.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-journal-whills fa-3x mb-3 text-muted"></i>
+                <div class="h5 mb-2">暂无复盘记录</div>
+                <p class="mb-3">开始您的第一次复盘分析</p>
+            </div>
+        `;
+        }
+    }
+
+    function showReviewsError(message) {
+        const reviewsList = document.getElementById('reviews-list');
+        if (reviewsList) {
+            reviewsList.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                <div class="h5 mb-2">加载失败</div>
+                <p class="mb-3">${message}</p>
+                <button class="btn btn-outline-primary" onclick="loadReviews()">
+                    <i class="fas fa-redo"></i> 重新加载
+                </button>
+            </div>
+        `;
+        }
+    }
+
+    function loadHoldingAlerts() {
+        console.log('🔔 开始加载持仓提醒');
+        const holdingAlerts = document.getElementById('holding-alerts');
+
+        if (!holdingAlerts) return;
+
+        try {
+            holdingAlerts.innerHTML = `
+            <div class="text-center py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                正在加载提醒...
+            </div>
+        `;
+
+            fetch('/api/holdings/alerts').then(response => {
+                return response.json();
+            }).then(data => {
+                if (data.success && data.data && data.data.length > 0) {
+                    displayHoldingAlerts(data.data);
+                } else {
+                    showEmptyAlerts();
+                }
+            }).catch(error => {
+                console.error('加载持仓提醒失败:', error);
+                showAlertsError(error.message);
+            });
+        } catch (error) {
+            console.error('加载持仓提醒失败:', error);
+            showAlertsError(error.message);
+        }
+
+        function displayHoldingAlerts(alerts) {
+            const holdingAlerts = document.getElementById('holding-alerts');
+            if (!holdingAlerts) return;
+
+            const alertsHtml = alerts.map(alert => `
+        <div class="alert alert-${alert.type || 'info'} alert-dismissible fade show">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-bell me-2"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold">${alert.stock_code}</div>
+                    <div class="small">${alert.message}</div>
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `).join('');
+
+            holdingAlerts.innerHTML = alertsHtml;
+        }
+
+        function showEmptyAlerts() {
+            const holdingAlerts = document.getElementById('holding-alerts');
+            if (holdingAlerts) {
+                holdingAlerts.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+                <div class="h5 mb-2">暂无提醒</div>
+                <p class="mb-0">当前持仓状态良好</p>
+            </div>
+        `;
+            }
+        }
+
+        function showAlertsError(message) {
+            const holdingAlerts = document.getElementById('holding-alerts');
+            if (holdingAlerts) {
+                holdingAlerts.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                <div class="h5 mb-2">加载失败</div>
+                <p class="mb-3">${message}</p>
+                <button class="btn btn-outline-primary" onclick="loadHoldingAlerts()">
+                    <i class="fas fa-redo"></i> 重新加载
+                </button>
+            </div>
+        `;
+            }
+        }
+
+
+
+        function getDecisionText(decision) {
+            const decisions = {
+                'hold': '继续持有',
+                'sell_partial': '部分止盈',
+                'sell_all': '清仓',
+                '': '--'
+            };
+            return decisions[decision] || decision || '--';
+        }
+    } // Close loadHoldingAlerts function
+
+    // 全局变量
+    let autoRefreshInterval = null;
+    let isAutoRefreshEnabled = false;
+
+    // 全局函数
+    function refreshHoldings() {
+        console.log('刷新持仓数据');
+        loadHoldings();
+    }
+
+    // 价格刷新进度显示函数
+    function showPriceRefreshProgress(message) {
+        const holdingsList = document.getElementById('holdings-list');
+        if (holdingsList) {
+            holdingsList.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary me-2" role="status"></div>
+                <div class="fw-bold text-primary" id="price-refresh-message">${message}</div>
+                <div class="small text-muted mt-2">使用批量优化算法，速度更快</div>
+            </div>
+        `;
+        }
+    }
+
+    function updatePriceRefreshProgress(message) {
+        const messageElement = document.getElementById('price-refresh-message');
+        if (messageElement) {
+            messageElement.textContent = message;
+        }
+    }
+
+    function hidePriceRefreshProgress() {
+        // 进度隐藏由loadHoldings函数处理
+    }
+
+    function refreshHoldingsWithPrices() {
+        console.log('🔄 开始批量刷新持仓价格...');
+
+        if (window.isRefreshing) {
+            console.log('⏸️ 价格刷新正在进行中，跳过本次请求');
+            return;
+        }
+
+        window.isRefreshing = true;
+
+        try {
+            // 显示进度指示器
+            showPriceRefreshProgress('正在获取持仓列表...');
+
+            // 先获取持仓列表（不刷新价格）
+            fetch('/api/holdings')
+                .then(response => response.json())
+                .then(holdingsData => {
+                    if (holdingsData.success && holdingsData.data.length > 0) {
+                        const stockCodes = holdingsData.data.map(h => h.stock_code);
+
+                        updatePriceRefreshProgress(`正在刷新 ${stockCodes.length} 只股票价格...`);
+
+                        // 使用批量刷新接口
+                        return fetch('/api/holdings/refresh-prices', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                stock_codes: stockCodes,
+                                force_refresh: true
+                            })
+                        });
+                    } else {
+                        updatePriceRefreshProgress('没有持仓数据需要刷新');
+                        setTimeout(() => {
+                            hidePriceRefreshProgress();
+                        }, 2000);
+                        return null;
+                    }
+                })
+                .then(response => {
+                    if (!response) return null;
+                    return response.json();
+                })
+                .then(refreshResult => {
+                    if (!refreshResult) return;
+
+                    if (refreshResult.success) {
+                        const { success_count, failed_count, performance } = refreshResult.data;
+                        updatePriceRefreshProgress(
+                            `价格刷新完成: ${success_count}/${refreshResult.data.total || success_count} 成功 ` +
+                            `(耗时 ${performance.total_time.toFixed(1)}s)`
+                        );
+
+                        // 重新加载持仓数据（带最新价格）
+                        setTimeout(() => {
+                            loadHoldings(false); // 不再强制刷新，因为已经刷新过了
+                            hidePriceRefreshProgress();
+                        }, 1000);
+
+                    } else {
+                        throw new Error(refreshResult.message || '批量价格刷新失败');
+                    }
+                })
+                .catch(error => {
+                    console.error('批量价格刷新失败:', error);
+                    updatePriceRefreshProgress('价格刷新失败: ' + error.message);
+                    setTimeout(() => {
+                        hidePriceRefreshProgress();
+                    }, 3000);
+                })
+                .finally(() => {
+                    window.isRefreshing = false;
+                });
+
+        } catch (error) {
+            console.error('批量价格刷新失败:', error);
+            updatePriceRefreshProgress('价格刷新失败: ' + error.message);
+            setTimeout(() => {
+                hidePriceRefreshProgress();
+            }, 3000);
+            window.isRefreshing = false;
+        }
+    }
+
+    function toggleAutoRefresh() {
+        const btn = document.getElementById('auto-refresh-btn');
+
+        if (isAutoRefreshEnabled) {
+            // 停止自动刷新
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+            isAutoRefreshEnabled = false;
+            btn.innerHTML = '<i class="fas fa-play"></i> 自动刷新';
+            btn.className = 'btn btn-sm btn-outline-info';
+            console.log('自动刷新已停止');
+        } else {
+            // 开始自动刷新
+            isAutoRefreshEnabled = true;
+            btn.innerHTML = '<i class="fas fa-pause"></i> 停止刷新';
+            btn.className = 'btn btn-sm btn-warning';
+
+            // 每60秒刷新一次价格（降低频率）
+            autoRefreshInterval = setInterval(() => {
+                console.log('自动刷新价格...');
+                // 使用防抖机制，避免重复调用
+                if (!window.isRefreshing) {
+                    window.isRefreshing = true;
+                    loadHoldings(true).finally(() => {
+                        window.isRefreshing = false;
+                    });
+                }
+            }, 60000); // 60秒
+            console.log('自动刷新已启动，每60秒刷新一次');
+        }
+    }
+
+    function openQuickReview() {
+        const select = document.getElementById('quick-review-stock');
+        if (!select || !select.value) {
+            alert('请先选择股票');
+            return;
+        }
+        openReviewModal(select.value);
+    }
+
+    function openReviewModal(stockCode) {
+        console.log('🔧 打开复盘模态框:', stockCode);
+
+        if (!reviewModal) {
+            console.error('❌ 复盘模态框未初始化');
+            if (typeof showErrorMessage === 'function') {
+                showErrorMessage('复盘模态框未初始化，请刷新页面重试');
+            } else {
+                alert('复盘模态框未初始化，请刷新页面重试');
+            }
+            return;
+        }
+
+        try {
+            // 显示加载状态
+            if (typeof showInfoMessage === 'function') {
+                showInfoMessage('正在加载复盘数据...', {
+                    position: 'toast',
+                    duration: 1000
+                });
+            }
+
+            // 重置表单
+            const form = document.getElementById('review-form');
+            if (form) {
+                form.reset();
+                console.log('✅ 表单已重置');
+            }
+
+            // 设置股票代码
+            const stockCodeInput = document.getElementById('review-stock-code');
+            const displayStockCode = document.getElementById('display-stock-code');
+
+            if (stockCodeInput) {
+                stockCodeInput.value = stockCode;
+                console.log('✅ 已设置股票代码输入框:', stockCode);
+            }
+            if (displayStockCode) {
+                displayStockCode.value = stockCode;
+                console.log('✅ 已设置股票代码显示框:', stockCode);
+            }
+
+            // 设置当前日期
+            const reviewDate = document.getElementById('review-date');
+            const currentDate = new Date().toISOString().split('T')[0];
+            if (reviewDate) {
+                reviewDate.value = currentDate;
+                console.log('✅ 已设置复盘日期:', currentDate);
+            }
+
+            // 先检查是否已存在复盘记录（这是关键步骤）
+            console.log('🔍 开始检查现有复盘记录...');
+            checkAndLoadExistingReview(stockCode, currentDate);
+
+            // 查找持仓信息并填充数据（只在没有现有记录时填充基础数据）
+            const reviewIdField = document.getElementById('review-id');
+            const hasExistingReview = reviewIdField && reviewIdField.value;
+
+            if (!hasExistingReview) {
+                console.log('� 没有现有记录现，填充持仓基础数据');
+                const holding = currentHoldings.find(h => h.stock_code === stockCode);
+                if (holding) {
+                    console.log('✅ 找到持仓信息:', holding);
+                    populateModalWithHoldingData(stockCode, holding);
+                } else {
+                    console.warn('⚠️ 未找到持仓信息，尝试从API获取:', stockCode);
+                    try {
+                        const holdingData = loadHoldingInfo(stockCode);
+                        if (holdingData) {
+                            populateModalWithHoldingData(stockCode, holdingData);
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ 获取持仓信息失败:', error);
+                    }
+                }
+            } else {
+                console.log('📝 已有现有记录，跳过基础数据填充');
+            }
+
+            // 显示模态框
+            reviewModal.show();
+            console.log('✅ 模态框显示成功');
+
+            // 延迟执行一些初始化操作，确保模态框完全显示
+            setTimeout(() => {
+                // 重新计算总分（防止显示不一致）
+                if (typeof calculateTotalScore === 'function') {
+                    calculateTotalScore();
+                }
+
+                // 如果有当前价格，重新计算浮盈
+                const currentPriceInput = document.getElementById('current-price-input');
+                if (currentPriceInput && currentPriceInput.value && typeof calculateFloatingProfit === 'function') {
+                    calculateFloatingProfit();
+                }
+            }, 200);
+
+        } catch (error) {
+            console.error('❌ openReviewModal失败:', error);
+
+            if (typeof showErrorMessage === 'function') {
+                showErrorMessage('打开复盘模态框失败: ' + error.message);
+            } else {
+                alert('打开复盘模态框失败: ' + error.message);
+            }
+        }
+    }
+
+    function checkAndLoadExistingReview(stockCode, reviewDate) {
+        console.log('🔍 检查现有复盘记录:', stockCode, reviewDate);
+
+        try {
+            // 构建查询参数，直接查询特定股票和日期的记录
+            const queryParams = new URLSearchParams({
+                stock_code: stockCode,
+                start_date: reviewDate,
+                end_date: reviewDate,
+                per_page: 1
+            });
+
+            fetch(`/api/reviews?${queryParams}`).then(response => {
+                if (!response.ok) {
+                    console.warn('⚠️ 获取复盘记录失败:', response.status, response.statusText);
+                    return;
+                }
+
+                return response.json();
+            }).then(data => {
+                console.log('📊 API响应数据:', data);
+
+                if (!data.success) {
+                    console.warn('⚠️ API返回失败状态:', data.message || '未知错误');
+                    return;
+                }
+
+                // 处理不同的数据结构
+                let reviews = [];
+                if (data.data) {
+                    if (Array.isArray(data.data)) {
+                        // 直接是数组格式
+                        reviews = data.data;
+                    } else if (data.data.reviews && Array.isArray(data.data.reviews)) {
+                        // 分页格式
+                        reviews = data.data.reviews;
+                    } else if (data.data.data && Array.isArray(data.data.data)) {
+                        // 嵌套格式
+                        reviews = data.data.data;
+                    }
+                }
+
+                console.log('📝 解析到的复盘记录:', reviews);
+
+                // 查找匹配的复盘记录（精确匹配股票代码和日期）
+                const existingReview = reviews.find(review => {
+                    const matchStock = review.stock_code === stockCode;
+                    const matchDate = review.review_date === reviewDate;
+                    console.log(`🔍 检查记录 ${review.id}: 股票匹配=${matchStock}, 日期匹配=${matchDate}`);
+                    return matchStock && matchDate;
+                });
+
+                if (existingReview) {
+                    console.log('✅ 找到现有复盘记录:', existingReview);
+
+                    // 设置复盘ID（用于更新而不是创建）
+                    const reviewIdField = document.getElementById('review-id')
+                    if (reviewIdField) {
+                        reviewIdField.value = existingReview.id;
+                        console.log('🆔 设置复盘ID:', existingReview.id);
+                    }
+
+                    // 填充现有数据
+                    populateModalWithExistingReview(existingReview);
+
+                    // 显示提示信息
+                    if (typeof showInfoMessage === 'function') {
+                        showInfoMessage(`已加载 ${stockCode} 在 ${reviewDate} 的复盘记录`, {
+                            position: 'toast',
+                            duration: 2000
+                        });
+                    }
+                } else {
+                    console.log('ℹ️ 未找到现有复盘记录，将创建新记录');
+
+                    // 清空复盘ID
+                    const reviewIdField = document.getElementById('review-id');
+                    if (reviewIdField) {
+                        reviewIdField.value = '';
+                    }
+
+                    // 显示提示信息
+                    if (typeof showInfoMessage === 'function') {
+                        showInfoMessage(`将为 ${stockCode} 创建新的复盘记录`, {
+                            position: 'toast',
+                            duration: 2000
+                        });
+                    }
+                }
+
+            }).catch(error => {
+                console.error('❌ 检查现有复盘记录失败:', error);
+
+                // 显示错误信息
+                if (typeof showErrorMessage === 'function') {
+                    showErrorMessage('加载复盘记录失败: ' + error.message)
+                }
+
+                // 清空复盘ID，确保不会意外更新错误的记录
+                const reviewIdField = document.getElementById('review-id');
+                if (reviewIdField) {
+                    reviewIdField.value = '';
+                }
+            });
+        } catch (error) {
+            console.error('❌ 检查现有复盘记录失败:', error);
+
+            // 显示错误信息
+            if (typeof showErrorMessage === 'function') {
+                showErrorMessage('加载复盘记录失败: ' + error.message)
+            }
+
+            // 清空复盘ID，确保不会意外更新错误的记录
+            const reviewIdField = document.getElementById('review-id');
+            if (reviewIdField) {
+                reviewIdField.value = '';
+            }
+        }
+    }
+
+    function populateModalWithExistingReview(review) {
+        console.log('📝 填充现有复盘记录数据:', review);
+
+        try {
+            // 填充基本信息
+            const holdingDaysField = document.getElementById('holding-days');
+            if (holdingDaysField && review.holding_days) {
+                holdingDaysField.value = review.holding_days;
+                console.log('✅ 已填充持仓天数:', review.holding_days);
+            }
+
+            const currentPriceField = document.getElementById('current-price-input');
+            if (currentPriceField && review.current_price) {
+                currentPriceField.value = review.current_price;
+                console.log('✅ 已填充当前价格:', review.current_price);
+            }
+
+            // 填充评分复选框
+            const scoreFields = [
+                { id: 'price-up-score', value: review.price_up_score, name: '收盘价上升' },
+                { id: 'bbi-score', value: review.bbi_score, name: '不破BBI线' },
+                { id: 'volume-score', value: review.volume_score, name: '无放量阴线' },
+                { id: 'trend-score', value: review.trend_score, name: '趋势还在向上' },
+                { id: 'j-score', value: review.j_score, name: 'J没死叉' }
+            ];
+
+            let checkedCount = 0;
+            scoreFields.forEach(field => {
+                const element = document.getElementById(field.id);
+                if (element) {
+                    const isChecked = field.value === 1;
+                    element.checked = isChecked;
+                    if (isChecked) checkedCount++;
+                    console.log(`✅ 已填充评分 ${field.name}:`, isChecked);
+                } else {
+                    console.warn(`⚠️ 未找到评分字段: ${field.id}`);
+                }
+            });
+
+            console.log(`📊 总评分: ${checkedCount}/5`);
+
+            // 更新总分显示
+            const totalScoreEl = document.getElementById('total-score');
+            if (totalScoreEl) {
+                totalScoreEl.textContent = checkedCount;
+            }
+
+            // 填充文本字段
+            const analysisField = document.getElementById('analysis');
+            if (analysisField) {
+                analysisField.value = review.analysis || '';
+                console.log('✅ 已填充分析内容:', review.analysis ? '有内容' : '空');
+            }
+
+            const decisionField = document.getElementById('decision');
+            if (decisionField) {
+                decisionField.value = review.decision || '';
+                console.log('✅ 已填充决策结果:', review.decision);
+            }
+
+            const reasonField = document.getElementById('reason');
+            if (reasonField) {
+                reasonField.value = review.reason || '';
+                console.log('✅ 已填充决策理由:', review.reason ? '有内容' : '空');
+            }
+
+            // 处理浮盈信息显示
+            if (review.floating_profit_ratio !== null && review.floating_profit_ratio !== undefined) {
+                const profitRatio = parseFloat(review.floating_profit_ratio);
+                const profitPercentage = (profitRatio * 100).toFixed(2);
+
+                const profitRatioEl = document.getElementById('floating-profit-ratio');
+                if (profitRatioEl) {
+                    profitRatioEl.textContent = profitPercentage + '%';
+
+                    // 设置颜色
+                    const container = profitRatioEl.closest('.floating-profit-container');
+                    if (container) {
+                        container.className = 'floating-profit-container';
+                        if (profitRatio > 0) {
+                            container.classList.add('profit');
+                            profitRatioEl.style.color = '#dc3545'; // 红色表示盈利
+                        } else if (profitRatio < 0) {
+                            container.classList.add('loss');
+                            profitRatioEl.style.color = '#28a745'; // 绿色表示亏损
+                        } else {
+                            container.classList.add('neutral');
+                            profitRatioEl.style.color = '#6c757d'; // 灰色表示持平
+                        }
+                    }
+                    console.log('✅ 已填充浮盈比例:', profitPercentage + '%');
+                }
+            }
+
+            // 显示买入价格
+            if (review.buy_price) {
+                const buyPriceDisplay = document.getElementById('buy-price-display');
+                if (buyPriceDisplay) {
+                    buyPriceDisplay.textContent = `¥${parseFloat(review.buy_price).toFixed(2)}`;
+                    console.log('✅ 已填充买入价格:', review.buy_price);
+                }
+            }
+
+            // 触发变化检测，更新保存状态
+            if (window.reviewSaveManager && typeof window.reviewSaveManager.captureOriginalFormData === 'function') {
+                // 延迟执行，确保所有字段都已填充
+                setTimeout(() => {
+                    window.reviewSaveManager.captureOriginalFormData();
+                    console.log('✅ 已更新原始表单数据');
+                }, 100);
+            }
+
+            console.log('✅ 复盘记录数据填充完成');
+
+        } catch (error) {
+            console.error('❌ 填充复盘记录数据失败:', error);
+
+            if (typeof showErrorMessage === 'function') {
+                showErrorMessage('填充复盘数据失败: ' + error.message)
+            }
+        }
+    }
+
+    function loadHoldingInfo(stockCode) {
+        try {
+            fetch('/api/holdings').then(response => {
+                return response.json();
+            }).then(data => {
+                if (data.success && data.data) {
+                    currentHoldings = data.data;
+                    const holding = data.data.find(h => h.stock_code === stockCode);
+                    return holding;
+                }
+                return null;
+            }).catch(error => {
+                console.error('获取持仓信息失败:', error);
+                return null;
+            });
+        } catch (error) {
+            console.error('获取持仓信息失败:', error);
+            return null;
+        }
+    }
+
+    function populateModalWithHoldingData(stockCode, holding) {
+        console.log('🔧 填充模态框数据:', stockCode, holding);
+
+        // 设置持仓天数
+        const holdingDays = document.getElementById('holding-days');
+        if (holdingDays) {
+            holdingDays.value = holding.holding_days || 1;
+        }
+
+        // 设置成本价
+        const buyPriceDisplay = document.getElementById('buy-price-display');
+        if (buyPriceDisplay) {
+            const buyPrice = holding.avg_buy_price || holding.avg_price;
+            buyPriceDisplay.textContent = buyPrice ? `¥${buyPrice.toFixed(2)}` : '--';
+            console.log('✅ 成本价已设置:', buyPrice);
+        }
+
+        // 设置当前价格
+        const currentPriceInput = document.getElementById('current-price-input');
+        if (currentPriceInput && holding.current_price) {
+            currentPriceInput.value = holding.current_price.toFixed(2);
+            console.log('✅ 当前价格已设置:', holding.current_price);
+
+            // 计算并显示浮盈
+            calculateAndDisplayProfit(holding);
+        }
+    }
+
+    function calculateAndDisplayProfit(holding) {
+        const buyPrice = holding.avg_buy_price || holding.avg_price;
+        const currentPrice = holding.current_price;
+
+        if (buyPrice && currentPrice) {
+            const profitRatio = ((currentPrice - buyPrice) / buyPrice * 100).toFixed(2);
+            const profitRatioEl = document.getElementById('floating-profit-ratio');
+
+            if (profitRatioEl) {
+                profitRatioEl.textContent = profitRatio + '%';
+
+                // 设置颜色
+                const container = profitRatioEl.closest('.floating-profit-container');
+                if (container) {
+                    container.className = 'floating-profit-container';
+                    if (profitRatio > 0) {
+                        container.classList.add('profit');
+                        profitRatioEl.style.color = '#dc3545'; // 红色
+                    } else if (profitRatio < 0) {
+                        container.classList.add('loss');
+                        profitRatioEl.style.color = '#28a745'; // 绿色
+                    } else {
+                        container.classList.add('neutral');
+                        profitRatioEl.style.color = '#6c757d'; // 灰色
+                    }
+                }
+            }
+        }
+    }
+
+    // 重复函数定义已删除 - 使用上面已定义的函数
+    // 调试函数：测试复盘数据回填
+    window.testReviewDataBackfill = async function (stockCode, reviewDate) {
+        console.log('🧪 测试复盘数据回填:', stockCode, reviewDate);
+
+        try {
+            // 测试API调用
+            const queryParams = new URLSearchParams({
+                stock_code: stockCode,
+                start_date: reviewDate,
+                end_date: reviewDate,
+                per_page: 1
+            });
+
+            return fetch(`/api/reviews?${queryParams}`).then(response => {
+                return response.json();
+            }).then(data => {
+                console.log('📊 API响应:', data);
+
+                // 测试数据解析
+                let reviews = [];
+                if (data.data) {
+                    if (Array.isArray(data.data)) {
+                        reviews = data.data;
+                    } else if (data.data.reviews && Array.isArray(data.data.reviews)) {
+                        reviews = data.data.reviews;
+                    }
+                }
+
+                console.log('📝 解析到的记录:', reviews);
+
+                const existingReview = reviews.find(review =>
+                    review.stock_code === stockCode && review.review_date === reviewDate
+                );
+
+                if (existingReview) {
+                    console.log('✅ 找到匹配记录:', existingReview);
+                    return existingReview;
+                } else {
+                    console.log('❌ 未找到匹配记录');
+                    return null;
+                }
+            }).catch(error => {
+                console.error('❌ 测试失败:', error);
+                return null;
+            });
+        } catch (error) {
+            console.error('❌ 测试失败:', error);
+            return null;
+        }
+    };
+
+    // 调试函数：检查模态框状态
+    window.debugReviewModal = function () {
+        console.log('🔍 检查复盘模态框状态');
+
+        const modal = document.getElementById('reviewModal');
+        const form = document.getElementById('review-form');
+        const stockCodeInput = document.getElementById('review-stock-code');
+        const reviewIdField = document.getElementById('review-id');
+        const reviewDateField = document.getElementById('review-date');
+
+        console.log('模态框元素:', modal ? '存在' : '不存在');
+        console.log('表单元素:', form ? '存在' : '不存在');
+        console.log('股票代码输入框:', stockCodeInput ? stockCodeInput.value : '不存在');
+        console.log('复盘ID字段:', reviewIdField ? reviewIdField.value : '不存在');
+        console.log('复盘日期字段:', reviewDateField ? reviewDateField.value : '不存在');
+
+        if (form) {
+            const formData = new FormData(form);
+            const formObject = {};
+            for (let [key, value] of formData.entries()) {
+                formObject[key] = value;
+            }
+            console.log('表单数据:', formObject);
+        }
+
+        return {
+            modal: !!modal,
+            form: !!form,
+            stockCode: stockCodeInput?.value,
+            reviewId: reviewIdField?.value,
+            reviewDate: reviewDateField?.value
+        };
+    };
+
+    // 暴露全局函数
+    window.saveReview = saveReview;
+    window.testInitialization = testInitialization;
+    window.diagnoseReviewPage = diagnoseReviewPage;
+    window.verifySaveStateManagementIntegration = verifySaveStateManagementIntegration;
+
+    // 暴露初始化相关函数
+    window.getInitializationLogs = getInitializationLogs;
+    window.clearInitializationLogs = clearInitializationLogs;
+    window.exportInitializationLogs = exportInitializationLogs;
+    window.showInitializationReport = showInitializationReport;
+
+    // 页面卸载时记录日志
+    window.addEventListener('beforeunload', function () {
+        if (typeof logInitializationProgress === 'function') {
+            logInitializationProgress('页面卸载', 'info', {
+                duration: performance.now(),
+                userAgent: navigator.userAgent
+            });
+        }
+    });
+
+    // 复盘记录显示修复脚本
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('[FIX] 复盘页面加载完成，开始修复...');
+
+        // 延迟执行，确保所有脚本加载完成
+        setTimeout(function () {
+            fixReviewsDisplay();
+        }, 1000);
+    });
+
+    function fixReviewsDisplay() {
+        console.log('[FIX] 开始修复复盘记录显示...');
+
+        // 检查是否有loadReviews函数
+        if (typeof loadReviews === 'function') {
+            console.log('[FIX] loadReviews函数存在，直接调用');
+            loadReviews();
+            return;
+        }
+
+        // 如果没有loadReviews函数，创建一个简单的版本
+        console.log('[FIX] loadReviews函数不存在，创建简单版本');
+
+        window.loadReviews = async function () {
+            console.log('[FIX] 简单版本loadReviews开始执行');
+
+            const reviewsList = document.getElementById('reviews-list');
+            if (!reviewsList) {
+                console.log('[FIX] 找不到reviews-list元素');
+                return;
+            }
+
+            // 显示加载状态
+            reviewsList.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <p class="mt-2 text-muted">正在加载复盘记录...</p>
+        </div>
+    `;
+
+            try {
+                fetch('/api/reviews').then(response => {
+                    console.log('[FIX] API响应状态:', response.status);
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    return response.json();
+                }).then(data => {
+                    console.log('[FIX] API返回数据:', data);
+
+                    if (data.success && data.data && data.data.reviews) {
+                        const reviews = data.data.reviews;
+                        console.log('[FIX] 找到复盘记录:', reviews.length, '条');
+
+                        if (reviews.length > 0) {
+                            displayReviewsSimple(reviews);
+                        } else {
+                            reviewsList.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-clipboard-list fa-3x mb-3"></i>
+                        <h5>暂无复盘记录</h5>
+                        <p>开始您的第一次复盘分析</p>
+                    </div>
+                `;
+                        }
+                    } else {
+                        throw new Error(data.message || '获取数据失败');
+                    }
+                }).catch(error => {
+                    console.error('[FIX] 加载失败:', error);
+                    reviewsList.innerHTML = `
+            <div class="text-center text-danger py-4">
+                <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                <h6>加载复盘记录失败</h6>
+                <p>${error.message}</p>
+                <button class="btn btn-outline-primary btn-sm" onclick="loadReviews()">
+                    <i class="fas fa-redo"></i> 重试
+                </button>
+            </div>
+        `;
+                });
+            } catch (error) {
+                console.error('[FIX] 加载失败:', error);
+                reviewsList.innerHTML = `
+            <div class="text-center text-danger py-4">
+                <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                <h6>加载复盘记录失败</h6>
+                <p>${error.message}</p>
+                <button class="btn btn-outline-primary btn-sm" onclick="loadReviews()">
+                    <i class="fas fa-redo"></i> 重试
+                </button>
+            </div>
+        `;
+            }
+        };
+
+        // 创建简单的显示函数
+        window.displayReviewsSimple = function (reviews) {
+            console.log('[FIX] 显示复盘记录:', reviews);
+
+            const reviewsList = document.getElementById('reviews-list');
+            if (!reviewsList) return;
+
+            const html = reviews.map(review => {
+                const profitDisplay = review.floating_profit_display || {};
+                const profitColor = profitDisplay.color || 'text-muted';
+                const profitText = profitDisplay.display || '无数据';
+
+                return `
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <h6 class="mb-1"><strong>${review.stock_code}</strong></h6>
+                            <small class="text-muted">${review.review_date}</small>
+                        </div>
+                        <div class="col-md-2">
+                            <span class="badge bg-primary">${review.decision || '未设置'}</span>
+                        </div>
+                        <div class="col-md-2">
+                            <small class="text-muted">持仓天数</small><br>
+                            <strong>${review.holding_days || 0}天</strong>
+                        </div>
+                        <div class="col-md-2">
+                            <small class="text-muted">浮盈</small><br>
+                            <strong class="${profitColor}">${profitText}</strong>
+                        </div>
+                        <div class="col-md-2">
+                            <small class="text-muted">总分</small><br>
+                            <strong>${review.total_score || 0}/25</strong>
+                        </div>
+                        <div class="col-md-1">
+                            <button class="btn btn-outline-primary btn-sm" title="查看">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    ${review.analysis ? `
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <small class="text-muted">分析:</small>
+                                <p class="mb-0 small">${review.analysis}</p>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+            }).join('');
+
+            reviewsList.innerHTML = html;
+            console.log('[FIX] 复盘记录显示完成');
+        };
+
+        // 执行加载
+        loadReviews();
+    }
+
+    // 暴露全局函数
+    window.refreshHoldings = refreshHoldings;
+    window.refreshHoldingsWithPrices = refreshHoldingsWithPrices;
+    window.toggleAutoRefresh = toggleAutoRefresh;
+    window.openQuickReview = openQuickReview;
+    window.openReviewModal = openReviewModal;
+</script>
+{% endblock %}
