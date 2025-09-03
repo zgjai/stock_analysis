@@ -328,6 +328,10 @@ if (typeof window.ApiClient === 'undefined') {
         return this.request('GET', '/analytics/export');
     }
 
+    async getExpectationComparison(params = {}) {
+        return this.request('GET', '/analytics/expectation-comparison', params);
+    }
+
     // 股票价格相关API
     async refreshPrices() {
         return this.request('POST', '/prices/refresh');

@@ -259,12 +259,12 @@ class ReviewService(BaseService):
             # 格式化显示
             if profit_ratio > 0:
                 formatted_ratio = f'+{profit_ratio * 100:.2f}%'
-                color_class = 'text-success'
+                color_class = 'text-danger'
                 is_profit = True
                 is_loss = False
             elif profit_ratio < 0:
                 formatted_ratio = f'{profit_ratio * 100:.2f}%'
-                color_class = 'text-danger'
+                color_class = 'text-success'
                 is_profit = False
                 is_loss = True
             else:

@@ -1,0 +1,194 @@
+[
+  {
+    "month": "2025年08月",
+    "date": "2025-08-01",
+    "start_capital": 3200000,
+    "expected_rate": 8.02,
+    "expected_amount": 256569.0,
+    "end_capital": 3456569.0
+  },
+  {
+    "month": "2025年09月",
+    "date": "2025-09-01",
+    "start_capital": 3456569.0,
+    "expected_rate": 8.02,
+    "expected_amount": 277140.0,
+    "end_capital": 3733709.0
+  },
+  {
+    "month": "2025年10月",
+    "date": "2025-10-01",
+    "start_capital": 3733709.0,
+    "expected_rate": 8.02,
+    "expected_amount": 299360.0,
+    "end_capital": 4033069.0
+  },
+  {
+    "month": "2025年11月",
+    "date": "2025-11-01",
+    "start_capital": 4033069.0,
+    "expected_rate": 8.02,
+    "expected_amount": 323363.0,
+    "end_capital": 4356432.0
+  },
+  {
+    "month": "2025年12月",
+    "date": "2025-12-01",
+    "start_capital": 4356432.0,
+    "expected_rate": 8.02,
+    "expected_amount": 349289.0,
+    "end_capital": 4705721.0
+  },
+  {
+    "month": "2026年01月",
+    "date": "2026-01-01",
+    "start_capital": 4705721.0,
+    "expected_rate": 8.02,
+    "expected_amount": 377294.0,
+    "end_capital": 5083015.0
+  },
+  {
+    "month": "2026年02月",
+    "date": "2026-02-01",
+    "start_capital": 5083015.0,
+    "expected_rate": 8.02,
+    "expected_amount": 407545.0,
+    "end_capital": 5490560.0
+  },
+  {
+    "month": "2026年03月",
+    "date": "2026-03-01",
+    "start_capital": 5490560.0,
+    "expected_rate": 8.02,
+    "expected_amount": 440221.0,
+    "end_capital": 5930781.0
+  },
+  {
+    "month": "2026年04月",
+    "date": "2026-04-01",
+    "start_capital": 5930781.0,
+    "expected_rate": 8.02,
+    "expected_amount": 475517.0,
+    "end_capital": 6406298.0
+  },
+  {
+    "month": "2026年05月",
+    "date": "2026-05-01",
+    "start_capital": 6406298.0,
+    "expected_rate": 8.02,
+    "expected_amount": 513643.0,
+    "end_capital": 6919941.0
+  },
+  {
+    "month": "2026年06月",
+    "date": "2026-06-01",
+    "start_capital": 6919941.0,
+    "expected_rate": 8.02,
+    "expected_amount": 554825.0,
+    "end_capital": 7474766.0
+  },
+  {
+    "month": "2026年07月",
+    "date": "2026-07-01",
+    "start_capital": 7474766.0,
+    "expected_rate": 8.02,
+    "expected_amount": 599310.0,
+    "end_capital": 8074076.0
+  },
+  {
+    "month": "2026年08月",
+    "date": "2026-08-01",
+    "start_capital": 8074076.0,
+    "expected_rate": 8.02,
+    "expected_amount": 647361.0,
+    "end_capital": 8721438.0
+  },
+  {
+    "month": "2026年09月",
+    "date": "2026-09-01",
+    "start_capital": 8721438.0,
+    "expected_rate": 8.02,
+    "expected_amount": 699265.0,
+    "end_capital": 9420703.0
+  },
+  {
+    "month": "2026年10月",
+    "date": "2026-10-01",
+    "start_capital": 9420703.0,
+    "expected_rate": 8.02,
+    "expected_amount": 755331.0,
+    "end_capital": 10176034.0
+  },
+  {
+    "month": "2026年11月",
+    "date": "2026-11-01",
+    "start_capital": 10176034.0,
+    "expected_rate": 8.02,
+    "expected_amount": 815892.0,
+    "end_capital": 10991926.0
+  },
+  {
+    "month": "2026年12月",
+    "date": "2026-12-01",
+    "start_capital": 10991926.0,
+    "expected_rate": 8.02,
+    "expected_amount": 881308.0,
+    "end_capital": 11873234.0
+  },
+  {
+    "month": "2027年01月",
+    "date": "2027-01-01",
+    "start_capital": 11873234.0,
+    "expected_rate": 8.02,
+    "expected_amount": 951970.0,
+    "end_capital": 12825204.0
+  },
+  {
+    "month": "2027年02月",
+    "date": "2027-02-01",
+    "start_capital": 12825204.0,
+    "expected_rate": 8.02,
+    "expected_amount": 1028296.0,
+    "end_capital": 13853500.0
+  },
+  {
+    "month": "2027年03月",
+    "date": "2027-03-01",
+    "start_capital": 13853500.0,
+    "expected_rate": 8.02,
+    "expected_amount": 1110743.0,
+    "end_capital": 14964243.0
+  },
+  {
+    "month": "2027年04月",
+    "date": "2027-04-01",
+    "start_capital": 14964243.0,
+    "expected_rate": 8.02,
+    "expected_amount": 1199800.0,
+    "end_capital": 16164043.0
+  },
+  {
+    "month": "2027年05月",
+    "date": "2027-05-01",
+    "start_capital": 16164043.0,
+    "expected_rate": 8.02,
+    "expected_amount": 1295997.0,
+    "end_capital": 17460040.0
+  },
+  {
+    "month": "2027年06月",
+    "date": "2027-06-01",
+    "start_capital": 17460040.0,
+    "expected_rate": 8.02,
+    "expected_amount": 1399907.0,
+    "end_capital": 18859947.0
+  },
+  {
+    "month": "2027年07月",
+    "date": "2027-07-01",
+    "start_capital": 18859947.0,
+    "expected_rate": 8.02,
+    "expected_amount": 1512149.0,
+    "end_capital": 20372095.0
+  }
+]

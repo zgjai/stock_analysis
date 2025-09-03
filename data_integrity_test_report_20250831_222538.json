@@ -1,0 +1,45 @@
+{
+  "timestamp": "2025-08-31T22:25:38.298642",
+  "summary": {
+    "total_tests": 6,
+    "passed_tests": 0,
+    "failed_tests": 6,
+    "success_rate": 0.0
+  },
+  "test_results": {
+    "现有Analytics功能测试": {
+      "success": false,
+      "message": "总体统计API失败: 500"
+    },
+    "只读数据访问测试": {
+      "success": false,
+      "message": "测试异常: The current Flask app is not registered with this 'SQLAlchemy' instance. Did you forget to call 'init_app', or did you create multiple 'SQLAlchemy' instances?"
+    },
+    "错误处理稳定性测试": {
+      "success": false,
+      "message": "错误后系统无法恢复正常"
+    },
+    "API兼容性测试": {
+      "success": false,
+      "message": "API /api/analytics/overview 返回错误状态: 500"
+    },
+    "数据完整性验证": {
+      "success": false,
+      "message": "测试异常: The current Flask app is not registered with this 'SQLAlchemy' instance. Did you forget to call 'init_app', or did you create multiple 'SQLAlchemy' instances?"
+    },
+    "性能基本测试": {
+      "success": false,
+      "message": "性能测试中API失败: /api/analytics/overview"
+    }
+  },
+  "initial_data_state": {
+    "error": "The current Flask app is not registered with this 'SQLAlchemy' instance. Did you forget to call 'init_app', or did you create multiple 'SQLAlchemy' instances?"
+  },
+  "requirements_tested": [
+    "8.1",
+    "8.2",
+    "8.3",
+    "8.4",
+    "8.5"
+  ]
+}

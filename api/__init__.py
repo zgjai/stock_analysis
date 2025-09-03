@@ -16,3 +16,5 @@ from . import price_routes
 from . import sector_routes
 from . import analytics_routes
 from . import non_trading_day_routes
+from . import historical_trade_routes
+from . import trade_review_routes

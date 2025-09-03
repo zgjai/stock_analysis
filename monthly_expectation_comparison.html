@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>月度期望收益对比</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .expectation-card {
+            transition: transform 0.2s;
+        }
+        .expectation-card:hover {
+            transform: translateY(-2px);
+        }
+        .month-item {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .month-item:hover {
+            background-color: #f8f9fa;
+        }
+        .month-item.active {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+        .profit-positive {
+            color: #28a745;
+        }
+        .profit-negative {
+            color: #dc3545;
+        }
+        .loading-spinner {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="fas fa-chart-line me-2"></i>月度期望收益对比</h2>
+                    <button class="btn btn-primary" onclick="refreshData()">
+                        <i class="fas fa-sync-alt me-1"></i>刷新数据
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 左侧：月份列表 -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-calendar me-2"></i>选择月份</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="month-list" class="list-group list-group-flush">
+                            <div class="text-center py-4">
+                                <div class="loading-spinner spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">加载中...</span>
+                                </div>
+                                <p class="text-muted mt-2">正在加载月份数据...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：对比详情 -->
+            <div class="col-md-8">
+                <div id="comparison-detail">
+                    <div class="text-center py-5">
+                        <i class="fas fa-mouse-pointer fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">请选择一个月份查看详细对比</h5>
+                        <p class="text-muted">左侧列表中点击任意月份即可查看期望与实际收益的对比分析</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let monthlyData = [];
+        let selectedMonth = null;
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadMonthlyExpectations();
+        });
+
+        // 加载月度期望数据
+        async function loadMonthlyExpectations() {
+            try {
+                showLoading(true);
+                
+                const response = await fetch('/api/analytics/monthly-expectations');
+                const result = await response.json();
+                
+                if (result.success) {
+                    monthlyData = result.data;
+                    renderMonthList();
+                } else {
+                    showError('加载月度数据失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('加载月度数据失败:', error);
+                showError('网络错误，请稍后重试');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 渲染月份列表
+        function renderMonthList() {
+            const monthList = document.getElementById('month-list');
+            
+            if (monthlyData.length === 0) {
+                monthList.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                        <p class="text-muted">暂无月度数据</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            monthlyData.forEach((item, index) => {
+                const isActive = selectedMonth === item.month;
+                html += `
+                    <div class="month-item list-group-item list-group-item-action ${isActive ? 'active' : ''}" 
+                         onclick="selectMonth('${item.month}', ${index})">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">${item.month}</h6>
+                                <small class="text-muted">期望收益: ${formatCurrency(item.expected_amount)}</small>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">收益率: ${item.expected_rate}%</small><br>
+                                <small class="text-muted">本金: ${formatCurrency(item.start_capital)}</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            monthList.innerHTML = html;
+        }
+
+        // 选择月份
+        async function selectMonth(month, index) {
+            selectedMonth = month;
+            renderMonthList(); // 重新渲染以更新选中状态
+            
+            // 解析年月
+            const match = month.match(/(\d{4})年(\d{2})月/);
+            if (!match) {
+                showError('月份格式错误');
+                return;
+            }
+            
+            const year = parseInt(match[1]);
+            const monthNum = parseInt(match[2]);
+            
+            await loadMonthlyComparison(year, monthNum);
+        }
+
+        // 加载月度对比数据
+        async function loadMonthlyComparison(year, month) {
+            try {
+                const response = await fetch(`/api/analytics/monthly-comparison?year=${year}&month=${month}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderComparisonDetail(result.data);
+                } else {
+                    showError('加载对比数据失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('加载对比数据失败:', error);
+                showError('网络错误，请稍后重试');
+            }
+        }
+
+        // 渲染对比详情
+        function renderComparisonDetail(data) {
+            const detailContainer = document.getElementById('comparison-detail');
+            
+            const expected = data.expected;
+            const actual = data.actual;
+            const comparison = data.comparison;
+            
+            detailContainer.innerHTML = `
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>${data.month_str} 期望与实际对比
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- 概览卡片 -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card expectation-card border-primary">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title text-primary">
+                                            <i class="fas fa-target me-1"></i>期望收益
+                                        </h6>
+                                        <h3 class="text-primary">${formatCurrency(expected.expected_amount)}</h3>
+                                        <p class="text-muted mb-0">收益率: ${expected.expected_rate}%</p>
+                                        <small class="text-muted">基于概率模型计算</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card expectation-card border-success">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title text-success">
+                                            <i class="fas fa-chart-line me-1"></i>实际收益
+                                        </h6>
+                                        <h3 class="${actual.realized_profit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                                            ${formatCurrency(actual.realized_profit)}
+                                        </h3>
+                                        <p class="text-muted mb-0">收益率: ${(actual.return_rate * 100).toFixed(2)}%</p>
+                                        <small class="text-muted">基于实际交易</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 详细对比 -->
+                        <div class="row">
+                            <div class="col-12">
+                                <h6><i class="fas fa-balance-scale me-2"></i>详细对比分析</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>指标</th>
+                                                <th>期望值</th>
+                                                <th>实际值</th>
+                                                <th>差异</th>
+                                                <th>表现</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><i class="fas fa-coins me-1"></i>收益金额</td>
+                                                <td>${formatCurrency(expected.expected_amount)}</td>
+                                                <td class="${actual.realized_profit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                                                    ${formatCurrency(actual.realized_profit)}
+                                                </td>
+                                                <td class="${comparison.amount_diff >= 0 ? 'profit-positive' : 'profit-negative'}">
+                                                    ${formatCurrency(comparison.amount_diff)}
+                                                    (${comparison.amount_diff_pct.toFixed(1)}%)
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-${comparison.amount_status.color}">
+                                                        ${comparison.amount_status.message}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td><i class="fas fa-percentage me-1"></i>收益率</td>
+                                                <td>${expected.expected_rate}%</td>
+                                                <td class="${actual.return_rate >= 0 ? 'profit-positive' : 'profit-negative'}">
+                                                    ${(actual.return_rate * 100).toFixed(2)}%
+                                                </td>
+                                                <td class="${comparison.rate_diff >= 0 ? 'profit-positive' : 'profit-negative'}">
+                                                    ${(comparison.rate_diff * 100).toFixed(2)}%
+                                                    (${comparison.rate_diff_pct.toFixed(1)}%)
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-${comparison.rate_status.color}">
+                                                        ${comparison.rate_status.message}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 交易统计 -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h6><i class="fas fa-chart-pie me-2"></i>交易统计</h6>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h5 class="text-primary">${actual.total_trades}</h5>
+                                            <small class="text-muted">总交易次数</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h5 class="text-info">${formatCurrency(actual.buy_amount)}</h5>
+                                            <small class="text-muted">买入金额</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h5 class="text-warning">${formatCurrency(actual.sell_amount)}</h5>
+                                            <small class="text-muted">卖出金额</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h5 class="text-success">${formatCurrency(expected.start_capital)}</h5>
+                                            <small class="text-muted">期望月初本金</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 格式化货币
+        function formatCurrency(amount) {
+            if (amount === 0) return '¥0';
+            
+            const absAmount = Math.abs(amount);
+            let formatted;
+            
+            if (absAmount >= 100000000) { // 1亿以上
+                formatted = (absAmount / 100000000).toFixed(2) + '亿';
+            } else if (absAmount >= 10000) { // 1万以上
+                formatted = (absAmount / 10000).toFixed(1) + '万';
+            } else {
+                formatted = absAmount.toLocaleString();
+            }
+            
+            return (amount < 0 ? '-¥' : '¥') + formatted;
+        }
+
+        // 显示加载状态
+        function showLoading(show) {
+            const spinner = document.querySelector('.loading-spinner');
+            if (spinner) {
+                spinner.style.display = show ? 'inline-block' : 'none';
+            }
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const monthList = document.getElementById('month-list');
+            monthList.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
+                    <p class="text-danger">${message}</p>
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadMonthlyExpectations()">
+                        <i class="fas fa-redo me-1"></i>重新加载
+                    </button>
+                </div>
+            `;
+        }
+
+        // 刷新数据
+        function refreshData() {
+            selectedMonth = null;
+            document.getElementById('comparison-detail').innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-mouse-pointer fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">请选择一个月份查看详细对比</h5>
+                    <p class="text-muted">左侧列表中点击任意月份即可查看期望与实际收益的对比分析</p>
+                </div>
+            `;
+            loadMonthlyExpectations();
+        }
+    </script>
+</body>
+</html>

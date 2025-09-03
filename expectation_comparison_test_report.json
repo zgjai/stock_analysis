@@ -1,0 +1,15 @@
+{
+  "test_time": "2025-08-31T22:35:05.448631",
+  "test_summary": {
+    "total_tests": 4,
+    "passed_tests": 0,
+    "failed_tests": 0,
+    "warnings": 0
+  },
+  "performance_metrics": {
+    "api_response_time": "待测试",
+    "memory_usage": "待测试",
+    "cpu_usage": "待测试"
+  },
+  "recommendations": []
+}

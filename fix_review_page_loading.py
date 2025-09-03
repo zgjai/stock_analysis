@@ -260,7 +260,7 @@ function renderHoldings(holdings) {
                     </div>
                     <div class="col-md-2">
                         <div class="text-center">
-                            <div class="fw-bold ${(holding.profit_loss_ratio || 0) >= 0 ? 'text-success' : 'text-danger'}">
+                            <div class="fw-bold ${(holding.profit_loss_ratio || 0) >= 0 ? 'text-danger' : 'text-success'}">
                                 ${((holding.profit_loss_ratio || 0) * 100).toFixed(2)}%
                             </div>
                             <small class="text-muted">盈亏</small>

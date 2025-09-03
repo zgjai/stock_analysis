@@ -10,12 +10,134 @@
 
 {% block extra_css %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script
     src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<!-- 加载错误修复脚本 -->
+<script src="{{ url_for('static', filename='js/fix_chart_datalabels_error.js') }}"></script>
+
+<style>
+/* 差异分析增强样式 */
+.alert-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.badge-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.025);
+}
+
+.card-header.bg-primary {
+    background-color: #0d6efd !important;
+}
+
+.text-success {
+    color: #198754 !important;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+.text-warning {
+    color: #fd7e14 !important;
+}
+
+/* 差异徽章增强样式 */
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+/* 分析卡片样式 */
+.analysis-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.analysis-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 差异指标表格样式 */
+.table-responsive {
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    border-top: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.table td {
+    vertical-align: middle;
+    font-size: 0.875rem;
+}
+
+/* 工具提示样式增强 */
+[title] {
+    cursor: help;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .alert-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .badge-sm {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.8rem;
+    }
+}
+</style>
 {% endblock %}
 
 {% block content %}
-<!-- 总体统计概览 -->
+<!-- Tab导航 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <ul class="nav nav-tabs" id="analytics-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-content" type="button" role="tab" aria-controls="overview-content" aria-selected="true">
+                    <i class="fas fa-chart-bar me-2"></i>统计概览
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="expectation-tab" data-bs-toggle="tab" data-bs-target="#expectation-content" type="button" role="tab" aria-controls="expectation-content" aria-selected="false">
+                    <i class="fas fa-balance-scale me-2"></i>期望对比
+                </button>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- Tab内容区域 -->
+<div class="tab-content" id="analytics-tab-content">
+    <!-- 统计概览Tab -->
+    <div class="tab-pane fade show active" id="overview-content" role="tabpanel" aria-labelledby="overview-tab">
+        <!-- 总体统计概览 -->
 <div class="row mb-4">
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="card bg-primary text-white">
@@ -236,9 +358,299 @@
         </div>
     </div>
 </div>
+    </div>
+    
+    <!-- 期望对比Tab -->
+    <div class="tab-pane fade" id="expectation-content" role="tabpanel" aria-labelledby="expectation-tab">
+        <!-- 时间范围选择器 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">期望对比分析</h5>
+                            <div class="d-flex align-items-center">
+                                <label for="time-range-select" class="form-label me-2 mb-0">时间范围:</label>
+                                <select class="form-select" id="time-range-select" style="width: auto;">
+                                    <option value="30d">最近30天</option>
+                                    <option value="90d">最近90天</option>
+                                    <option value="1y">最近1年</option>
+                                    <option value="all" selected>全部时间</option>
+                                </select>
+                                <button class="btn btn-outline-primary btn-sm ms-2" id="refresh-expectation-btn">
+                                    <i class="fas fa-sync-alt me-1"></i>刷新
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 期望vs实际对比卡片 -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-muted">收益率对比</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-primary">
+                                    <small>期望</small>
+                                    <div class="h5 mb-0" id="expected-return-rate">-</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-info">
+                                    <small>实际</small>
+                                    <div class="h5 mb-0" id="actual-return-rate">-</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge" id="return-rate-diff-badge">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-muted">收益金额对比</h6>
+                        <small class="text-muted d-block mb-2">期望基于320万本金，实际含持仓浮盈浮亏</small>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-primary">
+                                    <small>期望</small>
+                                    <div class="h5 mb-0" id="expected-return-amount">-</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-info">
+                                    <small>实际</small>
+                                    <div class="h5 mb-0" id="actual-return-amount">-</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge" id="return-amount-diff-badge">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-muted">持仓天数对比</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-primary">
+                                    <small>期望</small>
+                                    <div class="h5 mb-0" id="expected-holding-days">-</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-info">
+                                    <small>实际</small>
+                                    <div class="h5 mb-0" id="actual-holding-days">-</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge" id="holding-days-diff-badge">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-muted">胜率对比</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-primary">
+                                    <small>期望</small>
+                                    <div class="h5 mb-0" id="expected-success-rate">-</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-info">
+                                    <small>实际</small>
+                                    <div class="h5 mb-0" id="actual-success-rate">-</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge" id="success-rate-diff-badge">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="row mb-4">
+            <!-- 收益对比图表 -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">收益率与收益金额对比</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="return-comparison-chart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 持仓天数对比图表 -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">持仓天数对比</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="holding-days-chart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二行图表 -->
+        <div class="row mb-4">
+            <!-- 胜率对比图表 -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">胜率对比</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="success-rate-chart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 综合表现雷达图 -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">综合表现对比</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="performance-comparison-chart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 月度期望收益对比 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-calendar-alt me-2"></i>月度期望收益对比
+                        </h5>
+                        <button class="btn btn-outline-primary btn-sm" id="refresh-monthly-expectation-btn">
+                            <i class="fas fa-sync-alt me-1"></i>刷新
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- 左侧：月份选择 -->
+                            <div class="col-md-4">
+                                <h6 class="mb-3">选择月份</h6>
+                                <div id="monthly-expectation-list" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                                    <div class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">加载中...</span>
+                                        </div>
+                                        <p class="text-muted mt-2">正在加载月度数据...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 右侧：对比详情 -->
+                            <div class="col-md-8">
+                                <div id="monthly-comparison-detail">
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-mouse-pointer fa-3x text-muted mb-3"></i>
+                                        <h6 class="text-muted">请选择一个月份查看详细对比</h6>
+                                        <p class="text-muted">左侧列表中点击任意月份即可查看期望与实际收益的对比分析</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 差异分析说明 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">差异分析</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="analysis-summary">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-chart-line fa-2x mb-2"></i>
+                                <p>请选择时间范围查看期望对比分析</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 期望模型说明 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">期望模型说明</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3">期望值基于以下概率模型计算：</p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-success">盈利场景</h6>
+                                <ul class="list-unstyled">
+                                    <li><span class="badge bg-success me-2">10%</span>盈利20%，最大持仓30天</li>
+                                    <li><span class="badge bg-success me-2">10%</span>盈利15%，最大持仓20天</li>
+                                    <li><span class="badge bg-success me-2">15%</span>盈利10%，最大持仓15天</li>
+                                    <li><span class="badge bg-success me-2">15%</span>盈利5%，最大持仓10天</li>
+                                    <li><span class="badge bg-success me-2">10%</span>盈利2%，最大持仓5天</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-danger">亏损场景</h6>
+                                <ul class="list-unstyled">
+                                    <li><span class="badge bg-danger me-2">20%</span>亏损3%，最大持仓5天</li>
+                                    <li><span class="badge bg-danger me-2">15%</span>亏损5%，最大持仓5天</li>
+                                    <li><span class="badge bg-danger me-2">5%</span>亏损10%，最大持仓5天</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                * 期望收益率: 4.1% | 期望持仓天数: 11.25天 | 期望胜率: 60% | 基准本金: 320万元（自2025年8月1日起计算）
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/expectation-comparison-manager.js') }}"></script>
 <script>
     class AnalyticsManager {
         constructor() {
@@ -346,9 +758,14 @@
         renderProfitDistributionChart(data) {
             const ctx = document.getElementById('profit-distribution-chart').getContext('2d');
 
+            // 确保彻底销毁之前的图表实例
             if (this.charts.profitDistribution) {
                 this.charts.profitDistribution.destroy();
+                this.charts.profitDistribution = null;
             }
+            
+            // 清理Chart.js的内部引用
+            Chart.getChart('profit-distribution-chart')?.destroy();
 
             // 添加数据验证
             if (!Array.isArray(data) || data.length === 0) {
@@ -457,9 +874,14 @@
         renderMonthlyChart(data) {
             const ctx = document.getElementById('monthly-trend-chart').getContext('2d');
 
+            // 确保彻底销毁之前的图表实例
             if (this.charts.monthlyTrend) {
                 this.charts.monthlyTrend.destroy();
+                this.charts.monthlyTrend = null;
             }
+            
+            // 清理Chart.js的内部引用
+            Chart.getChart('monthly-trend-chart')?.destroy();
 
             // 添加数据验证
             if (!Array.isArray(data) || data.length === 0) {
@@ -734,12 +1156,63 @@
         }
     }
 
+    // 期望对比管理器
+
     // 初始化统计分析管理器
     let analyticsManager;
 
-    function initAnalytics() {
-        analyticsManager = new AnalyticsManager();
+    // 全局图表清理函数
+    function cleanupAllCharts() {
+        // 销毁所有已知的Chart.js实例
+        const chartIds = ['monthly-trend-chart', 'profit-distribution-chart', 'return-comparison-chart', 'performance-comparison-chart'];
+        chartIds.forEach(id => {
+            const existingChart = Chart.getChart(id);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+        });
     }
+
+    function initAnalytics() {
+        // 先清理所有现有图表
+        cleanupAllCharts();
+        
+        analyticsManager = new AnalyticsManager();
+        
+        // 确保期望对比管理器已初始化
+        if (typeof window.expectationComparisonManager === 'undefined') {
+            console.log('期望对比管理器未初始化，等待初始化...');
+            // 等待一小段时间后重试
+            setTimeout(() => {
+                if (typeof window.expectationComparisonManager !== 'undefined') {
+                    console.log('期望对比管理器初始化完成');
+                } else {
+                    console.error('期望对比管理器初始化失败');
+                }
+            }, 100);
+        }
+    }
+
+    // 全局selectMonth函数，用于兼容直接调用
+    window.selectMonth = function(month, index) {
+        if (typeof window.expectationComparisonManager !== 'undefined' && window.expectationComparisonManager.selectMonth) {
+            // 如果传入的是月份字符串，需要找到对应的索引
+            if (typeof month === 'string') {
+                const monthlyData = window.expectationComparisonManager.monthlyExpectations || [];
+                const foundIndex = monthlyData.findIndex(item => item.month === month);
+                if (foundIndex !== -1) {
+                    window.expectationComparisonManager.selectMonth(foundIndex);
+                } else {
+                    console.error('未找到月份:', month);
+                }
+            } else {
+                // 如果传入的是索引
+                window.expectationComparisonManager.selectMonth(month);
+            }
+        } else {
+            console.error('期望对比管理器未初始化或selectMonth方法不存在');
+        }
+    };
 
     document.addEventListener('DOMContentLoaded', () => {
         if (window.location.pathname.includes('analytics')) {

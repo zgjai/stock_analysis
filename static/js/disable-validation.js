@@ -5,7 +5,7 @@
 (function() {
     'use strict';
     
-    console.log('🚫 开始禁用所有前端校验...');
+    console.log('开始禁用所有前端校验...');
     
     // 1. 禁用HTML5表单校验
     function disableHTML5Validation(silent = false) {
@@ -35,7 +35,7 @@
         });
         
         if (!silent) {
-            console.log('✅ HTML5校验已禁用');
+            console.log('HTML5校验已禁用');
         }
     }
     
@@ -74,7 +74,7 @@
             });
         }
         
-        console.log('✅ JavaScript校验已禁用');
+        console.log('JavaScript校验已禁用');
     }
     
     // 3. 清除所有校验状态
@@ -90,7 +90,7 @@
         });
         
         if (!silent) {
-            console.log('✅ 校验状态已清除');
+            console.log('校验状态已清除');
         }
     }
     
@@ -119,7 +119,7 @@
             }
         }, true);
         
-        console.log('✅ 校验事件已阻止');
+        console.log('校验事件已阻止');
     }
     
     // 5. 重写表单提交处理
@@ -136,7 +136,7 @@
             }
         }, true);
         
-        console.log('✅ 表单提交已优化');
+        console.log('表单提交已优化');
     }
     
     // 执行所有禁用操作
@@ -147,7 +147,7 @@
         blockValidationEvents();
         overrideFormSubmission();
         
-        console.log('🎉 所有前端校验已成功禁用！');
+        console.log('所有前端校验已成功禁用！');
     }
     
     // 立即执行

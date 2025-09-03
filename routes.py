@@ -49,6 +49,11 @@ def non_trading_days():
     """非交易日配置页面"""
     return render_template('non_trading_days.html')
 
+@frontend_bp.route('/historical-trades')
+def historical_trades():
+    """历史交易记录页面"""
+    return render_template('historical_trades.html')
+
 @frontend_bp.route('/profit-distribution-config')
 def profit_distribution_config():
     """收益分布配置页面"""

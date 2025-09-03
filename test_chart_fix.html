@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图表修复测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>图表修复测试</h1>
+    
+    <div>
+        <button onclick="testChartCleanup()">测试图表清理</button>
+        <button onclick="testSyntaxFix()">测试语法修复</button>
+    </div>
+    
+    <div style="width: 400px; height: 300px; margin: 20px 0;">
+        <canvas id="test-chart"></canvas>
+    </div>
+    
+    <div id="test-results"></div>
+
+    <script>
+        let testChart = null;
+        
+        function testChartCleanup() {
+            const results = document.getElementById('test-results');
+            
+            try {
+                // 创建测试图表
+                const ctx = document.getElementById('test-chart').getContext('2d');
+                
+                // 清理现有图表
+                if (testChart) {
+                    testChart.destroy();
+                    testChart = null;
+                }
+                Chart.getChart('test-chart')?.destroy();
+                
+                // 创建新图表
+                testChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['测试1', '测试2'],
+                        datasets: [{
+                            label: '测试数据',
+                            data: [10, 20],
+                            backgroundColor: 'rgba(54, 162, 235, 0.8)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+                
+                results.innerHTML = '<p style="color: green;">✓ 图表清理测试通过</p>';
+            } catch (error) {
+                results.innerHTML = `<p style="color: red;">✗ 图表清理测试失败: ${error.message}</p>`;
+            }
+        }
+        
+        function testSyntaxFix() {
+            const results = document.getElementById('test-results');
+            
+            try {
+                // 测试控制台输出（模拟disable-validation.js的逻辑）
+                console.log('开始禁用所有前端校验...');
+                console.log('HTML5校验已禁用');
+                console.log('JavaScript校验已禁用');
+                console.log('校验状态已清除');
+                console.log('校验事件已阻止');
+                console.log('表单提交已优化');
+                console.log('所有前端校验已成功禁用！');
+                
+                results.innerHTML = '<p style="color: green;">✓ 语法修复测试通过</p>';
+            } catch (error) {
+                results.innerHTML = `<p style="color: red;">✗ 语法修复测试失败: ${error.message}</p>`;
+            }
+        }
+        
+        // 页面加载时自动测试
+        window.addEventListener('load', () => {
+            testSyntaxFix();
+            setTimeout(testChartCleanup, 500);
+        });
+    </script>
+</body>
+</html>

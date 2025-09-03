@@ -39,6 +39,16 @@ class App {
 
         // 全局错误处理
         window.addEventListener('error', (e) => {
+            // 检查是否是 Chart.js datalabels 相关错误
+            if (e.error && e.error.message) {
+                const errorMsg = e.error.message;
+                if (errorMsg.includes('datalabels') || 
+                    (errorMsg.includes('Cannot read properties of null') && errorMsg.includes('reading \'x\''))) {
+                    console.warn('Chart.js datalabels错误已被拦截:', e.error);
+                    return; // 不显示用户提示
+                }
+            }
+            
             console.error('Global error:', e.error);
             this.showMessage('系统发生错误，请刷新页面重试', 'error');
         });
@@ -117,6 +127,7 @@ class App {
             'dashboard': '/',
             'trading': '/trading-records',
             'review': '/review',
+            'historical-trades': '/historical-trades',
             'stock-pool': '/stock-pool',
             'sector': '/sector-analysis',
             'cases': '/cases',
@@ -153,6 +164,11 @@ class App {
             case 'review':
                 if (typeof initReview === 'function') {
                     initReview();
+                }
+                break;
+            case 'historical-trades':
+                if (typeof HistoricalTradesManager !== 'undefined') {
+                    console.log('历史交易页面已加载');
                 }
                 break;
             case 'stock-pool':
