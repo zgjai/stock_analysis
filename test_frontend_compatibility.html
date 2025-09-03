@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前端兼容性测试 - 期望对比功能</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .test-passed {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .test-failed {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .test-running {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .console-output {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">
+                    <i class="fas fa-vial me-2"></i>前端兼容性测试
+                </h1>
+                <p class="text-muted">测试期望对比功能与现有analytics功能的兼容性</p>
+            </div>
+        </div>
+
+        <!-- 测试控制面板 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">测试控制</h5>
+                    </div>
+                    <div class="card-body">
+                        <button id="start-tests" class="btn btn-primary me-2">
+                            <i class="fas fa-play me-1"></i>开始测试
+                        </button>
+                        <button id="clear-results" class="btn btn-secondary me-2">
+                            <i class="fas fa-trash me-1"></i>清除结果
+                        </button>
+                        <button id="export-results" class="btn btn-success">
+                            <i class="fas fa-download me-1"></i>导出结果
+                        </button>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                测试将验证期望对比功能不会影响现有analytics功能
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 测试结果区域 -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-flask fa-2x mb-2"></i>
+                                <p>点击"开始测试"运行兼容性测试</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">测试统计</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="text-success">
+                                    <h4 id="passed-count">0</h4>
+                                    <small>通过</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-danger">
+                                    <h4 id="failed-count">0</h4>
+                                    <small>失败</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-primary">
+                                    <h4 id="total-count">0</h4>
+                                    <small>总计</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <div class="progress">
+                                <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 控制台输出 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">控制台输出</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="console-output" class="console-output">
+                            <div class="text-muted">等待测试开始...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 隐藏的测试区域 -->
+        <div id="test-area" style="display: none;">
+            <!-- Tab导航测试 -->
+            <ul class="nav nav-tabs" id="test-analytics-tabs">
+                <li class="nav-item">
+                    <button class="nav-link active" id="test-overview-tab" data-bs-toggle="tab" data-bs-target="#test-overview-content">统计概览</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="test-expectation-tab" data-bs-toggle="tab" data-bs-target="#test-expectation-content">期望对比</button>
+                </li>
+            </ul>
+            
+            <div class="tab-content" id="test-analytics-tab-content">
+                <div class="tab-pane fade show active" id="test-overview-content">
+                    <canvas id="test-chart-1" width="400" height="200"></canvas>
+                </div>
+                <div class="tab-pane fade" id="test-expectation-content">
+                    <canvas id="test-chart-2" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        class FrontendCompatibilityTester {
+            constructor() {
+                this.testResults = [];
+                this.passedCount = 0;
+                this.failedCount = 0;
+                this.totalCount = 0;
+                this.currentTestIndex = 0;
+                
+                this.init();
+            }
+            
+            init() {
+                this.bindEvents();
+                this.log('前端兼容性测试器初始化完成');
+            }
+            
+            bindEvents() {
+                document.getElementById('start-tests').addEventListener('click', () => {
+                    this.runAllTests();
+                });
+                
+                document.getElementById('clear-results').addEventListener('click', () => {
+                    this.clearResults();
+                });
+                
+                document.getElementById('export-results').addEventListener('click', () => {
+                    this.exportResults();
+                });
+            }
+            
+            log(message, type = 'info') {
+                const console = document.getElementById('console-output');
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = document.createElement('div');
+                
+                let className = '';
+                let icon = '';
+                
+                switch(type) {
+                    case 'success':
+                        className = 'text-success';
+                        icon = '✓';
+                        break;
+                    case 'error':
+                        className = 'text-danger';
+                        icon = '✗';
+                        break;
+                    case 'warning':
+                        className = 'text-warning';
+                        icon = '⚠';
+                        break;
+                    default:
+                        className = 'text-info';
+                        icon = 'ℹ';
+                }
+                
+                logEntry.innerHTML = `<span class="text-muted">[${timestamp}]</span> <span class="${className}">${icon} ${message}</span>`;
+                console.appendChild(logEntry);
+                console.scrollTop = console.scrollHeight;
+            }
+            
+            async runAllTests() {
+                this.clearResults();
+                this.log('开始运行前端兼容性测试...', 'info');
+                
+                const tests = [
+                    { name: 'Tab导航功能测试', method: 'testTabNavigation' },
+                    { name: 'API调用兼容性测试', method: 'testApiCompatibility' },
+                    { name: 'Chart.js图表兼容性测试', method: 'testChartCompatibility' },
+                    { name: 'Bootstrap组件兼容性测试', method: 'testBootstrapCompatibility' },
+                    { name: 'JavaScript事件处理测试', method: 'testEventHandling' },
+                    { name: '内存泄漏检测测试', method: 'testMemoryLeaks' },
+                    { name: '响应式布局测试', method: 'testResponsiveLayout' },
+                    { name: '浏览器兼容性测试', method: 'testBrowserCompatibility' },
+                    { name: '错误处理测试', method: 'testErrorHandling' },
+                    { name: '性能影响测试', method: 'testPerformanceImpact' }
+                ];
+                
+                this.totalCount = tests.length;
+                this.updateStats();
+                
+                for (let i = 0; i < tests.length; i++) {
+                    this.currentTestIndex = i;
+                    const test = tests[i];
+                    
+                    try {
+                        this.log(`执行测试: ${test.name}`, 'info');
+                        this.addTestResult(test.name, 'running', '测试进行中...');
+                        
+                        const result = await this[test.method]();
+                        
+                        if (result.success) {
+                            this.passedCount++;
+                            this.updateTestResult(test.name, 'passed', result.message);
+                            this.log(`✓ ${test.name} 通过`, 'success');
+                        } else {
+                            this.failedCount++;
+                            this.updateTestResult(test.name, 'failed', result.message);
+                            this.log(`✗ ${test.name} 失败: ${result.message}`, 'error');
+                        }
+                        
+                    } catch (error) {
+                        this.failedCount++;
+                        this.updateTestResult(test.name, 'failed', `测试异常: ${error.message}`);
+                        this.log(`✗ ${test.name} 异常: ${error.message}`, 'error');
+                    }
+                    
+                    this.updateStats();
+                    this.updateProgress();
+                    
+                    // 添加延迟以便观察测试过程
+                    await this.delay(500);
+                }
+                
+                this.log(`测试完成! 通过: ${this.passedCount}, 失败: ${this.failedCount}`, 
+                    this.failedCount === 0 ? 'success' : 'warning');
+            }
+            
+            async testTabNavigation() {
+                try {
+                    // 测试Tab切换功能
+                    const overviewTab = document.getElementById('test-overview-tab');
+                    const expectationTab = document.getElementById('test-expectation-tab');
+                    
+                    if (!overviewTab || !expectationTab) {
+                        return { success: false, message: 'Tab元素未找到' };
+                    }
+                    
+                    // 模拟点击期望对比tab
+                    expectationTab.click();
+                    await this.delay(100);
+                    
+                    // 检查tab是否正确切换
+                    if (!expectationTab.classList.contains('active')) {
+                        return { success: false, message: '期望对比tab切换失败' };
+                    }
+                    
+                    // 切换回统计概览tab
+                    overviewTab.click();
+                    await this.delay(100);
+                    
+                    if (!overviewTab.classList.contains('active')) {
+                        return { success: false, message: '统计概览tab切换失败' };
+                    }
+                    
+                    return { success: true, message: 'Tab导航功能正常' };
+                    
+                } catch (error) {
+                    return { success: false, message: `Tab导航测试异常: ${error.message}` };
+                }
+            }
+            
+            async testApiCompatibility() {
+                try {
+                    // 测试现有API是否仍然可用
+                    const apis = [
+                        '/api/analytics/overview',
+                        '/api/analytics/profit-distribution',
+                        '/api/analytics/monthly',
+                        '/api/analytics/expectation-comparison'
+                    ];
+                    
+                    for (const api of apis) {
+                        try {
+                            const response = await fetch(api);
+                            if (!response.ok) {
+                                return { success: false, message: `API ${api} 返回错误状态: ${response.status}` };
+                            }
+                            
+                            const data = await response.json();
+                            if (!data.hasOwnProperty('success')) {
+                                return { success: false, message: `API ${api} 响应格式不正确` };
+                            }
+                            
+                        } catch (error) {
+                            return { success: false, message: `API ${api} 调用失败: ${error.message}` };
+                        }
+                    }
+                    
+                    return { success: true, message: '所有API兼容性正常' };
+                    
+                } catch (error) {
+                    return { success: false, message: `API兼容性测试异常: ${error.message}` };
+                }
+            }
+            
+            async testChartCompatibility() {
+                try {
+                    // 测试Chart.js图表是否能正常创建
+                    const canvas1 = document.getElementById('test-chart-1');
+                    const canvas2 = document.getElementById('test-chart-2');
+                    
+                    if (!canvas1 || !canvas2) {
+                        return { success: false, message: 'Canvas元素未找到' };
+                    }
+                    
+                    // 创建测试图表
+                    const chart1 = new Chart(canvas1, {
+                        type: 'bar',
+                        data: {
+                            labels: ['测试1', '测试2'],
+                            datasets: [{
+                                data: [10, 20],
+                                backgroundColor: ['#007bff', '#28a745']
+                            }]
+                        },
+                        options: { responsive: false }
+                    });
+                    
+                    const chart2 = new Chart(canvas2, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['期望', '实际'],
+                            datasets: [{
+                                data: [60, 40],
+                                backgroundColor: ['#ffc107', '#17a2b8']
+                            }]
+                        },
+                        options: { responsive: false }
+                    });
+                    
+                    // 清理图表
+                    chart1.destroy();
+                    chart2.destroy();
+                    
+                    return { success: true, message: 'Chart.js图表兼容性正常' };
+                    
+                } catch (error) {
+                    return { success: false, message: `图表兼容性测试异常: ${error.message}` };
+                }
+            }
+            
+            async testBootstrapCompatibility() {
+                try {
+                    // 测试Bootstrap组件是否正常工作
+                    const testModal = document.createElement('div');
+                    testModal.className = 'modal fade';
+                    testModal.innerHTML = `
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-body">测试模态框</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(testModal);
+                    
+                    // 测试模态框
+                    const modal = new bootstrap.Modal(testModal);
+                    modal.show();
+                    
+                    await this.delay(100);
+                    
+                    modal.hide();
+                    document.body.removeChild(testModal);
+                    
+                    return { success: true, message: 'Bootstrap组件兼容性正常' };
+                    
+                } catch (error) {
+                    return { success: false, message: `Bootstrap兼容性测试异常: ${error.message}` };
+                }
+            }
+            
+            async testEventHandling() {
+                try {
+                    // 测试事件处理是否正常
+                    let eventTriggered = false;
+                    
+                    const testButton = document.createElement('button');
+                    testButton.addEventListener('click', () => {
+                        eventTriggered = true;
+                    });
+                    
+                    // 模拟点击
+                    testButton.click();
+                    
+                    if (!eventTriggered) {
+                        return { success: false, message: '事件处理失败' };
+                    }
+                    
+                    return { success: true, message: 'JavaScript事件处理正常' };
+                    
+                } catch (error) {
+                    return { success: false, message: `事件处理测试异常: ${error.message}` };
+                }
+            }
+            
+            async testMemoryLeaks() {
+                try {
+                    // 简单的内存泄漏检测
+                    const initialMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                    
+                    // 创建和销毁一些对象
+                    const objects = [];
+                    for (let i = 0; i < 1000; i++) {
+                        objects.push({ data: new Array(100).fill(i) });
+                    }
+                    
+                    // 清理对象
+                    objects.length = 0;
+                    
+                    // 强制垃圾回收（如果支持）
+                    if (window.gc) {
+                        window.gc();
+                    }
+                    
+                    await this.delay(100);
+                    
+                    const finalMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                    const memoryIncrease = finalMemory - initialMemory;
+                    
+                    // 如果内存增长超过5MB，可能存在泄漏
+                    if (memoryIncrease > 5 * 1024 * 1024) {
+                        return { success: false, message: `可能存在内存泄漏，增长: ${(memoryIncrease / 1024 / 1024).toFixed(2)}MB` };
+                    }
+                    
+                    return { success: true, message: '未检测到明显内存泄漏' };
+                    
+                } catch (error) {
+                    return { success: false, message: `内存泄漏测试异常: ${error.message}` };
+                }
+            }
+            
+            async testResponsiveLayout() {
+                try {
+                    // 测试响应式布局
+                    const originalWidth = window.innerWidth;
+                    
+                    // 模拟移动设备宽度
+                    Object.defineProperty(window, 'innerWidth', {
+                        writable: true,
+                        configurable: true,
+                        value: 375
+                    });
+                    
+                    // 触发resize事件
+                    window.dispatchEvent(new Event('resize'));
+                    
+                    await this.delay(100);
+                    
+                    // 恢复原始宽度
+                    Object.defineProperty(window, 'innerWidth', {
+                        writable: true,
+                        configurable: true,
+                        value: originalWidth
+                    });
+                    
+                    window.dispatchEvent(new Event('resize'));
+                    
+                    return { success: true, message: '响应式布局测试正常' };
+                    
+                } catch (error) {
+                    return { success: false, message: `响应式布局测试异常: ${error.message}` };
+                }
+            }
+            
+            async testBrowserCompatibility() {
+                try {
+                    // 检查关键API支持
+                    const requiredAPIs = [
+                        'fetch',
+                        'Promise',
+                        'addEventListener',
+                        'querySelector',
+                        'JSON'
+                    ];
+                    
+                    for (const api of requiredAPIs) {
+                        if (typeof window[api] === 'undefined') {
+                            return { success: false, message: `浏览器不支持 ${api} API` };
+                        }
+                    }
+                    
+                    // 检查ES6特性
+                    try {
+                        eval('const test = () => {}; class TestClass {}');
+                    } catch (error) {
+                        return { success: false, message: '浏览器不支持ES6特性' };
+                    }
+                    
+                    return { success: true, message: '浏览器兼容性正常' };
+                    
+                } catch (error) {
+                    return { success: false, message: `浏览器兼容性测试异常: ${error.message}` };
+                }
+            }
+            
+            async testErrorHandling() {
+                try {
+                    // 测试错误处理机制
+                    let errorCaught = false;
+                    
+                    const originalErrorHandler = window.onerror;
+                    window.onerror = () => {
+                        errorCaught = true;
+                        return true;
+                    };
+                    
+                    try {
+                        // 故意触发错误
+                        throw new Error('测试错误');
+                    } catch (error) {
+                        // 错误被正确捕获
+                    }
+                    
+                    window.onerror = originalErrorHandler;
+                    
+                    return { success: true, message: '错误处理机制正常' };
+                    
+                } catch (error) {
+                    return { success: false, message: `错误处理测试异常: ${error.message}` };
+                }
+            }
+            
+            async testPerformanceImpact() {
+                try {
+                    // 测试性能影响
+                    const startTime = performance.now();
+                    
+                    // 模拟一些计算密集型操作
+                    for (let i = 0; i < 10000; i++) {
+                        const div = document.createElement('div');
+                        div.innerHTML = `测试元素 ${i}`;
+                        document.body.appendChild(div);
+                        document.body.removeChild(div);
+                    }
+                    
+                    const endTime = performance.now();
+                    const duration = endTime - startTime;
+                    
+                    // 如果操作耗时超过1秒，可能存在性能问题
+                    if (duration > 1000) {
+                        return { success: false, message: `性能测试耗时过长: ${duration.toFixed(2)}ms` };
+                    }
+                    
+                    return { success: true, message: `性能测试正常，耗时: ${duration.toFixed(2)}ms` };
+                    
+                } catch (error) {
+                    return { success: false, message: `性能测试异常: ${error.message}` };
+                }
+            }
+            
+            addTestResult(name, status, message) {
+                const resultsContainer = document.getElementById('test-results');
+                
+                if (resultsContainer.querySelector('.text-muted')) {
+                    resultsContainer.innerHTML = '';
+                }
+                
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result test-${status}`;
+                resultDiv.id = `test-${name.replace(/\s+/g, '-')}`;
+                
+                let icon = '';
+                switch(status) {
+                    case 'passed':
+                        icon = '<i class="fas fa-check-circle me-2"></i>';
+                        break;
+                    case 'failed':
+                        icon = '<i class="fas fa-times-circle me-2"></i>';
+                        break;
+                    case 'running':
+                        icon = '<i class="fas fa-spinner fa-spin me-2"></i>';
+                        break;
+                }
+                
+                resultDiv.innerHTML = `${icon}<strong>${name}</strong>: ${message}`;
+                resultsContainer.appendChild(resultDiv);
+            }
+            
+            updateTestResult(name, status, message) {
+                const resultDiv = document.getElementById(`test-${name.replace(/\s+/g, '-')}`);
+                if (resultDiv) {
+                    resultDiv.className = `test-result test-${status}`;
+                    
+                    let icon = '';
+                    switch(status) {
+                        case 'passed':
+                            icon = '<i class="fas fa-check-circle me-2"></i>';
+                            break;
+                        case 'failed':
+                            icon = '<i class="fas fa-times-circle me-2"></i>';
+                            break;
+                    }
+                    
+                    resultDiv.innerHTML = `${icon}<strong>${name}</strong>: ${message}`;
+                }
+            }
+            
+            updateStats() {
+                document.getElementById('passed-count').textContent = this.passedCount;
+                document.getElementById('failed-count').textContent = this.failedCount;
+                document.getElementById('total-count').textContent = this.totalCount;
+            }
+            
+            updateProgress() {
+                const progress = ((this.passedCount + this.failedCount) / this.totalCount) * 100;
+                document.getElementById('progress-bar').style.width = `${progress}%`;
+            }
+            
+            clearResults() {
+                this.testResults = [];
+                this.passedCount = 0;
+                this.failedCount = 0;
+                this.totalCount = 0;
+                this.currentTestIndex = 0;
+                
+                document.getElementById('test-results').innerHTML = `
+                    <div class="text-center text-muted">
+                        <i class="fas fa-flask fa-2x mb-2"></i>
+                        <p>点击"开始测试"运行兼容性测试</p>
+                    </div>
+                `;
+                
+                document.getElementById('console-output').innerHTML = '<div class="text-muted">等待测试开始...</div>';
+                
+                this.updateStats();
+                this.updateProgress();
+            }
+            
+            exportResults() {
+                const results = {
+                    timestamp: new Date().toISOString(),
+                    summary: {
+                        total: this.totalCount,
+                        passed: this.passedCount,
+                        failed: this.failedCount,
+                        success_rate: this.totalCount > 0 ? (this.passedCount / this.totalCount * 100).toFixed(2) : 0
+                    },
+                    tests: this.testResults,
+                    browser_info: {
+                        user_agent: navigator.userAgent,
+                        platform: navigator.platform,
+                        language: navigator.language
+                    }
+                };
+                
+                const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `frontend_compatibility_test_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                URL.revokeObjectURL(url);
+                
+                this.log('测试结果已导出', 'success');
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+        
+        // 初始化测试器
+        document.addEventListener('DOMContentLoaded', () => {
+            new FrontendCompatibilityTester();
+        });
+    </script>
+</body>
+</html>

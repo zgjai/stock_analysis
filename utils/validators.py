@@ -30,7 +30,7 @@ def validate_price(price):
     except (ValueError, TypeError):
         raise ValidationError("价格格式不正确", "price")
 
-def validate_quantity(quantity):
+def validate_quantity(quantity, stock_code=None):
     """验证数量格式"""
     if quantity is None:
         raise ValidationError("数量不能为空", "quantity")
@@ -41,6 +41,18 @@ def validate_quantity(quantity):
             raise ValidationError("数量必须大于0", "quantity")
         if quantity_int > 999999:
             raise ValidationError("数量不能超过999999", "quantity")
+        
+        # 如果提供了股票代码，使用股票特定的验证规则
+        if stock_code:
+            from utils.stock_utils import validate_stock_quantity
+            is_valid, error_message = validate_stock_quantity(stock_code, quantity_int)
+            if not is_valid:
+                raise ValidationError(error_message, "quantity")
+        else:
+            # 默认验证规则：必须是100的倍数
+            if quantity_int % 100 != 0:
+                raise ValidationError("数量必须是100的倍数", "quantity")
+        
         return quantity_int
     except (ValueError, TypeError):
         raise ValidationError("数量格式不正确", "quantity")
@@ -60,8 +72,25 @@ def validate_ratio(ratio, field_name):
     if ratio is None:
         return None
     
+    # 处理空字符串的情况
+    if isinstance(ratio, str):
+        ratio = ratio.strip()
+        if ratio == '':
+            return None
+    
     try:
         ratio_float = float(ratio)
+        
+        # 智能转换：如果值大于等于1且看起来像百分比，自动转换为小数
+        # 判断逻辑：如果是整数且 >= 1，或者小数且 > 1，都视为百分比
+        if (ratio_float >= 1 and ratio_float == int(ratio_float)) or ratio_float > 1:
+            # 如果值在1-100之间，假设是百分比，除以100
+            if ratio_float <= 100:
+                ratio_float = ratio_float / 100
+            else:
+                # 如果值大于100，可能是错误输入
+                raise ValidationError(f"{field_name}值过大，请输入0-100之间的百分比或0-1之间的小数", field_name)
+        
         if ratio_float < 0 or ratio_float > 1:
             raise ValidationError(f"{field_name}必须在0-1之间", field_name)
         return ratio_float

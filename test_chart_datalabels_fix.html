@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart.js Datalabels 错误修复测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="static/js/fix_chart_datalabels_error.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin: 20px 0;
+            position: relative;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            color: #333;
+            margin-top: 0;
+        }
+        .error-log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .warning {
+            color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Chart.js Datalabels 错误修复测试</h1>
+        
+        <div class="test-section">
+            <h3>测试1: 包含空值的数据集</h3>
+            <div class="chart-container">
+                <canvas id="chart1"></canvas>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>测试2: 不完整的数据结构</h3>
+            <div class="chart-container">
+                <canvas id="chart2"></canvas>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>测试3: 正常数据（对照组）</h3>
+            <div class="chart-container">
+                <canvas id="chart3"></canvas>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>错误日志</h3>
+            <div id="errorLog" class="error-log">
+                <div class="success">测试开始...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 错误日志记录
+        const errorLog = document.getElementById('errorLog');
+        
+        function logMessage(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            errorLog.appendChild(div);
+            errorLog.scrollTop = errorLog.scrollHeight;
+        }
+        
+        // 重写console方法来捕获日志
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+        const originalConsoleLog = console.log;
+        
+        console.error = function(...args) {
+            logMessage('ERROR: ' + args.join(' '), 'error');
+            originalConsoleError.apply(console, args);
+        };
+        
+        console.warn = function(...args) {
+            logMessage('WARN: ' + args.join(' '), 'warning');
+            originalConsoleWarn.apply(console, args);
+        };
+        
+        console.log = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('Chart.js') || message.includes('datalabels')) {
+                logMessage('LOG: ' + message, 'success');
+            }
+            originalConsoleLog.apply(console, args);
+        };
+        
+        // 等待修复脚本加载完成
+        setTimeout(() => {
+            runTests();
+        }, 500);
+        
+        function runTests() {
+            logMessage('开始运行测试...', 'success');
+            
+            // 测试1: 包含空值的数据集
+            try {
+                logMessage('测试1: 创建包含空值的图表');
+                const ctx1 = document.getElementById('chart1').getContext('2d');
+                
+                const config1 = {
+                    type: 'bar',
+                    data: {
+                        labels: ['A', 'B', 'C', 'D', 'E'],
+                        datasets: [{
+                            label: '测试数据',
+                            data: [10, null, 30, undefined, 50], // 包含空值
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            datalabels: {
+                                display: true,
+                                anchor: 'end',
+                                align: 'top'
+                            }
+                        }
+                    }
+                };
+                
+                const chart1 = window.createSafeChart ? 
+                    window.createSafeChart(ctx1, config1) : 
+                    new Chart(ctx1, config1);
+                    
+                if (chart1) {
+                    logMessage('测试1: 图表创建成功', 'success');
+                } else {
+                    logMessage('测试1: 图表创建失败', 'error');
+                }
+                
+            } catch (error) {
+                logMessage('测试1: 异常 - ' + error.message, 'error');
+            }
+            
+            // 测试2: 不完整的数据结构
+            try {
+                logMessage('测试2: 创建不完整数据结构的图表');
+                const ctx2 = document.getElementById('chart2').getContext('2d');
+                
+                const config2 = {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar'],
+                        datasets: [{
+                            label: '不完整数据',
+                            data: [20, , 40], // 稀疏数组
+                            fill: false,
+                            borderColor: 'rgb(255, 99, 132)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            datalabels: {
+                                display: true
+                            }
+                        }
+                    }
+                };
+                
+                const chart2 = window.createSafeChart ? 
+                    window.createSafeChart(ctx2, config2) : 
+                    new Chart(ctx2, config2);
+                    
+                if (chart2) {
+                    logMessage('测试2: 图表创建成功', 'success');
+                } else {
+                    logMessage('测试2: 图表创建失败', 'error');
+                }
+                
+            } catch (error) {
+                logMessage('测试2: 异常 - ' + error.message, 'error');
+            }
+            
+            // 测试3: 正常数据（对照组）
+            try {
+                logMessage('测试3: 创建正常数据的图表');
+                const ctx3 = document.getElementById('chart3').getContext('2d');
+                
+                const config3 = {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Red', 'Blue', 'Yellow'],
+                        datasets: [{
+                            data: [300, 50, 100],
+                            backgroundColor: [
+                                'rgb(255, 99, 132)',
+                                'rgb(54, 162, 235)',
+                                'rgb(255, 205, 86)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            datalabels: {
+                                display: true,
+                                formatter: function(value, context) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                };
+                
+                const chart3 = window.createSafeChart ? 
+                    window.createSafeChart(ctx3, config3) : 
+                    new Chart(ctx3, config3);
+                    
+                if (chart3) {
+                    logMessage('测试3: 图表创建成功', 'success');
+                } else {
+                    logMessage('测试3: 图表创建失败', 'error');
+                }
+                
+            } catch (error) {
+                logMessage('测试3: 异常 - ' + error.message, 'error');
+            }
+            
+            logMessage('所有测试完成', 'success');
+        }
+        
+        // 监听全局错误
+        window.addEventListener('error', function(event) {
+            logMessage('全局错误: ' + event.error.message, 'error');
+        });
+        
+        window.addEventListener('unhandledrejection', function(event) {
+            logMessage('未处理的Promise拒绝: ' + event.reason, 'error');
+        });
+    </script>
+</body>
+</html>

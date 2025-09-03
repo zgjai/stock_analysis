@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>持仓股票验证修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>持仓股票验证修复测试</h2>
+        
+        <form id="trade-form" novalidate>
+            <!-- 交易类型选择 -->
+            <div class="mb-3">
+                <label for="trade-type" class="form-label">交易类型</label>
+                <select class="form-select" id="trade-type" name="trade_type">
+                    <option value="">请选择交易类型</option>
+                    <option value="buy">买入</option>
+                    <option value="sell">卖出</option>
+                </select>
+            </div>
+
+            <!-- 股票代码（买入时显示） -->
+            <div class="mb-3" id="stock-code-group">
+                <label for="stock-code" class="form-label">股票代码</label>
+                <input type="text" class="form-control" id="stock-code" name="stock_code" placeholder="请输入6位股票代码">
+            </div>
+
+            <!-- 股票名称（买入时显示） -->
+            <div class="mb-3" id="stock-name-group">
+                <label for="stock-name" class="form-label">股票名称</label>
+                <input type="text" class="form-control" id="stock-name" name="stock_name" placeholder="请输入股票名称">
+            </div>
+
+            <!-- 持仓股票选择（卖出时显示） -->
+            <div class="mb-3" id="holding-stock-group" style="display: none;">
+                <label for="holding-stock-select" class="form-label">持仓股票 <span class="text-danger">*</span></label>
+                <select class="form-select" id="holding-stock-select" name="holding_stock">
+                    <option value="">请选择要卖出的股票</option>
+                    <option value="000001">000001 - 平安银行</option>
+                    <option value="000002">000002 - 万科A</option>
+                </select>
+            </div>
+
+            <!-- 价格 -->
+            <div class="mb-3">
+                <label for="price" class="form-label">价格</label>
+                <input type="number" class="form-control" id="price" name="price" step="0.01">
+            </div>
+
+            <!-- 数量 -->
+            <div class="mb-3">
+                <label for="quantity" class="form-label">数量</label>
+                <input type="number" class="form-control" id="quantity" name="quantity" step="100">
+            </div>
+
+            <!-- 交易日期 -->
+            <div class="mb-3">
+                <label for="trade-date" class="form-label">交易日期</label>
+                <input type="date" class="form-control" id="trade-date" name="trade_date">
+            </div>
+
+            <!-- 操作原因 -->
+            <div class="mb-3">
+                <label for="reason" class="form-label">操作原因</label>
+                <select class="form-select" id="reason" name="reason">
+                    <option value="">请选择操作原因</option>
+                    <option value="技术分析">技术分析</option>
+                    <option value="基本面分析">基本面分析</option>
+                    <option value="止损">止损</option>
+                    <option value="止盈">止盈</option>
+                </select>
+            </div>
+
+            <button type="button" class="btn btn-primary" onclick="testValidation()">测试验证</button>
+            <button type="button" class="btn btn-secondary" onclick="testSimpleValidator()">测试简单验证器</button>
+        </form>
+
+        <div id="test-results" class="mt-4"></div>
+    </div>
+
+    <script src="static/js/utils.js"></script>
+    <script src="static/js/form-validation.js"></script>
+    <script src="static/js/simple-form-validator.js"></script>
+    
+    <script>
+        let formValidator;
+        let simpleValidator;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化验证器
+            formValidator = new FormValidator(document.getElementById('trade-form'));
+            simpleValidator = new SimpleFormValidator('trade-form');
+
+            // 交易类型变化事件
+            document.getElementById('trade-type').addEventListener('change', function() {
+                const tradeType = this.value;
+                const stockCodeGroup = document.getElementById('stock-code-group');
+                const stockNameGroup = document.getElementById('stock-name-group');
+                const holdingStockGroup = document.getElementById('holding-stock-group');
+
+                if (tradeType === 'buy') {
+                    stockCodeGroup.style.display = 'block';
+                    stockNameGroup.style.display = 'block';
+                    holdingStockGroup.style.display = 'none';
+                    
+                    // 设置买入时的必填字段
+                    document.getElementById('stock-code').required = true;
+                    document.getElementById('stock-name').required = true;
+                    document.getElementById('holding-stock-select').required = false;
+                } else if (tradeType === 'sell') {
+                    stockCodeGroup.style.display = 'none';
+                    stockNameGroup.style.display = 'none';
+                    holdingStockGroup.style.display = 'block';
+                    
+                    // 设置卖出时的必填字段
+                    document.getElementById('stock-code').required = false;
+                    document.getElementById('stock-name').required = false;
+                    document.getElementById('holding-stock-select').required = true;
+                }
+            });
+
+            // 设置默认日期
+            document.getElementById('trade-date').value = new Date().toISOString().split('T')[0];
+        });
+
+        function testValidation() {
+            const results = document.getElementById('test-results');
+            results.innerHTML = '<h4>FormValidator 测试结果：</h4>';
+
+            try {
+                const validation = formValidator.validateForm();
+                results.innerHTML += `<p><strong>验证结果：</strong> ${validation.isValid ? '✅ 通过' : '❌ 失败'}</p>`;
+                
+                if (!validation.isValid) {
+                    results.innerHTML += '<p><strong>错误信息：</strong></p><ul>';
+                    Object.entries(validation.errors).forEach(([field, message]) => {
+                        results.innerHTML += `<li>${field}: ${message}</li>`;
+                    });
+                    results.innerHTML += '</ul>';
+                }
+
+                // 显示表单数据
+                const formData = new FormData(document.getElementById('trade-form'));
+                const data = Object.fromEntries(formData.entries());
+                results.innerHTML += '<p><strong>表单数据：</strong></p>';
+                results.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+            } catch (error) {
+                results.innerHTML += `<p class="text-danger"><strong>错误：</strong> ${error.message}</p>`;
+            }
+        }
+
+        function testSimpleValidator() {
+            const results = document.getElementById('test-results');
+            results.innerHTML = '<h4>SimpleFormValidator 测试结果：</h4>';
+
+            try {
+                const isValid = simpleValidator.validateForm();
+                results.innerHTML += `<p><strong>验证结果：</strong> ${isValid ? '✅ 通过' : '❌ 失败'}</p>`;
+                
+                if (!isValid) {
+                    results.innerHTML += '<p><strong>错误信息：</strong></p><ul>';
+                    Object.entries(simpleValidator.errors).forEach(([field, message]) => {
+                        results.innerHTML += `<li>${field}: ${message}</li>`;
+                    });
+                    results.innerHTML += '</ul>';
+                }
+
+                // 显示表单数据
+                const data = simpleValidator.getFormData();
+                results.innerHTML += '<p><strong>表单数据：</strong></p>';
+                results.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+            } catch (error) {
+                results.innerHTML += `<p class="text-danger"><strong>错误：</strong> ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

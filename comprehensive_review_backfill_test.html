@@ -145,8 +145,8 @@
             
             if (reviews.length > 0) {
                 const sample = reviews[0];
-                const requiredFields = ['id', 'stock_code', 'review_date'];
-                const missingFields = requiredFields.filter(field => !(field in sample));
+                constFields = ['id', 'stock_code', 'review_date'];
+                const missingFields =Fields.filter(field => !(field in sample));
                 
                 if (missingFields.length === 0) {
                     addTestResult('数据字段测试', 'success', '所有必需字段都存在');

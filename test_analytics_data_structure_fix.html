@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Data Structure Fix Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Analytics Data Structure Fix Test</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: Profit Distribution API</h3>
+        <button onclick="testProfitDistribution()">Test Profit Distribution</button>
+        <div id="profit-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 2: Monthly Statistics API</h3>
+        <button onclick="testMonthlyStats()">Test Monthly Statistics</button>
+        <div id="monthly-result"></div>
+    </div>
+
+    <script>
+        async function testProfitDistribution() {
+            const resultDiv = document.getElementById('profit-result');
+            resultDiv.innerHTML = '<p class="info">Testing profit distribution API...</p>';
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/analytics/profit-distribution');
+                const data = await response.json();
+                
+                console.log('Profit Distribution Response:', data);
+                
+                if (data.success && data.data) {
+                    if (data.data.distribution && Array.isArray(data.data.distribution)) {
+                        resultDiv.innerHTML = `
+                            <p class="success">✓ API返回正确的数据结构</p>
+                            <p>Distribution array length: ${data.data.distribution.length}</p>
+                            <p>Sample item fields: ${Object.keys(data.data.distribution[0] || {}).join(', ')}</p>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = '<p class="error">✗ API返回的数据结构不正确 - 缺少distribution数组</p>';
+                    }
+                } else {
+                    resultDiv.innerHTML = '<p class="error">✗ API请求失败</p>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">✗ 请求错误: ${error.message}</p>`;
+            }
+        }
+        
+        async function testMonthlyStats() {
+            const resultDiv = document.getElementById('monthly-result');
+            resultDiv.innerHTML = '<p class="info">Testing monthly statistics API...</p>';
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/analytics/monthly?year=2025');
+                const data = await response.json();
+                
+                console.log('Monthly Statistics Response:', data);
+                
+                if (data.success && data.data) {
+                    if (data.data.monthly_data && Array.isArray(data.data.monthly_data)) {
+                        resultDiv.innerHTML = `
+                            <p class="success">✓ API返回正确的数据结构</p>
+                            <p>Monthly data array length: ${data.data.monthly_data.length}</p>
+                            <p>Sample item fields: ${Object.keys(data.data.monthly_data[0] || {}).join(', ')}</p>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = '<p class="error">✗ API返回的数据结构不正确 - 缺少monthly_data数组</p>';
+                    }
+                } else {
+                    resultDiv.innerHTML = '<p class="error">✗ API请求失败</p>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">✗ 请求错误: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

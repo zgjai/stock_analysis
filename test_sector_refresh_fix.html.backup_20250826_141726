@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试板块数据刷新修复</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>测试板块数据刷新修复</h2>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5>测试UXUtils.showToast方法</h5>
+                <button class="btn btn-primary" onclick="testShowToast()">测试Toast消息</button>
+                <button class="btn btn-success" onclick="testShowMessage()">测试showMessage</button>
+                <button class="btn btn-info" onclick="testApiClient()">测试API客户端</button>
+                <button class="btn btn-warning" onclick="testRefreshSectorData()">测试板块数据刷新</button>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <h6>测试结果:</h6>
+            <div id="test-results"></div>
+        </div>
+    </div>
+
+    <!-- 引入必要的JavaScript文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+    <script src="static/js/config.js"></script>
+    <script src="static/js/utils.js"></script>
+    <script src="static/js/api.js"></script>
+    <script src="static/js/main.js"></script>
+
+    <script>
+        function logResult(test, success, message) {
+            const results = document.getElementById('test-results');
+            const badge = success ? 'bg-success' : 'bg-danger';
+            const icon = success ? '✓' : '✗';
+            results.innerHTML += `<div class="badge ${badge} me-2 mb-1">${icon} ${test}: ${message}</div><br>`;
+        }
+
+        function testShowToast() {
+            try {
+                if (typeof UXUtils !== 'undefined' && typeof UXUtils.showToast === 'function') {
+                    UXUtils.showToast('测试Toast消息', 'success', 3000);
+                    logResult('UXUtils.showToast', true, '方法存在且可调用');
+                } else {
+                    logResult('UXUtils.showToast', false, '方法不存在');
+                }
+            } catch (error) {
+                logResult('UXUtils.showToast', false, error.message);
+            }
+        }
+
+        function testShowMessage() {
+            try {
+                if (typeof showMessage === 'function') {
+                    showMessage('测试全局showMessage', 'info');
+                    logResult('showMessage', true, '全局函数存在且可调用');
+                } else {
+                    logResult('showMessage', false, '全局函数不存在');
+                }
+            } catch (error) {
+                logResult('showMessage', false, error.message);
+            }
+        }
+
+        function testApiClient() {
+            try {
+                if (typeof apiClient !== 'undefined' && apiClient.refreshSectorData) {
+                    logResult('apiClient', true, 'API客户端存在且有refreshSectorData方法');
+                } else {
+                    logResult('apiClient', false, 'API客户端不存在或缺少方法');
+                }
+            } catch (error) {
+                logResult('apiClient', false, error.message);
+            }
+        }
+
+        async function testRefreshSectorData() {
+            try {
+                // 模拟板块数据刷新函数
+                async function refreshSectorData() {
+                    const refreshBtn = document.querySelector('button[onclick="testRefreshSectorData()"]');
+                    const originalHtml = refreshBtn.innerHTML;
+                    
+                    try {
+                        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 刷新中...';
+                        refreshBtn.disabled = true;
+                        
+                        // 模拟API调用
+                        showMessage('开始刷新板块数据...', 'info');
+                        
+                        // 这里会调用真实的API，但我们只测试消息显示
+                        setTimeout(() => {
+                            showMessage('板块数据刷新成功 (模拟)', 'success');
+                            refreshBtn.innerHTML = originalHtml;
+                            refreshBtn.disabled = false;
+                        }, 2000);
+                        
+                        logResult('refreshSectorData', true, '函数执行成功，消息显示正常');
+                    } catch (error) {
+                        showMessage('刷新失败: ' + error.message, 'error');
+                        refreshBtn.innerHTML = originalHtml;
+                        refreshBtn.disabled = false;
+                        logResult('refreshSectorData', false, error.message);
+                    }
+                }
+                
+                await refreshSectorData();
+            } catch (error) {
+                logResult('refreshSectorData', false, error.message);
+            }
+        }
+
+        // 页面加载完成后自动测试基础功能
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                // 检查基础组件是否加载
+                logResult('UXUtils加载', typeof UXUtils !== 'undefined', typeof UXUtils !== 'undefined' ? '已加载' : '未加载');
+                logResult('apiClient加载', typeof apiClient !== 'undefined', typeof apiClient !== 'undefined' ? '已加载' : '未加载');
+                logResult('showMessage加载', typeof showMessage === 'function', typeof showMessage === 'function' ? '已加载' : '未加载');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
+</script>

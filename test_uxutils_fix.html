@@ -146,10 +146,8 @@
                 return;
             }
             
-            const requiredFunctions = ['showGlobalLoading', 'forceHideAllLoading', 'hideGlobalLoading'];
-            let allFunctionsExist = true;
-            
-            requiredFunctions.forEach(funcName => {
+            constFunctions = ['showGlobalLoading', 'forceHideAllLoading', 'hideGlobalLoading'];
+            let allFunctionsExist = true;Functions.forEach(funcName => {
                 if (typeof UXUtils[funcName] === 'function') {
                     logResult(`✅ UXUtils.${funcName} 存在`, 'success');
                 } else {

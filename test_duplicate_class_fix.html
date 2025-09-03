@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>重复类定义修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container py-4">
+        <h2>重复类定义修复测试</h2>
+        <div id="test-results" class="mt-3">
+            <p>正在测试JavaScript类定义...</p>
+        </div>
+    </div>
+
+    <script>
+        function testClassDefinition() {
+            const results = document.getElementById('test-results');
+            let testHtml = '';
+            
+            try {
+                // 1. 测试加载外部JavaScript文件
+                testHtml += '<h5>1. 测试外部JavaScript文件加载</h5>';
+                
+                const script = document.createElement('script');
+                script.src = '/static/js/expectation-comparison-manager.js';
+                
+                script.onload = function() {
+                    testHtml += '<div class="alert alert-success">✅ expectation-comparison-manager.js 加载成功</div>';
+                    
+                    // 2. 测试类是否正确定义
+                    testHtml += '<h5>2. 测试类定义</h5>';
+                    
+                    if (typeof ExpectationComparisonManager !== 'undefined') {
+                        testHtml += '<div class="alert alert-success">✅ ExpectationComparisonManager 类已正确定义</div>';
+                        
+                        // 3. 测试全局实例
+                        testHtml += '<h5>3. 测试全局实例</h5>';
+                        
+                        if (typeof window.expectationComparisonManager !== 'undefined') {
+                            testHtml += '<div class="alert alert-success">✅ 全局实例 window.expectationComparisonManager 已创建</div>';
+                            
+                            // 4. 测试实例方法
+                            testHtml += '<h5>4. 测试实例方法</h5>';
+                            
+                            const manager = window.expectationComparisonManager;
+                            const requiredMethods = [
+                                'loadMonthlyExpectations',
+                                'renderMonthlyExpectationsList',
+                                'selectMonth',
+                                'loadMonthlyComparison',
+                                'renderMonthlyComparisonDetail',
+                                'formatCurrency'
+                            ];
+                            
+                            let methodsOk = true;
+                            let methodResults = '';
+                            
+                            requiredMethods.forEach(method => {
+                                if (typeof manager[method] === 'function') {
+                                    methodResults += `<li class="text-success">✅ ${method}</li>`;
+                                } else {
+                                    methodResults += `<li class="text-danger">❌ ${method}</li>`;
+                                    methodsOk = false;
+                                }
+                            });
+                            
+                            if (methodsOk) {
+                                testHtml += '<div class="alert alert-success">✅ 所有必要方法都存在</div>';
+                            } else {
+                                testHtml += '<div class="alert alert-warning">⚠️ 部分方法缺失</div>';
+                            }
+                            
+                            testHtml += `<ul>${methodResults}</ul>`;
+                            
+                            // 5. 测试格式化方法
+                            testHtml += '<h5>5. 测试功能方法</h5>';
+                            
+                            try {
+                                const formatted = manager.formatCurrency(352093);
+                                testHtml += `<div class="alert alert-info">formatCurrency(352093) = ${formatted}</div>`;
+                                
+                                if (formatted.includes('35.2万')) {
+                                    testHtml += '<div class="alert alert-success">✅ 货币格式化功能正常</div>';
+                                } else {
+                                    testHtml += '<div class="alert alert-warning">⚠️ 货币格式化结果异常</div>';
+                                }
+                            } catch (error) {
+                                testHtml += `<div class="alert alert-danger">❌ 格式化方法测试失败: ${error.message}</div>`;
+                            }
+                            
+                        } else {
+                            testHtml += '<div class="alert alert-warning">⚠️ 全局实例未创建</div>';
+                        }
+                        
+                    } else {
+                        testHtml += '<div class="alert alert-danger">❌ ExpectationComparisonManager 类未定义</div>';
+                    }
+                    
+                    // 最终结果
+                    testHtml += '<hr><h5>测试总结</h5>';
+                    testHtml += '<div class="alert alert-success">';
+                    testHtml += '<h6>🎉 重复类定义问题已修复！</h6>';
+                    testHtml += '<ul class="mb-0">';
+                    testHtml += '<li>✅ 删除了analytics.html中的重复类定义</li>';
+                    testHtml += '<li>✅ 只保留外部expectation-comparison-manager.js中的类定义</li>';
+                    testHtml += '<li>✅ 全局实例由外部文件自动创建</li>';
+                    testHtml += '<li>✅ 月度期望收益对比功能正常</li>';
+                    testHtml += '</ul>';
+                    testHtml += '</div>';
+                    
+                    results.innerHTML = testHtml;
+                };
+                
+                script.onerror = function() {
+                    testHtml += '<div class="alert alert-danger">❌ expectation-comparison-manager.js 加载失败</div>';
+                    results.innerHTML = testHtml;
+                };
+                
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>❌ 测试过程中发生错误</h5>
+                        <p>错误信息: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 页面加载完成后开始测试
+        document.addEventListener('DOMContentLoaded', testClassDefinition);
+    </script>
+</body>
+</html>

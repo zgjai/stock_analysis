@@ -24,26 +24,57 @@ class TradingService(BaseService):
     def create_trade(cls, data: Dict[str, Any]) -> TradeRecord:
         """创建交易记录"""
         try:
+            from flask import current_app
+            current_app.logger.info("=== TradingService.create_trade 开始 ===")
+            current_app.logger.info(f"接收到的数据: {data}")
+            
             # 验证交易原因是否在配置的选项中
+            current_app.logger.info("开始验证交易原因")
             cls._validate_trade_reason(data.get('trade_type'), data.get('reason'))
+            current_app.logger.info("交易原因验证通过")
+            
+            # 验证股票数量规则
+            current_app.logger.info("开始验证股票数量规则")
+            cls._validate_stock_quantity(data.get('stock_code'), data.get('quantity'))
+            current_app.logger.info("股票数量规则验证通过")
             
             # 设置交易日期（如果未提供）
             if 'trade_date' not in data or data['trade_date'] is None:
                 data['trade_date'] = datetime.now()
+                current_app.logger.info(f"设置默认交易日期: {data['trade_date']}")
             
-            # 检查是否使用分批止盈
+            # 检查是否使用分批止盈并提取分批止盈数据
             use_batch_profit = data.get('use_batch_profit_taking', False)
             profit_targets = data.pop('profit_targets', None)
             
+            # 提取分批止盈字段并转换为profit_targets格式
+            if use_batch_profit and not profit_targets:
+                profit_targets = cls._extract_batch_profit_data(data)
+                current_app.logger.info(f"从表单数据提取的止盈目标: {profit_targets}")
+            
+            # 清理数据，移除分批止盈相关字段，只保留TradeRecord模型的字段
+            clean_data = cls._clean_trade_data(data)
+            current_app.logger.info(f"清理后的交易数据: {clean_data}")
+            current_app.logger.info(f"使用分批止盈: {use_batch_profit}")
+            current_app.logger.info(f"止盈目标: {profit_targets}")
+            
             if use_batch_profit and profit_targets:
                 # 使用分批止盈创建交易记录
-                return cls.create_trade_with_batch_profit(data, profit_targets)
+                current_app.logger.info("调用 create_trade_with_batch_profit")
+                return cls.create_trade_with_batch_profit(clean_data, profit_targets)
             else:
                 # 创建普通交易记录
-                trade = cls.create(data)
+                current_app.logger.info("调用 cls.create 创建普通交易记录")
+                current_app.logger.info(f"传递给 cls.create 的数据: {clean_data}")
+                trade = cls.create(clean_data)
+                current_app.logger.info(f"普通交易记录创建成功，ID: {trade.id}")
                 return trade
                 
         except Exception as e:
+            current_app.logger.error(f"TradingService.create_trade 发生错误: {str(e)}")
+            current_app.logger.error(f"错误类型: {type(e)}")
+            import traceback
+            current_app.logger.error(f"错误堆栈: {traceback.format_exc()}")
             if isinstance(e, (ValidationError, DatabaseError)):
                 raise e
             raise DatabaseError(f"创建交易记录失败: {str(e)}")
@@ -52,6 +83,11 @@ class TradingService(BaseService):
     def create_trade_with_batch_profit(cls, data: Dict[str, Any], profit_targets: List[Dict]) -> TradeRecord:
         """创建带有分批止盈的交易记录"""
         try:
+            from flask import current_app
+            current_app.logger.info("=== create_trade_with_batch_profit 开始 ===")
+            current_app.logger.info(f"交易数据: {data}")
+            current_app.logger.info(f"止盈目标: {profit_targets}")
+            
             # 验证只有买入记录才能设置分批止盈
             if data.get('trade_type') != 'buy':
                 raise ValidationError("只有买入记录才能设置分批止盈", "trade_type")
@@ -63,17 +99,23 @@ class TradingService(BaseService):
             data['use_batch_profit_taking'] = True
             
             # 创建交易记录
+            current_app.logger.info("开始创建交易记录")
             trade = cls.create(data)
+            current_app.logger.info(f"交易记录创建成功，ID: {trade.id}")
             
             # 创建止盈目标
+            current_app.logger.info("开始创建止盈目标")
             ProfitTakingService.create_profit_targets(trade.id, profit_targets)
+            current_app.logger.info("止盈目标创建成功")
             
             # 重新加载交易记录以包含止盈目标
             db.session.refresh(trade)
+            current_app.logger.info("=== create_trade_with_batch_profit 完成 ===")
             
             return trade
             
         except Exception as e:
+            current_app.logger.error(f"create_trade_with_batch_profit 发生错误: {str(e)}")
             db.session.rollback()
             if isinstance(e, (ValidationError, DatabaseError)):
                 raise e
@@ -122,11 +164,19 @@ class TradingService(BaseService):
     def update_trade(cls, trade_id: int, data: Dict[str, Any]) -> TradeRecord:
         """更新交易记录"""
         try:
+            # 获取现有交易记录
+            trade = cls.get_by_id(trade_id)
+            
             # 验证交易原因是否在配置的选项中
             if 'reason' in data:
-                trade = cls.get_by_id(trade_id)
                 trade_type = data.get('trade_type', trade.trade_type)
                 cls._validate_trade_reason(trade_type, data.get('reason'))
+            
+            # 验证股票数量规则（如果数量或股票代码有更新）
+            if 'quantity' in data or 'stock_code' in data:
+                stock_code = data.get('stock_code', trade.stock_code)
+                quantity = data.get('quantity', trade.quantity)
+                cls._validate_stock_quantity(stock_code, quantity)
             
             # 过滤掉None值和空字符串，避免覆盖必填字段
             # 但保留交易日期字段，即使它可能是空字符串
@@ -402,6 +452,26 @@ class TradingService(BaseService):
             raise ValidationError(f"无效的{trade_type}原因: {reason}")
     
     @classmethod
+    def _validate_stock_quantity(cls, stock_code: str, quantity):
+        """验证股票数量规则"""
+        if not stock_code:
+            raise ValidationError("股票代码不能为空")
+        
+        if quantity is None:
+            raise ValidationError("数量不能为空")
+        
+        # 确保quantity是整数类型
+        try:
+            quantity_int = int(quantity)
+        except (ValueError, TypeError):
+            raise ValidationError("数量必须是整数")
+        
+        from utils.stock_utils import validate_stock_quantity
+        is_valid, error_message = validate_stock_quantity(stock_code, quantity_int)
+        if not is_valid:
+            raise ValidationError(error_message)
+    
+    @classmethod
     def _apply_filters(cls, query, filters: Dict[str, Any]):
         """应用筛选条件"""
         if 'stock_code' in filters and filters['stock_code']:
@@ -473,6 +543,54 @@ class TradingService(BaseService):
                 raise ValueError(f"无效的日期类型: {type(date_str)}")
         except Exception as e:
             raise ValidationError(f"日期格式错误: {str(e)}")
+    
+    @classmethod
+    def _extract_batch_profit_data(cls, data: Dict[str, Any]) -> List[Dict]:
+        """从表单数据中提取分批止盈目标数据"""
+        profit_targets = []
+        
+        # 检查是否有分批止盈数据
+        for i in range(1, 4):  # 支持最多3个止盈目标
+            profit_ratio_key = f'profit_ratio_{i}'
+            target_price_key = f'target_price_{i}'
+            sell_ratio_key = f'sell_ratio_{i}'
+            
+            # 检查是否有这个目标的数据
+            if (profit_ratio_key in data and data[profit_ratio_key] and 
+                sell_ratio_key in data and data[sell_ratio_key]):
+                
+                target = {
+                    'sequence_order': i,
+                    'sell_ratio': float(data[sell_ratio_key]) / 100.0,  # 转换百分比为小数
+                    'profit_ratio': float(data[profit_ratio_key]) / 100.0  # 转换百分比为小数
+                }
+                
+                # 如果有目标价格，也添加进去
+                if target_price_key in data and data[target_price_key]:
+                    target['target_price'] = float(data[target_price_key])
+                
+                profit_targets.append(target)
+        
+        return profit_targets
+    
+    @classmethod
+    def _clean_trade_data(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+        """清理交易数据，移除不属于TradeRecord模型的字段"""
+        # TradeRecord模型的有效字段
+        valid_fields = {
+            'stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 
+            'trade_date', 'reason', 'notes', 'stop_loss_price', 
+            'take_profit_ratio', 'sell_ratio', 'use_batch_profit_taking',
+            'is_corrected', 'original_record_id', 'correction_reason'
+        }
+        
+        # 过滤出有效字段
+        clean_data = {}
+        for key, value in data.items():
+            if key in valid_fields:
+                clean_data[key] = value
+        
+        return clean_data
     
     @classmethod
     def _get_changed_fields(cls, original: TradeRecord, corrected_data: Dict[str, Any]) -> Dict[str, Any]:

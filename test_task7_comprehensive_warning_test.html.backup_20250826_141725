@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务7 - 未保存更改警告机制综合测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .test-section {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .test-result {
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            border-radius: 0.25rem;
+        }
+        .test-pass { background-color: #d1e7dd; color: #0f5132; }
+        .test-fail { background-color: #f8d7da; color: #842029; }
+        .test-info { background-color: #d1ecf1; color: #055160; }
+        .floating-profit-container.profit { background-color: rgba(25, 135, 84, 0.1); }
+        .floating-profit-container.loss { background-color: rgba(220, 53, 69, 0.1); }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1><i class="fas fa-exclamation-triangle text-warning me-2"></i>任务7 - 未保存更改警告机制综合测试</h1>
+        <p class="text-muted">测试保存管理器的beforeunload警告功能、模态框关闭确认对话框等功能</p>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <!-- 测试控制面板 -->
+                <div class="test-section">
+                    <h5><i class="fas fa-play-circle text-primary me-2"></i>测试控制面板</h5>
+                    <div class="btn-group mb-3" role="group">
+                        <button class="btn btn-primary" onclick="openReviewModal()">
+                            <i class="fas fa-modal me-1"></i>打开复盘模态框
+                        </button>
+                        <button class="btn btn-success" onclick="runAllTests()">
+                            <i class="fas fa-play me-1"></i>运行所有测试
+                        </button>
+                        <button class="btn btn-info" onclick="testWarningMechanisms()">
+                            <i class="fas fa-exclamation-triangle me-1"></i>测试警告机制
+                        </button>
+                        <button class="btn btn-warning" onclick="simulateUnsavedChanges()">
+                            <i class="fas fa-edit me-1"></i>模拟未保存更改
+                        </button>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>测试说明：</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>点击"打开复盘模态框"开始测试</li>
+                            <li>在表单中输入内容后尝试关闭模态框</li>
+                            <li>修改表单内容后尝试刷新页面或关闭标签页</li>
+                            <li>观察是否显示适当的警告消息</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 测试结果显示 -->
+                <div class="test-section">
+                    <h5><i class="fas fa-chart-bar text-success me-2"></i>测试结果</h5>
+                    <div id="test-results">
+                        <div class="text-muted">等待测试开始...</div>
+                    </div>
+                </div>
+
+                <!-- 实时状态监控 -->
+                <div class="test-section">
+                    <h5><i class="fas fa-heartbeat text-danger me-2"></i>实时状态监控</h5>
+                    <div id="status-monitor">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>保存管理器状态:</strong>
+                                <div id="manager-status" class="text-muted">未初始化</div>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>未保存更改:</strong>
+                                <div id="unsaved-status" class="text-muted">无</div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <strong>事件监听器:</strong>
+                                <div id="listeners-status" class="text-muted">未检查</div>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>模态框状态:</strong>
+                                <div id="modal-status" class="text-muted">关闭</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <!-- 测试统计 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-chart-pie me-2"></i>测试统计</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-stats">
+                            <div class="d-flex justify-content-between">
+                                <span>总测试数:</span>
+                                <span id="total-tests">0</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>通过:</span>
+                                <span id="passed-tests" class="text-success">0</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>失败:</span>
+                                <span id="failed-tests" class="text-danger">0</span>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between">
+                                <span><strong>通过率:</strong></span>
+                                <span id="pass-rate" class="fw-bold">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作日志 -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6><i class="fas fa-list me-2"></i>操作日志</h6>
+                        <button class="btn btn-sm btn-outline-secondary float-end" onclick="clearLog()">清空</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="operation-log" style="max-height: 300px; overflow-y: auto; font-size: 0.875rem;">
+                            <div class="text-muted">等待操作...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 复盘模态框 -->
+    <div class="modal fade" id="reviewModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">复盘评分</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="review-form">
+                        <input type="hidden" id="review-stock-code" value="000001">
+                        <input type="hidden" id="review-id">
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">股票代码</label>
+                                <input type="text" class="form-control" id="display-stock-code" value="000001" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">复盘日期</label>
+                                <input type="date" class="form-control" id="review-date" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">持仓天数</label>
+                                <input type="number" class="form-control" id="holding-days" min="1" value="5" required>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">浮盈计算</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label class="form-label">当前价格</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control" id="current-price-input" 
+                                                   placeholder="输入当前价格" step="0.01" min="0.01" max="9999.99">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">成本价</label>
+                                        <div class="form-control-plaintext" id="buy-price-display">¥10.50</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">浮盈比例</label>
+                                        <div class="floating-profit-container">
+                                            <div class="form-control-plaintext fw-bold" id="floating-profit-ratio">--</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">评分标准 (每项1分，总分5分)</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="price-up-score" value="1">
+                                            <label class="form-check-label" for="price-up-score">收盘价上升</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="bbi-score" value="1">
+                                            <label class="form-check-label" for="bbi-score">不破BBI线</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="volume-score" value="1">
+                                            <label class="form-check-label" for="volume-score">无放量阴线</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="trend-score" value="1">
+                                            <label class="form-check-label" for="trend-score">趋势还在向上</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="j-score" value="1">
+                                            <label class="form-check-label" for="j-score">J没死叉</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <strong>总分: <span id="total-score" class="text-primary">0</span>/5</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">分析内容</label>
+                            <textarea class="form-control" id="analysis" rows="3" placeholder="请输入分析内容..."></textarea>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">决策结果</label>
+                                <select class="form-select" id="decision" required>
+                                    <option value="">请选择决策</option>
+                                    <option value="hold">继续持有</option>
+                                    <option value="sell_partial">部分止盈</option>
+                                    <option value="sell_all">清仓</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">决策理由</label>
+                            <textarea class="form-control" id="reason" rows="2" placeholder="请输入决策理由..." required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="save-review-btn" onclick="saveReview()">保存复盘</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 加载必要的JavaScript文件 -->
+    <script src="static/js/unified-message-system.js"></script>
+    <script src="static/js/api.js"></script>
+    <script src="static/js/review-save-manager.js"></script>
+    
+    <script>
+        // 全局变量
+        let apiClient = null;
+        let reviewSaveManager = null;
+        let reviewModal = null;
+        let testResults = [];
+        let testStats = { total: 0, passed: 0, failed: 0 };
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            logOperation('页面加载完成，开始初始化');
+            
+            try {
+                // 初始化API客户端
+                if (typeof ApiClient !== 'undefined') {
+                    apiClient = new ApiClient();
+                    logOperation('✅ API客户端初始化成功');
+                } else {
+                    logOperation('⚠️ ApiClient未加载，使用模拟实现');
+                    apiClient = createMockApiClient();
+                }
+                
+                // 初始化保存管理器
+                if (typeof ReviewSaveManager !== 'undefined') {
+                    reviewSaveManager = new ReviewSaveManager('#review-form');
+                    logOperation('✅ 复盘保存管理器初始化成功');
+                    updateManagerStatus('已初始化');
+                } else {
+                    logOperation('❌ ReviewSaveManager未加载');
+                    updateManagerStatus('加载失败');
+                }
+                
+                // 初始化Bootstrap模态框
+                const modalElement = document.getElementById('reviewModal');
+                if (modalElement && typeof bootstrap !== 'undefined') {
+                    reviewModal = new bootstrap.Modal(modalElement);
+                    logOperation('✅ Bootstrap模态框初始化成功');
+                    
+                    // 监听模态框事件
+                    modalElement.addEventListener('shown.bs.modal', () => {
+                        updateModalStatus('已打开');
+                        logOperation('📋 模态框已打开');
+                    });
+                    
+                    modalElement.addEventListener('hidden.bs.modal', () => {
+                        updateModalStatus('已关闭');
+                        logOperation('📋 模态框已关闭');
+                    });
+                }
+                
+                // 设置今天的日期
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('review-date').value = today;
+                
+                // 开始状态监控
+                startStatusMonitoring();
+                
+                logOperation('🎉 初始化完成');
+                
+            } catch (error) {
+                logOperation('❌ 初始化失败: ' + error.message);
+                updateManagerStatus('初始化失败');
+            }
+        });
+
+        // 创建模拟API客户端
+        function createMockApiClient() {
+            return {
+                saveReview: async function(data, id) {
+                    logOperation('🔧 模拟API保存: ' + JSON.stringify(data, null, 2));
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    return {
+                        success: true,
+                        data: { id: id || Date.now(), ...data }
+                    };
+                }
+            };
+        }
+
+        // 日志记录
+        function logOperation(message) {
+            const logEl = document.getElementById('operation-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<small class="text-muted">${timestamp}</small> ${message}`;
+            
+            if (logEl.children.length === 1 && logEl.children[0].textContent === '等待操作...') {
+                logEl.innerHTML = '';
+            }
+            
+            logEl.appendChild(logEntry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        // 清空日志
+        function clearLog() {
+            document.getElementById('operation-log').innerHTML = '<div class="text-muted">等待操作...</div>';
+        }
+
+        // 更新状态显示
+        function updateManagerStatus(status) {
+            document.getElementById('manager-status').textContent = status;
+        }
+
+        function updateUnsavedStatus(hasUnsaved) {
+            const statusEl = document.getElementById('unsaved-status');
+            if (hasUnsaved) {
+                statusEl.innerHTML = '<span class="text-warning">有未保存更改</span>';
+            } else {
+                statusEl.innerHTML = '<span class="text-success">已保存</span>';
+            }
+        }
+
+        function updateModalStatus(status) {
+            document.getElementById('modal-status').textContent = status;
+        }
+
+        function updateListenersStatus(status) {
+            document.getElementById('listeners-status').textContent = status;
+        }
+
+        // 状态监控
+        function startStatusMonitoring() {
+            setInterval(() => {
+                if (reviewSaveManager) {
+                    updateUnsavedStatus(reviewSaveManager.hasUnsavedChanges);
+                    
+                    // 检查事件监听器状态
+                    const hasBeforeUnload = typeof reviewSaveManager.beforeUnloadHandler === 'function';
+                    const hasModalClose = typeof reviewSaveManager.modalCloseHandler === 'function';
+                    
+                    if (hasBeforeUnload && hasModalClose) {
+                        updateListenersStatus('正常');
+                    } else {
+                        updateListenersStatus('异常');
+                    }
+                }
+            }, 1000);
+        }
+
+        // 测试结果管理
+        function addTestResult(testName, passed, details = '') {
+            testResults.push({
+                name: testName,
+                passed: passed,
+                details: details,
+                timestamp: new Date().toLocaleTimeString()
+            });
+            
+            testStats.total++;
+            if (passed) {
+                testStats.passed++;
+            } else {
+                testStats.failed++;
+            }
+            
+            updateTestResultsDisplay();
+            updateTestStats();
+            
+            logOperation(`${passed ? '✅' : '❌'} ${testName}: ${passed ? '通过' : '失败'}`);
+        }
+
+        function updateTestResultsDisplay() {
+            const resultsEl = document.getElementById('test-results');
+            
+            if (testResults.length === 0) {
+                resultsEl.innerHTML = '<div class="text-muted">等待测试开始...</div>';
+                return;
+            }
+            
+            let html = '';
+            testResults.forEach(result => {
+                const resultClass = result.passed ? 'test-pass' : 'test-fail';
+                const icon = result.passed ? 'fa-check' : 'fa-times';
+                
+                html += `
+                    <div class="test-result ${resultClass}">
+                        <i class="fas ${icon} me-2"></i>
+                        <strong>${result.name}</strong>
+                        <small class="float-end">${result.timestamp}</small>
+                        ${result.details ? `<div class="small mt-1">${result.details}</div>` : ''}
+                    </div>
+                `;
+            });
+            
+            resultsEl.innerHTML = html;
+        }
+
+        function updateTestStats() {
+            document.getElementById('total-tests').textContent = testStats.total;
+            document.getElementById('passed-tests').textContent = testStats.passed;
+            document.getElementById('failed-tests').textContent = testStats.failed;
+            
+            const passRate = testStats.total > 0 ? (testStats.passed / testStats.total * 100).toFixed(1) : 0;
+            document.getElementById('pass-rate').textContent = passRate + '%';
+        }
+
+        // 测试函数
+        function openReviewModal() {
+            if (reviewModal) {
+                reviewModal.show();
+                logOperation('📋 打开复盘模态框');
+            } else {
+                logOperation('❌ 模态框未初始化');
+            }
+        }
+
+        function simulateUnsavedChanges() {
+            const reasonField = document.getElementById('reason');
+            const analysisField = document.getElementById('analysis');
+            
+            if (reasonField && analysisField) {
+                reasonField.value = '测试未保存更改 - ' + new Date().toLocaleTimeString();
+                analysisField.value = '这是一个测试分析内容';
+                
+                // 触发变化事件
+                reasonField.dispatchEvent(new Event('input'));
+                analysisField.dispatchEvent(new Event('input'));
+                
+                logOperation('🔧 模拟未保存更改');
+                
+                setTimeout(() => {
+                    if (reviewSaveManager && reviewSaveManager.hasUnsavedChanges) {
+                        addTestResult('模拟未保存更改', true, '成功检测到表单变化');
+                    } else {
+                        addTestResult('模拟未保存更改', false, '未能检测到表单变化');
+                    }
+                }, 500);
+            } else {
+                addTestResult('模拟未保存更改', false, '表单字段未找到');
+            }
+        }
+
+        function testWarningMechanisms() {
+            logOperation('🧪 开始测试警告机制');
+            
+            if (!reviewSaveManager) {
+                addTestResult('警告机制测试', false, '保存管理器未初始化');
+                return;
+            }
+            
+            // 测试验证方法
+            if (typeof reviewSaveManager.verifyWarningMechanisms === 'function') {
+                const results = reviewSaveManager.verifyWarningMechanisms();
+                
+                addTestResult('beforeunload事件绑定', results.beforeUnloadBound, 
+                    results.beforeUnloadBound ? '事件已正确绑定' : '事件绑定失败');
+                
+                addTestResult('模态框关闭事件绑定', results.modalCloseBound,
+                    results.modalCloseBound ? '事件已正确绑定' : '事件绑定失败');
+                
+                addTestResult('未保存更改检测', results.hasUnsavedChangesDetection,
+                    results.hasUnsavedChangesDetection ? '检测机制正常' : '检测机制异常');
+                
+                addTestResult('警告消息准确性', results.warningMessageAccuracy,
+                    results.warningMessageAccuracy ? '消息机制正常' : '消息机制异常');
+            } else {
+                addTestResult('警告机制验证', false, 'verifyWarningMechanisms方法不存在');
+            }
+            
+            // 测试测试方法
+            if (typeof reviewSaveManager.testWarningMechanisms === 'function') {
+                reviewSaveManager.testWarningMechanisms();
+                addTestResult('警告机制测试方法', true, '测试方法执行成功');
+            } else {
+                addTestResult('警告机制测试方法', false, 'testWarningMechanisms方法不存在');
+            }
+        }
+
+        async function runAllTests() {
+            logOperation('🚀 开始运行所有测试');
+            
+            // 清空之前的结果
+            testResults = [];
+            testStats = { total: 0, passed: 0, failed: 0 };
+            updateTestResultsDisplay();
+            updateTestStats();
+            
+            // 测试1: 保存管理器初始化
+            if (reviewSaveManager) {
+                addTestResult('保存管理器初始化', true, '管理器已正确初始化');
+            } else {
+                addTestResult('保存管理器初始化', false, '管理器初始化失败');
+            }
+            
+            // 测试2: 警告机制
+            testWarningMechanisms();
+            
+            // 测试3: 模拟未保存更改
+            simulateUnsavedChanges();
+            
+            // 测试4: 模态框功能
+            if (reviewModal) {
+                addTestResult('模态框初始化', true, 'Bootstrap模态框已正确初始化');
+            } else {
+                addTestResult('模态框初始化', false, '模态框初始化失败');
+            }
+            
+            // 测试5: API客户端
+            if (apiClient) {
+                addTestResult('API客户端初始化', true, 'API客户端已正确初始化');
+            } else {
+                addTestResult('API客户端初始化', false, 'API客户端初始化失败');
+            }
+            
+            logOperation('🏁 所有测试完成');
+        }
+
+        // 保存复盘函数
+        function saveReview() {
+            logOperation('💾 尝试保存复盘');
+            
+            if (reviewSaveManager && typeof reviewSaveManager.saveReview === 'function') {
+                reviewSaveManager.saveReview();
+                logOperation('✅ 保存复盘功能已调用');
+            } else {
+                logOperation('❌ 保存复盘功能不可用');
+            }
+        }
+
+        // 页面离开测试提示
+        window.addEventListener('beforeunload', function(e) {
+            // 这个事件会被保存管理器处理，这里只是为了测试日志
+            if (reviewSaveManager && reviewSaveManager.hasUnsavedChanges) {
+                logOperation('⚠️ 页面离开警告已触发');
+            }
+        });
+    </script>
+</body>
+</html>

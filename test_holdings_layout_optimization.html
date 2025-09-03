@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>持仓列表布局优化测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 持仓列表优化样式 */
+        .holding-item {
+            transition: all 0.2s ease;
+        }
+
+        .holding-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+        }
+
+        .holding-item .card-body {
+            padding: 1rem;
+        }
+
+        /* 持仓数据行样式优化 */
+        .holding-item .d-flex {
+            min-height: 1.5rem;
+            align-items: center;
+        }
+
+        .holding-item .small.text-muted {
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+            min-width: 3.5rem;
+        }
+
+        .holding-item .fw-bold {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        /* 响应式优化 */
+        @media (max-width: 768px) {
+            .holding-item .card-body {
+                padding: 0.75rem;
+            }
+            
+            .holding-item .small.text-muted {
+                font-size: 0.7rem;
+                min-width: 3rem;
+            }
+            
+            .holding-item .fw-bold {
+                font-size: 0.8rem;
+            }
+            
+            .holding-item .d-flex {
+                min-height: 1.25rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .holding-item .card-body {
+                padding: 0.5rem;
+            }
+            
+            .holding-item .small.text-muted {
+                font-size: 0.65rem;
+                min-width: 2.5rem;
+            }
+            
+            .holding-item .fw-bold {
+                font-size: 0.75rem;
+            }
+            
+            .holding-item .d-flex {
+                min-height: 1rem;
+                margin-bottom: 0.25rem;
+            }
+        }
+
+        .text-success { color: #28a745 !important; }
+        .text-danger { color: #dc3545 !important; }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">当前持仓 - 布局优化测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="holdings-list">
+                            <!-- 持仓数据将在这里显示 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟持仓数据
+        const mockHoldings = [
+            {
+                stock_code: '000776',
+                stock_name: '广发证券',
+                avg_buy_price: 19.45,
+                current_price: 21.88,
+                current_quantity: 3110,
+                holding_days: 20
+            },
+            {
+                stock_code: '002643',
+                stock_name: '万润股份',
+                avg_buy_price: 12.58,
+                current_price: 13.63,
+                current_quantity: 1600,
+                holding_days: 15
+            },
+            {
+                stock_code: '300750',
+                stock_name: '宁德时代',
+                avg_buy_price: 185.20,
+                current_price: 178.45,
+                current_quantity: 200,
+                holding_days: 8
+            }
+        ];
+
+        function calculateProfitRatio(holding) {
+            if (!holding.avg_buy_price || !holding.current_price) {
+                return '--';
+            }
+            const ratio = ((holding.current_price - holding.avg_buy_price) / holding.avg_buy_price * 100).toFixed(2);
+            return ratio + '%';
+        }
+
+        function getProfitClass(holding) {
+            if (!holding.avg_buy_price || !holding.current_price) {
+                return '';
+            }
+            const ratio = (holding.current_price - holding.avg_buy_price) / holding.avg_buy_price;
+            return ratio >= 0 ? 'text-success' : 'text-danger';
+        }
+
+        function getPriceUpdateTime() {
+            return new Date().toLocaleTimeString('zh-CN', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            });
+        }
+
+        function getHoldingDaysDisplay(holding) {
+            return `${holding.holding_days || 0} 天`;
+        }
+
+        function getHoldingDaysTooltip(holding) {
+            return `持仓天数: ${holding.holding_days || 0}天（仅交易日）`;
+        }
+
+        function openReviewModal(stockCode) {
+            alert(`打开 ${stockCode} 的复盘分析`);
+        }
+
+        function displayHoldings(holdings) {
+            const holdingsList = document.getElementById('holdings-list');
+            if (!holdingsList) return;
+
+            if (!holdings || holdings.length === 0) {
+                holdingsList.innerHTML = '<div class="text-muted text-center py-4">暂无持仓数据</div>';
+                return;
+            }
+
+            const holdingsHtml = holdings.map(holding => `
+            <div class="holding-item card mb-3">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-3 col-sm-4">
+                            <div class="fw-bold">${holding.stock_code}</div>
+                            <div class="text-muted small">${holding.stock_name || '--'}</div>
+                        </div>
+                        <div class="col-md-3 col-sm-4">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small text-muted me-2">成本价</span>
+                                <span class="fw-bold">¥${holding.avg_buy_price ? holding.avg_buy_price.toFixed(2) : '--'}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small text-muted me-2">当前价</span>
+                                <span class="fw-bold">¥${holding.current_price ? holding.current_price.toFixed(2) : '--'}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small text-muted me-2">持仓量</span>
+                                <span class="fw-bold">${holding.current_quantity || 0}</span>
+                            </div>
+                            <div class="small text-muted text-end mt-1">${getPriceUpdateTime()}</div>
+                        </div>
+                        <div class="col-md-2 col-sm-4">
+                            <div class="small text-muted">持仓天数</div>
+                            <div class="holding-days-display fw-bold text-info" title="${getHoldingDaysTooltip(holding)}">
+                                ${getHoldingDaysDisplay(holding)}
+                            </div>
+                            <div class="small text-muted">仅交易日</div>
+                        </div>
+                        <div class="col-md-2 col-sm-6">
+                            <div class="small text-muted">浮盈比例</div>
+                            <div class="fw-bold ${getProfitClass(holding)}">${calculateProfitRatio(holding)}</div>
+                        </div>
+                        <div class="col-md-2 col-sm-6">
+                            <button class="btn btn-primary btn-sm w-100" onclick="openReviewModal('${holding.stock_code}')">
+                                <i class="fas fa-chart-line"></i> 复盘分析
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+            holdingsList.innerHTML = holdingsHtml;
+        }
+
+        // 页面加载完成后显示数据
+        document.addEventListener('DOMContentLoaded', function() {
+            displayHoldings(mockHoldings);
+        });
+    </script>
+</body>
+</html>

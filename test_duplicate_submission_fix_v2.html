@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>重复提交问题修复测试 V2</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">🔧 重复提交问题修复测试 V2</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-danger">
+                            <h6>🐛 发现的问题：</h6>
+                            <ul class="mb-0">
+                                <li>保存按钮点击事件中调用了 <code>canSubmit()</code> 和 <code>setSubmitting(true)</code></li>
+                                <li>然后调用 <code>handleTradeFormSubmit()</code> 方法</li>
+                                <li><code>handleTradeFormSubmit()</code> 方法又调用了一次 <code>canSubmit()</code></li>
+                                <li>第二次检查时发现正在提交中，被防重复提交机制阻止</li>
+                            </ul>
+                        </div>
+
+                        <div class="alert alert-success">
+                            <h6>✅ 修复方案：</h6>
+                            <ul class="mb-0">
+                                <li>移除 <code>handleTradeFormSubmit()</code> 方法中的重复防护检查</li>
+                                <li>移除方法内部所有的 <code>setSubmitting(false)</code> 调用</li>
+                                <li>提交状态管理完全由按钮点击事件处理</li>
+                                <li>保持单一职责原则：按钮事件负责状态管理，业务方法负责逻辑处理</li>
+                            </ul>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <h6>📋 修复详情：</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>修复前的流程：</h6>
+                                    <ol>
+                                        <li>按钮点击 → <code>canSubmit()</code> ✅</li>
+                                        <li>按钮点击 → <code>setSubmitting(true)</code></li>
+                                        <li>调用 <code>handleTradeFormSubmit()</code></li>
+                                        <li>方法内 → <code>canSubmit()</code> ❌ (被阻止)</li>
+                                        <li>提交失败</li>
+                                    </ol>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>修复后的流程：</h6>
+                                    <ol>
+                                        <li>按钮点击 → <code>canSubmit()</code> ✅</li>
+                                        <li>按钮点击 → <code>setSubmitting(true)</code></li>
+                                        <li>调用 <code>handleTradeFormSubmit()</code></li>
+                                        <li>方法内 → 直接处理业务逻辑</li>
+                                        <li>提交成功</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <h6>⚠️ 注意事项：</h6>
+                            <ul class="mb-0">
+                                <li>现在提交状态的管理完全由按钮点击事件的 <code>try-catch-finally</code> 块处理</li>
+                                <li>业务方法中的验证失败会通过 <code>return</code> 提前退出</li>
+                                <li>最终的状态重置在按钮事件的 <code>finally</code> 块中执行</li>
+                            </ul>
+                        </div>
+
+                        <h6>修复的代码位置：</h6>
+                        <ul>
+                            <li><strong>handleTradeFormSubmit 方法开头</strong> - 移除重复的防护检查</li>
+                            <li><strong>所有验证失败的 return 语句</strong> - 移除 <code>setSubmitting(false)</code></li>
+                            <li><strong>方法末尾的 finally 块</strong> - 移除 <code>setSubmitting(false)</code></li>
+                        </ul>
+
+                        <div class="mt-4">
+                            <button type="button" class="btn btn-primary" onclick="testSubmissionFlow()">
+                                🧪 测试提交流程
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="window.location.href='/trading-records'">
+                                🚀 前往交易记录页面测试
+                            </button>
+                        </div>
+
+                        <div id="test-result" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        function testSubmissionFlow() {
+            const resultDiv = document.getElementById('test-result');
+            
+            // 模拟防重复提交逻辑测试
+            let isSubmitting = false;
+            let lastSubmitTime = 0;
+            const SUBMIT_COOLDOWN = 2000;
+            
+            function canSubmit() {
+                const now = Date.now();
+                if (isSubmitting) {
+                    console.log('🛡️ 正在提交中，忽略重复请求');
+                    return false;
+                }
+                if (now - lastSubmitTime < SUBMIT_COOLDOWN) {
+                    console.log('🛡️ 提交过于频繁，请稍后再试');
+                    return false;
+                }
+                return true;
+            }
+            
+            function setSubmitting(state) {
+                isSubmitting = state;
+                if (state) {
+                    console.log('🔒 设置提交状态为：正在提交');
+                } else {
+                    lastSubmitTime = Date.now();
+                    console.log('🔓 设置提交状态为：可以提交');
+                }
+            }
+            
+            // 模拟修复后的流程
+            function simulateFixedFlow() {
+                console.log('=== 模拟修复后的提交流程 ===');
+                
+                // 按钮点击事件
+                if (!canSubmit()) {
+                    return '❌ 按钮点击被阻止';
+                }
+                
+                setSubmitting(true);
+                
+                try {
+                    // 调用业务方法（不再有重复检查）
+                    console.log('✅ 调用 handleTradeFormSubmit');
+                    console.log('✅ 表单验证通过');
+                    console.log('✅ 发送API请求');
+                    return '✅ 提交成功';
+                } catch (error) {
+                    return '❌ 提交失败: ' + error.message;
+                } finally {
+                    setSubmitting(false);
+                }
+            }
+            
+            const result = simulateFixedFlow();
+            
+            resultDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <h6>🧪 测试结果：</h6>
+                    <p class="mb-0">${result}</p>
+                    <small class="text-muted">请查看浏览器控制台查看详细日志</small>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

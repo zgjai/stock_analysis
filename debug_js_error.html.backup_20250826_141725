@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调试JavaScript错误</title>
+</head>
+<body>
+    <h1>调试JavaScript错误</h1>
+    <div id="result"></div>
+    
+    <script>
+        // 直接测试第989行附近的代码
+        function testProblematicCode() {
+            try {
+                // 模拟formData
+                const formData = {
+                    price: "100.50",
+                    quantity: "200",
+                    stop_loss_price: "95.00",
+                    take_profit_ratio: "10",
+                    sell_ratio: "50"
+                };
+                
+                // 这是第985-995行的代码
+                formData.price = parseFloat(formData.price);
+                formData.quantity = parseInt(formData.quantity);
+                
+                if (formData.stop_loss_price) {
+                    formData.stop_loss_price = parseFloat(formData.stop_loss_price);
+                }
+                if (formData.take_profit_ratio) {
+                    formData.take_profit_ratio = parseFloat(formData.take_profit_ratio) / 100;
+                }
+                if (formData.sell_ratio) {
+                    formData.sell_ratio = parseFloat(formData.sell_ratio) / 100;
+                }
+                
+                document.getElementById('result').innerHTML = `
+                    <div style="color: green;">
+                        <h3>✅ 代码执行成功！</h3>
+                        <pre>${JSON.stringify(formData, null, 2)}</pre>
+                    </div>
+                `;
+                
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <div style="color: red;">
+                        <h3>❌ 代码执行失败</h3>
+                        <p>错误: ${error.message}</p>
+                        <p>行号: ${error.lineNumber || '未知'}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // 页面加载后执行测试
+        document.addEventListener('DOMContentLoaded', testProblematicCode);
+    </script>
+</body>
+</html>

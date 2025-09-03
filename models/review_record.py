@@ -178,13 +178,13 @@ class ReviewRecord(BaseModel):
             return {
                 'ratio': ratio,
                 'display': f'+{percentage:.2f}%',
-                'color': 'text-success'
+                'color': 'text-danger'
             }
         elif ratio < 0:
             return {
                 'ratio': ratio,
                 'display': f'{percentage:.2f}%',
-                'color': 'text-danger'
+                'color': 'text-success'
             }
         else:
             return {

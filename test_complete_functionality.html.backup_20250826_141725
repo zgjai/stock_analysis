@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分批止盈组件完整功能测试</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- 自定义样式 -->
+    <link href="static/css/components.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 1rem 0;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background-color: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        .test-output {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .status-badge {
+            font-size: 0.875rem;
+            padding: 0.375rem 0.75rem;
+        }
+        .test-result-pass {
+            color: #198754;
+        }
+        .test-result-fail {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="test-container">
+            <div class="text-center mb-4">
+                <h1>分批止盈组件完整功能测试</h1>
+                <p class="text-muted">验证任务6的所有子任务实现</p>
+            </div>
+            
+            <!-- 测试控制面板 -->
+            <div class="test-section">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3>测试控制面板</h3>
+                    <div>
+                        <button type="button" class="btn btn-primary" onclick="runAllTests()">
+                            <i class="bi bi-play-circle"></i>
+                            运行所有测试
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="clearResults()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            清空结果
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title text-success" id="passed-count">0</h5>
+                                <p class="card-text">通过测试</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title text-danger" id="failed-count">0</h5>
+                                <p class="card-text">失败测试</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title text-info" id="total-count">0</h5>
+                                <p class="card-text">总测试数</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary" id="success-rate">0%</h5>
+                                <p class="card-text">成功率</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 子任务测试状态 -->
+            <div class="test-section">
+                <h3>子任务完成状态</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="list-group">
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>创建 ProfitTargetsManager JavaScript 组件</span>
+                                <span class="badge bg-secondary status-badge" id="task1-status">待测试</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>实现动态添加/删除止盈目标行功能</span>
+                                <span class="badge bg-secondary status-badge" id="task2-status">待测试</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="list-group">
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>实现实时计算总体预期收益率功能</span>
+                                <span class="badge bg-secondary status-badge" id="task3-status">待测试</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>实现止盈比例总和验证功能</span>
+                                <span class="badge bg-secondary status-badge" id="task4-status">待测试</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 组件演示 -->
+            <div class="test-section">
+                <h3>组件演示</h3>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">买入价格</label>
+                            <input type="number" class="form-control" id="demo-buy-price" value="20.00" step="0.01">
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateDemoBuyPrice()">
+                            更新买入价格
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm" onclick="loadDemoData()">
+                            加载示例数据
+                        </button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="clearDemoData()">
+                            清空数据
+                        </button>
+                    </div>
+                    <div class="col-md-8">
+                        <div id="demo-profit-targets-container"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 测试结果输出 -->
+            <div class="test-section">
+                <h3>测试结果详情</h3>
+                <div class="test-output" id="test-output">
+                    点击"运行所有测试"开始测试...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 工具函数 -->
+    <script src="static/js/utils.js"></script>
+    
+    <!-- 分批止盈组件 -->
+    <script src="static/js/profit-targets-manager.js"></script>
+    
+    <!-- 测试脚本 -->
+    <script src="test_profit_targets_functionality.js"></script>
+    
+    <script>
+        let demoManager = null;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            initDemoComponent();
+        });
+        
+        function initDemoComponent() {
+            const container = document.getElementById('demo-profit-targets-container');
+            demoManager = new ProfitTargetsManager(container, {
+                maxTargets: 5,
+                minTargets: 1,
+                buyPrice: 20.00,
+                onTargetsChange: function(targets, isValid) {
+                    console.log('Demo targets changed:', targets, 'Valid:', isValid);
+                },
+                onValidationChange: function(isValid, errors) {
+                    console.log('Demo validation changed:', isValid, errors);
+                }
+            });
+        }
+        
+        function updateDemoBuyPrice() {
+            const buyPrice = parseFloat(document.getElementById('demo-buy-price').value) || 0;
+            if (demoManager) {
+                demoManager.setBuyPrice(buyPrice);
+            }
+        }
+        
+        function loadDemoData() {
+            const demoTargets = [
+                {
+                    targetPrice: 22.00,
+                    sellRatio: 30.00,
+                    sequenceOrder: 1
+                },
+                {
+                    targetPrice: 24.00,
+                    sellRatio: 40.00,
+                    sequenceOrder: 2
+                },
+                {
+                    targetPrice: 26.00,
+                    sellRatio: 30.00,
+                    sequenceOrder: 3
+                }
+            ];
+            
+            if (demoManager) {
+                demoManager.setTargets(demoTargets);
+            }
+        }
+        
+        function clearDemoData() {
+            if (demoManager) {
+                demoManager.clear();
+            }
+        }
+        
+        function runAllTests() {
+            const output = document.getElementById('test-output');
+            output.textContent = '开始运行测试...\n\n';
+            
+            // 重定向console.log到输出区域
+            const originalLog = console.log;
+            const originalError = console.error;
+            
+            console.log = function(...args) {
+                output.textContent += args.join(' ') + '\n';
+                output.scrollTop = output.scrollHeight;
+                originalLog.apply(console, args);
+            };
+            
+            console.error = function(...args) {
+                output.textContent += args.join(' ') + '\n';
+                output.scrollTop = output.scrollHeight;
+                originalError.apply(console, args);
+            };
+            
+            try {
+                // 运行测试
+                const success = runProfitTargetsTests();
+                
+                // 更新统计信息
+                updateTestStats();
+                
+                // 更新子任务状态
+                updateTaskStatus(success);
+                
+                output.textContent += '\n测试完成！\n';
+                
+            } catch (error) {
+                output.textContent += `\n测试执行出错: ${error.message}\n`;
+                console.error('Test execution error:', error);
+            } finally {
+                // 恢复console
+                console.log = originalLog;
+                console.error = originalError;
+            }
+        }
+        
+        function updateTestStats() {
+            if (typeof testResults !== 'undefined') {
+                const passed = testResults.passed;
+                const failed = testResults.failed;
+                const total = passed + failed;
+                const successRate = total > 0 ? ((passed / total) * 100).toFixed(1) : 0;
+                
+                document.getElementById('passed-count').textContent = passed;
+                document.getElementById('failed-count').textContent = failed;
+                document.getElementById('total-count').textContent = total;
+                document.getElementById('success-rate').textContent = successRate + '%';
+            }
+        }
+        
+        function updateTaskStatus(allPassed) {
+            const tasks = ['task1-status', 'task2-status', 'task3-status', 'task4-status'];
+            
+            tasks.forEach(taskId => {
+                const element = document.getElementById(taskId);
+                if (allPassed) {
+                    element.textContent = '✅ 完成';
+                    element.className = 'badge bg-success status-badge';
+                } else {
+                    element.textContent = '❌ 部分失败';
+                    element.className = 'badge bg-warning status-badge';
+                }
+            });
+        }
+        
+        function clearResults() {
+            document.getElementById('test-output').textContent = '点击"运行所有测试"开始测试...';
+            document.getElementById('passed-count').textContent = '0';
+            document.getElementById('failed-count').textContent = '0';
+            document.getElementById('total-count').textContent = '0';
+            document.getElementById('success-rate').textContent = '0%';
+            
+            const tasks = ['task1-status', 'task2-status', 'task3-status', 'task4-status'];
+            tasks.forEach(taskId => {
+                const element = document.getElementById(taskId);
+                element.textContent = '待测试';
+                element.className = 'badge bg-secondary status-badge';
+            });
+        }
+        
+        // 简化的消息函数
+        function showSuccess(message) {
+            console.log('Success:', message);
+        }
+        
+        function showError(message) {
+            console.error('Error:', message);
+        }
+        
+        function showWarning(message) {
+            console.warn('Warning:', message);
+        }
+    </script>
+</body>
+</html>

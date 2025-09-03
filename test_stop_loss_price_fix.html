@@ -26,7 +26,7 @@
                         <h5>测试表单</h5>
                     </div>
                     <div class="card-body">
-                        <form id="test-form">
+                        <form id="test-form" novalidate>
                             <div class="mb-3">
                                 <label for="trade-type" class="form-label">交易类型</label>
                                 <select class="form-select" id="trade-type" name="trade_type">
@@ -43,7 +43,7 @@
                                     <div class="input-group">
                                         <span class="input-group-text">¥</span>
                                         <input type="number" class="form-control" id="stop-loss-price" 
-                                               name="stop_loss_price" step="0.01" min="0" 
+                                               name="stop_loss_price" step="0.01" 
                                                placeholder="0.00" value="18.50">
                                     </div>
                                 </div>

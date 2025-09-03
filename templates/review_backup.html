@@ -386,7 +386,7 @@ body {
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="review-form">
+                <form id="review-form" novalidate>
                     <input type="hidden" id="review-stock-code">
                     <input type="hidden" id="review-id">
                     
@@ -397,7 +397,7 @@ body {
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">复盘日期</label>
-                            <input type="date" class="form-control" id="review-date" required>
+                            <input type="date" class="form-control" id="review-date">
                         </div>
                     </div>
 
@@ -405,7 +405,7 @@ body {
                         <div class="col-md-6">
                             <label class="form-label">持仓天数</label>
                             <div class="holding-days-editable-container">
-                                <input type="number" class="form-control" id="holding-days" min="1" required>
+                                <input type="number" class="form-control" id="holding-days">
                                 <div class="holding-days-edit-indicator" style="display: none;">
                                     <small class="text-muted">
                                         <i class="fas fa-edit"></i> 可编辑
@@ -439,7 +439,7 @@ body {
                                     <div class="input-group">
                                         <span class="input-group-text">¥</span>
                                         <input type="number" class="form-control" id="current-price-input" 
-                                               placeholder="输入当前价格" step="0.01" min="0.01" max="9999.99">
+                                               placeholder="输入当前价格" step="0.01">
                                     </div>
                                     <div id="floating-profit-error" class="text-danger small mt-1" style="display: none;"></div>
                                 </div>
@@ -520,7 +520,7 @@ body {
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">决策结果</label>
-                            <select class="form-select" id="decision" required>
+                            <select class="form-select" id="decision">
                                 <option value="">请选择决策</option>
                                 <option value="hold">继续持有</option>
                                 <option value="sell_partial">部分止盈</option>
@@ -531,7 +531,7 @@ body {
 
                     <div class="mb-3">
                         <label class="form-label">决策理由</label>
-                        <textarea class="form-control" id="reason" rows="2" placeholder="请输入决策理由..." required></textarea>
+                        <textarea class="form-control" id="reason" rows="2" placeholder="请输入决策理由..."></textarea>
                     </div>
                 </form>
             </div>
@@ -989,23 +989,25 @@ function renderHoldings(holdings) {
         const html = holdings.map(holding => `
             <div class="holding-item border rounded p-3 mb-3">
                 <div class="row align-items-center">
-                    <div class="col-md-3">
+                    <div class="col-md-3 col-sm-4">
                         <h6 class="mb-1">${holding.stock_code}</h6>
                         <small class="text-muted">${holding.stock_name || ''}</small>
                     </div>
-                    <div class="col-md-2">
-                        <div class="text-center">
-                            <div class="fw-bold">¥${holding.current_price || '--'}</div>
-                            <small class="text-muted">当前价</small>
+                    <div class="col-md-3 col-sm-4">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted me-2">成本价</span>
+                            <span class="fw-bold">¥${holding.avg_buy_price ? holding.avg_buy_price.toFixed(2) : (holding.avg_price ? holding.avg_price.toFixed(2) : '--')}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted me-2">当前价</span>
+                            <span class="fw-bold">¥${holding.current_price || '--'}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small text-muted me-2">持仓量</span>
+                            <span class="fw-bold">${holding.current_quantity || holding.total_quantity || 0}</span>
                         </div>
                     </div>
-                    <div class="col-md-2">
-                        <div class="text-center">
-                            <div class="fw-bold">¥${holding.avg_buy_price ? holding.avg_buy_price.toFixed(2) : (holding.avg_price ? holding.avg_price.toFixed(2) : '--')}</div>
-                            <small class="text-muted">成本价</small>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 col-sm-4">
                         <div class="text-center">
                             <div class="fw-bold ${getProfitClass(holding)}">
                                 ${calculateProfitRatio(holding)}
@@ -1013,7 +1015,7 @@ function renderHoldings(holdings) {
                             <small class="text-muted">盈亏</small>
                         </div>
                     </div>
-                    <div class="col-md-1">
+                    <div class="col-md-2 col-sm-6">
                         <div class="text-center holding-days-container" data-stock-code="${holding.stock_code}">
                             <div class="holding-days-display" title="点击编辑持仓天数">
                                 ${holding.holding_days || 0}天
@@ -1028,7 +1030,7 @@ function renderHoldings(holdings) {
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 col-sm-6">
                         <div class="btn-group-vertical btn-group-sm w-100">
                             <button class="btn btn-outline-primary btn-sm" onclick="openReviewModal('${holding.stock_code}')">
                                 复盘

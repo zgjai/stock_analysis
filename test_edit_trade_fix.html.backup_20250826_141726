@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑交易修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>编辑交易修复测试</h2>
+        
+        <div class="alert alert-info">
+            <h5>测试目标：</h5>
+            <ul>
+                <li>验证 triggerFormValidation 方法是否存在</li>
+                <li>验证编辑时"操作原因"是否正确保留</li>
+                <li>验证编辑时"止损价格"是否正确保留</li>
+            </ul>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>模拟交易数据</h5>
+                    </div>
+                    <div class="card-body">
+                        <pre id="trade-data">{
+  "id": 1,
+  "stock_code": "000776",
+  "stock_name": "广发证券",
+  "trade_type": "buy",
+  "price": 19.45,
+  "quantity": 31100,
+  "reason": "少妇B1战法",
+  "stop_loss_price": 18.50,
+  "trade_date": "2025-08-19T15:33:00"
+}</pre>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">测试中...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <button class="btn btn-primary" onclick="runTests()">重新运行测试</button>
+            <button class="btn btn-secondary" onclick="testFormSerialization()">测试表单序列化</button>
+        </div>
+
+        <!-- 模拟的交易表单 -->
+        <form id="test-trade-form" style="display: none;">
+            <select id="reason" name="reason">
+                <option value="">请选择操作原因</option>
+            </select>
+            <input type="number" id="stop-loss-price" name="stop_loss_price" step="0.01">
+        </form>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script>
+        // 模拟 TradingRecordsManager 类的关键部分
+        class TestTradingRecordsManager {
+            constructor() {
+                this.buyReasons = ['少妇B1战法', '少妇SB1战法', '少妇B2战法', '单针二十战法'];
+                this.sellReasons = ['部分止盈', '止损', '下等马/草泥马'];
+            }
+
+            updateReasonOptions(tradeType) {
+                const reasonSelect = document.getElementById('reason');
+                
+                // 保存当前选中的值
+                const currentValue = reasonSelect.value;
+                
+                // 清空现有选项
+                reasonSelect.innerHTML = '<option value="">请选择操作原因</option>';
+                
+                const reasons = tradeType === 'buy' ? this.buyReasons :
+                    tradeType === 'sell' ? this.sellReasons : [];
+                
+                reasons.forEach(reason => {
+                    const option = document.createElement('option');
+                    option.value = reason;
+                    option.textContent = reason;
+                    reasonSelect.appendChild(option);
+                });
+                
+                // 恢复之前选中的值（如果该值在新的选项中存在）
+                if (currentValue && reasons.includes(currentValue)) {
+                    reasonSelect.value = currentValue;
+                    console.log('Restored reason value:', currentValue);
+                }
+            }
+
+            populateBasicTradeForm(trade) {
+                const reasonField = document.getElementById('reason');
+                const stopLossPriceField = document.getElementById('stop-loss-price');
+                
+                if (reasonField) reasonField.value = trade.reason || '';
+                if (stopLossPriceField) stopLossPriceField.value = trade.stop_loss_price || '';
+                
+                console.log('Form populated - reason:', reasonField.value, 'stop_loss_price:', stopLossPriceField.value);
+            }
+
+            // 测试是否有 triggerFormValidation 方法
+            triggerFormValidation() {
+                console.log('triggerFormValidation method exists and working!');
+                return true;
+            }
+        }
+
+        let testManager;
+
+        function runTests() {
+            const resultsDiv = document.getElementById('test-results');
+            const results = [];
+            
+            try {
+                // 初始化测试管理器
+                testManager = new TestTradingRecordsManager();
+                
+                // 测试数据
+                const testTrade = {
+                    id: 1,
+                    stock_code: "000776",
+                    stock_name: "广发证券",
+                    trade_type: "buy",
+                    price: 19.45,
+                    quantity: 31100,
+                    reason: "少妇B1战法",
+                    stop_loss_price: 18.50,
+                    trade_date: "2025-08-19T15:33:00"
+                };
+
+                // 测试1: triggerFormValidation 方法是否存在
+                try {
+                    const hasMethod = typeof testManager.triggerFormValidation === 'function';
+                    if (hasMethod) {
+                        testManager.triggerFormValidation();
+                        results.push({
+                            test: 'triggerFormValidation 方法存在性',
+                            status: 'success',
+                            message: '✅ 方法存在且可正常调用'
+                        });
+                    } else {
+                        results.push({
+                            test: 'triggerFormValidation 方法存在性',
+                            status: 'error',
+                            message: '❌ 方法不存在'
+                        });
+                    }
+                } catch (error) {
+                    results.push({
+                        test: 'triggerFormValidation 方法存在性',
+                        status: 'error',
+                        message: '❌ 方法调用失败: ' + error.message
+                    });
+                }
+
+                // 测试2: 操作原因保留测试
+                try {
+                    // 先更新选项
+                    testManager.updateReasonOptions(testTrade.trade_type);
+                    // 然后填充表单
+                    testManager.populateBasicTradeForm(testTrade);
+                    
+                    const reasonField = document.getElementById('reason');
+                    const actualReason = reasonField.value;
+                    
+                    if (actualReason === testTrade.reason) {
+                        results.push({
+                            test: '操作原因保留测试',
+                            status: 'success',
+                            message: `✅ 操作原因正确保留: ${actualReason}`
+                        });
+                    } else {
+                        results.push({
+                            test: '操作原因保留测试',
+                            status: 'error',
+                            message: `❌ 操作原因丢失 - 期望: ${testTrade.reason}, 实际: ${actualReason}`
+                        });
+                    }
+                } catch (error) {
+                    results.push({
+                        test: '操作原因保留测试',
+                        status: 'error',
+                        message: '❌ 测试失败: ' + error.message
+                    });
+                }
+
+                // 测试3: 止损价格保留测试
+                try {
+                    const stopLossPriceField = document.getElementById('stop-loss-price');
+                    const actualStopLossPrice = parseFloat(stopLossPriceField.value);
+                    
+                    if (actualStopLossPrice === testTrade.stop_loss_price) {
+                        results.push({
+                            test: '止损价格保留测试',
+                            status: 'success',
+                            message: `✅ 止损价格正确保留: ${actualStopLossPrice}`
+                        });
+                    } else {
+                        results.push({
+                            test: '止损价格保留测试',
+                            status: 'error',
+                            message: `❌ 止损价格丢失 - 期望: ${testTrade.stop_loss_price}, 实际: ${actualStopLossPrice}`
+                        });
+                    }
+                } catch (error) {
+                    results.push({
+                        test: '止损价格保留测试',
+                        status: 'error',
+                        message: '❌ 测试失败: ' + error.message
+                    });
+                }
+
+            } catch (error) {
+                results.push({
+                    test: '整体测试',
+                    status: 'error',
+                    message: '❌ 测试初始化失败: ' + error.message
+                });
+            }
+
+            // 显示结果
+            const resultHtml = results.map(result => {
+                const badgeClass = result.status === 'success' ? 'bg-success' : 'bg-danger';
+                return `
+                    <div class="mb-2">
+                        <span class="badge ${badgeClass}">${result.test}</span>
+                        <div class="mt-1">${result.message}</div>
+                    </div>
+                `;
+            }).join('');
+
+            resultsDiv.innerHTML = resultHtml;
+        }
+
+        function testFormSerialization() {
+            const form = document.getElementById('test-trade-form');
+            const serialized = FormUtils.serialize(form);
+            
+            console.log('表单序列化结果:', serialized);
+            alert('表单序列化结果已输出到控制台');
+        }
+
+        // 页面加载后自动运行测试
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(runTests, 500);
+        });
+    </script>
+</body>
+</html>

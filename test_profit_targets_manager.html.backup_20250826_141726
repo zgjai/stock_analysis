@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分批止盈组件测试</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- 自定义样式 -->
+    <link href="static/css/components.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 2rem 0;
+        }
+        .test-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        .test-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+        }
+        .test-controls {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+        }
+        .test-output {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="test-container">
+            <h1 class="mb-4">分批止盈目标管理组件测试</h1>
+            
+            <!-- 基本功能测试 -->
+            <div class="test-section">
+                <h3>基本功能测试</h3>
+                <div class="test-controls">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">买入价格</label>
+                            <input type="number" class="form-control" id="buy-price" value="20.00" step="0.01">
+                        </div>
+                        <div class="col-md-3">
+                            <button type="button" class="btn btn-primary" onclick="updateBuyPrice()">更新买入价格</button>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="button" class="btn btn-success" onclick="getTargetsData()">获取数据</button>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="button" class="btn btn-warning" onclick="loadTestData()">加载测试数据</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="profit-targets-container"></div>
+                
+                <div class="test-output" id="output">
+                    等待操作...
+                </div>
+            </div>
+            
+            <!-- 验证功能测试 -->
+            <div class="test-section">
+                <h3>验证状态</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">验证状态</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="validation-status">
+                                    <span class="badge bg-secondary">未初始化</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">验证错误</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="validation-errors">
+                                    暂无错误
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 事件监听测试 -->
+            <div class="test-section">
+                <h3>事件日志</h3>
+                <div class="test-output" id="event-log">
+                    事件日志将在这里显示...
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="clearEventLog()">清空日志</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 工具函数 -->
+    <script src="static/js/utils.js"></script>
+    
+    <!-- 分批止盈组件 -->
+    <script src="static/js/profit-targets-manager.js"></script>
+    
+    <script>
+        let profitTargetsManager;
+        let eventLog = [];
+        
+        // 初始化组件
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.getElementById('profit-targets-container');
+            
+            profitTargetsManager = new ProfitTargetsManager(container, {
+                maxTargets: 5,
+                minTargets: 1,
+                buyPrice: 20.00,
+                onTargetsChange: function(targets, isValid) {
+                    logEvent('目标变化', { targets, isValid });
+                    updateOutput('目标数据变化', targets);
+                    updateValidationStatus(isValid);
+                },
+                onValidationChange: function(isValid, errors) {
+                    logEvent('验证状态变化', { isValid, errors });
+                    updateValidationStatus(isValid);
+                    updateValidationErrors(errors);
+                }
+            });
+            
+            logEvent('组件初始化', '分批止盈组件已初始化');
+        });
+        
+        // 更新买入价格
+        function updateBuyPrice() {
+            const buyPrice = parseFloat(document.getElementById('buy-price').value) || 0;
+            profitTargetsManager.setBuyPrice(buyPrice);
+            logEvent('更新买入价格', buyPrice);
+        }
+        
+        // 获取目标数据
+        function getTargetsData() {
+            const targets = profitTargetsManager.getTargets();
+            const isValid = profitTargetsManager.isValidTargets();
+            const errors = profitTargetsManager.getValidationErrors();
+            
+            updateOutput('当前目标数据', {
+                targets,
+                isValid,
+                errors,
+                targetsCount: targets.length
+            });
+            
+            logEvent('获取数据', { targets, isValid, errors });
+        }
+        
+        // 加载测试数据
+        function loadTestData() {
+            const testTargets = [
+                {
+                    targetPrice: 22.00,
+                    profitRatio: 10.00,
+                    sellRatio: 30.00,
+                    expectedProfitRatio: 0.03,
+                    sequenceOrder: 1
+                },
+                {
+                    targetPrice: 24.00,
+                    profitRatio: 20.00,
+                    sellRatio: 40.00,
+                    expectedProfitRatio: 0.08,
+                    sequenceOrder: 2
+                },
+                {
+                    targetPrice: 26.00,
+                    profitRatio: 30.00,
+                    sellRatio: 30.00,
+                    expectedProfitRatio: 0.09,
+                    sequenceOrder: 3
+                }
+            ];
+            
+            profitTargetsManager.setTargets(testTargets);
+            logEvent('加载测试数据', testTargets);
+        }
+        
+        // 更新输出显示
+        function updateOutput(title, data) {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            output.textContent = `[${timestamp}] ${title}:\n${JSON.stringify(data, null, 2)}`;
+        }
+        
+        // 更新验证状态显示
+        function updateValidationStatus(isValid) {
+            const statusElement = document.getElementById('validation-status');
+            if (isValid) {
+                statusElement.innerHTML = '<span class="badge bg-success">验证通过</span>';
+            } else {
+                statusElement.innerHTML = '<span class="badge bg-danger">验证失败</span>';
+            }
+        }
+        
+        // 更新验证错误显示
+        function updateValidationErrors(errors) {
+            const errorsElement = document.getElementById('validation-errors');
+            if (!errors || Object.keys(errors).length === 0) {
+                errorsElement.textContent = '暂无错误';
+                return;
+            }
+            
+            let errorHtml = '';
+            Object.keys(errors).forEach(key => {
+                if (typeof errors[key] === 'object') {
+                    errorHtml += `<div class="mb-2"><strong>目标 ${key}:</strong><ul class="mb-0">`;
+                    Object.keys(errors[key]).forEach(field => {
+                        errorHtml += `<li>${field}: ${errors[key][field]}</li>`;
+                    });
+                    errorHtml += '</ul></div>';
+                } else {
+                    errorHtml += `<div class="mb-2"><strong>${key}:</strong> ${errors[key]}</div>`;
+                }
+            });
+            
+            errorsElement.innerHTML = errorHtml;
+        }
+        
+        // 记录事件日志
+        function logEvent(event, data) {
+            const timestamp = new Date().toLocaleTimeString();
+            eventLog.push({
+                timestamp,
+                event,
+                data
+            });
+            
+            updateEventLog();
+        }
+        
+        // 更新事件日志显示
+        function updateEventLog() {
+            const logElement = document.getElementById('event-log');
+            const logText = eventLog.map(entry => {
+                return `[${entry.timestamp}] ${entry.event}: ${typeof entry.data === 'object' ? JSON.stringify(entry.data) : entry.data}`;
+            }).join('\n');
+            
+            logElement.textContent = logText;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        // 清空事件日志
+        function clearEventLog() {
+            eventLog = [];
+            updateEventLog();
+        }
+        
+        // 全局错误处理
+        window.addEventListener('error', function(e) {
+            logEvent('JavaScript错误', e.message);
+            console.error('Test page error:', e);
+        });
+        
+        // 显示成功消息的简化版本
+        function showSuccess(message) {
+            console.log('Success:', message);
+            logEvent('成功消息', message);
+        }
+        
+        // 显示错误消息的简化版本
+        function showError(message) {
+            console.error('Error:', message);
+            logEvent('错误消息', message);
+        }
+        
+        // 显示警告消息的简化版本
+        function showWarning(message) {
+            console.warn('Warning:', message);
+            logEvent('警告消息', message);
+        }
+    </script>
+</body>
+</html>

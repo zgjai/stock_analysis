@@ -5,6 +5,9 @@ from flask import request, jsonify, send_file
 from datetime import datetime
 from . import api_bp
 from services.analytics_service import AnalyticsService
+from services.expectation_comparison_service import ExpectationComparisonService
+from services.dto.expectation_comparison_dto import ExpectationComparisonData, ExpectationComparisonResponse
+from monthly_expectation_service import MonthlyExpectationService
 from error_handlers import create_success_response, create_error_response, ValidationError, DatabaseError
 import io
 
@@ -242,3 +245,87 @@ def get_performance_metrics():
         return create_error_response('DATABASE_ERROR', str(e), 500)
     except Exception as e:
         return create_error_response('INTERNAL_ERROR', f'获取投资表现指标失败: {str(e)}', 500)
+
+
+@api_bp.route('/analytics/expectation-comparison', methods=['GET'])
+def get_expectation_comparison():
+    """获取期望对比分析数据
+    
+    Requirements: 2.1, 6.1, 6.2, 6.3, 8.1, 8.2
+    - 提供期望对比分析功能
+    - 支持时间范围筛选
+    - 返回期望值、实际值和对比结果
+    
+    Query Parameters:
+    - time_range: 时间范围 ('30d', '90d', '1y', 'all')，默认为 'all'
+    - base_capital: 基准本金，默认为320万
+    """
+    try:
+        # 获取查询参数
+        time_range = request.args.get('time_range', 'all')
+        base_capital = request.args.get('base_capital', type=float)
+        
+        # 调用服务层获取期望对比数据
+        comparison_data = ExpectationComparisonService.get_expectation_comparison(
+            time_range=time_range,
+            base_capital=base_capital
+        )
+        
+        # 创建DTO对象
+        dto_data = ExpectationComparisonData.from_service_data(comparison_data)
+        
+        return create_success_response(
+            data=dto_data.to_dict(),
+            message='获取期望对比数据成功'
+        )
+    except ValidationError as e:
+        return create_error_response('VALIDATION_ERROR', str(e), 400)
+    except DatabaseError as e:
+        return create_error_response('DATABASE_ERROR', str(e), 500)
+    except Exception as e:
+        return create_error_response('INTERNAL_ERROR', f'获取期望对比数据失败: {str(e)}', 500)
+
+
+@api_bp.route('/analytics/monthly-expectations', methods=['GET'])
+def get_monthly_expectations():
+    """获取月度期望收益数据
+    
+    Returns:
+        月度期望收益数据列表
+    """
+    try:
+        expectations = MonthlyExpectationService.get_monthly_expectations()
+        return create_success_response(
+            data=expectations,
+            message='获取月度期望收益数据成功'
+        )
+    except DatabaseError as e:
+        return create_error_response('DATABASE_ERROR', str(e), 500)
+    except Exception as e:
+        return create_error_response('INTERNAL_ERROR', f'获取月度期望收益数据失败: {str(e)}', 500)
+
+
+@api_bp.route('/analytics/monthly-comparison', methods=['GET'])
+def get_monthly_comparison():
+    """获取月度期望与实际收益对比
+    
+    Query Parameters:
+    - year: 年份，默认为当前年份
+    - month: 月份，默认为当前月份
+    """
+    try:
+        year = request.args.get('year', type=int)
+        month = request.args.get('month', type=int)
+        
+        comparison_data = MonthlyExpectationService.get_monthly_comparison(year, month)
+        
+        return create_success_response(
+            data=comparison_data,
+            message='获取月度对比数据成功'
+        )
+    except ValidationError as e:
+        return create_error_response('VALIDATION_ERROR', str(e), 400)
+    except DatabaseError as e:
+        return create_error_response('DATABASE_ERROR', str(e), 500)
+    except Exception as e:
+        return create_error_response('INTERNAL_ERROR', f'获取月度对比数据失败: {str(e)}', 500)

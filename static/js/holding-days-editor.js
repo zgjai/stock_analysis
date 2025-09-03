@@ -336,7 +336,7 @@ class HoldingDaysEditor {
     showError(message) {
         this.errorElement.textContent = message;
         this.errorElement.classList.remove('d-none');
-        this.inputElement.classList.add('is-invalid');
+        this.inputElement// .classList.add(["']is-invalid["']);
     }
     
     /**
@@ -344,7 +344,7 @@ class HoldingDaysEditor {
      */
     clearError() {
         this.errorElement.classList.add('d-none');
-        this.inputElement.classList.remove('is-invalid');
+        this.inputElement// .classList.remove(["']is-invalid["']);
     }
     
     /**

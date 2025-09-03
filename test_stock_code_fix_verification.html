@@ -62,26 +62,26 @@
 
         <div class="test-section">
             <h3><i class="bi bi-form-check me-2"></i>模拟交易表单</h3>
-            <form id="test-trade-form">
+            <form id="test-trade-form" novalidate>
                 <div class="row">
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label for="test-stock-code" class="form-label">股票代码 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="test-stock-code" name="stock_code" required
-                                placeholder="例如: 000001" maxlength="6" pattern="[0-9]{6}" value="000001">
+                            <input type="text" class="form-control" id="test-stock-code" name="stock_code"
+                                placeholder="例如: 000001" maxlength="6" value="000001">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label for="test-stock-name" class="form-label">股票名称 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="test-stock-name" name="stock_name" required
+                            <input type="text" class="form-control" id="test-stock-name" name="stock_name"
                                 placeholder="例如: 平安银行" value="平安银行">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label for="test-trade-type" class="form-label">交易类型 <span class="text-danger">*</span></label>
-                            <select class="form-select" id="test-trade-type" name="trade_type" required>
+                            <select class="form-select" id="test-trade-type" name="trade_type">
                                 <option value="">请选择交易类型</option>
                                 <option value="buy" selected>买入</option>
                                 <option value="sell">卖出</option>
@@ -94,21 +94,20 @@
                     <div class="col-md-3">
                         <div class="mb-3">
                             <label for="test-price" class="form-label">价格 <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" id="test-price" name="price" required
-                                step="0.01" min="0.01" placeholder="0.00" value="10.50">
+                            <input type="number" class="form-control" id="test-price" name="price"
+                                step="0.01" placeholder="0.00" value="10.50">
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="mb-3">
                             <label for="test-quantity" class="form-label">数量 <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" id="test-quantity" name="quantity" required
-                                min="100" step="100" placeholder="100" value="1000">
+                            <input type="number" class="form-control" id="test-quantity" name="quantity" step="100" placeholder="100" value="1000">
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="mb-3">
                             <label for="test-reason" class="form-label">操作原因 <span class="text-danger">*</span></label>
-                            <select class="form-select" id="test-reason" name="reason" required>
+                            <select class="form-select" id="test-reason" name="reason">
                                 <option value="">请选择操作原因</option>
                                 <option value="少妇B1战法" selected>少妇B1战法</option>
                                 <option value="少妇SB1战法">少妇SB1战法</option>
@@ -118,7 +117,7 @@
                     <div class="col-md-3">
                         <div class="mb-3">
                             <label for="test-trade-date" class="form-label">交易日期 <span class="text-danger">*</span></label>
-                            <input type="datetime-local" class="form-control" id="test-trade-date" name="trade_date" required>
+                            <input type="datetime-local" class="form-control" id="test-trade-date" name="trade_date">
                         </div>
                     </div>
                 </div>
@@ -213,10 +212,8 @@
             
             // 2. 检查必填字段
             logResult('2. 检查必填字段...', 'info');
-            const requiredFields = ['stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 'reason'];
-            let allFieldsValid = true;
-            
-            requiredFields.forEach(fieldName => {
+            constFields = ['stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 'reason'];
+            let allFieldsValid = true;Fields.forEach(fieldName => {
                 const element = document.getElementById(`test-${fieldName.replace('_', '-')}`);
                 if (!element) {
                     logResult(`❌ 字段元素未找到: ${fieldName}`, 'error');
@@ -245,8 +242,7 @@
             logResult(JSON.stringify(serializedData, null, 2), 'info');
             
             // 4. 检查关键字段
-            logResult('4. 检查关键字段...', 'info');
-            requiredFields.forEach(field => {
+            logResult('4. 检查关键字段...', 'info');Fields.forEach(field => {
                 const value = serializedData[field];
                 if (!value || value.trim() === '') {
                     logResult(`❌ 序列化后字段为空: ${field}`, 'error');

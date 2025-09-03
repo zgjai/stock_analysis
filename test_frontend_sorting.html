@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前端排序功能测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>前端排序功能测试</h2>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5>测试排序控件</h5>
+                
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label">排序字段</label>
+                        <select class="form-select" id="sort-by">
+                            <option value="completion_date">按完成日期</option>
+                            <option value="stock_code">按股票代码</option>
+                            <option value="return_rate">按收益率</option>
+                            <option value="holding_days">按持仓天数</option>
+                            <option value="total_investment">按投入本金</option>
+                            <option value="total_return">按实际收益</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">排序方向</label>
+                        <select class="form-select" id="sort-order">
+                            <option value="desc">降序</option>
+                            <option value="asc">升序</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-primary w-100 d-block" onclick="testSorting()">
+                            测试排序
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="debug-output" class="mt-3">
+                    <!-- 调试输出将显示在这里 -->
+                </div>
+                
+                <div id="api-response" class="mt-3">
+                    <!-- API响应将显示在这里 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+    
+    <!-- 引入API客户端 -->
+    <script src="static/js/config.js"></script>
+    <script src="static/js/utils.js"></script>
+    <script src="static/js/api.js"></script>
+    
+    <script>
+        // 测试API客户端是否可用
+        function checkApiClient() {
+            const debugOutput = document.getElementById('debug-output');
+            
+            if (typeof window.apiClient === 'undefined') {
+                debugOutput.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h6>错误:</h6>
+                        <p>apiClient 未定义！这就是排序功能无法工作的原因。</p>
+                    </div>
+                `;
+                return false;
+            } else {
+                debugOutput.innerHTML = `
+                    <div class="alert alert-success">
+                        <h6>成功:</h6>
+                        <p>apiClient 已正确加载。</p>
+                    </div>
+                `;
+                return true;
+            }
+        }
+        
+        async function testSorting() {
+            const debugOutput = document.getElementById('debug-output');
+            const apiResponse = document.getElementById('api-response');
+            
+            // 首先检查API客户端
+            if (!checkApiClient()) {
+                return;
+            }
+            
+            // 获取排序参数
+            const sortBy = document.getElementById('sort-by').value;
+            const sortOrder = document.getElementById('sort-order').value;
+            
+            debugOutput.innerHTML = `
+                <div class="alert alert-info">
+                    <h6>调试信息:</h6>
+                    <p><strong>排序字段:</strong> ${sortBy}</p>
+                    <p><strong>排序方向:</strong> ${sortOrder}</p>
+                    <p><strong>apiClient类型:</strong> ${typeof window.apiClient}</p>
+                    <p><strong>请求URL:</strong> http://localhost:5001/api/historical-trades</p>
+                </div>
+            `;
+            
+            try {
+                // 使用apiClient发送请求
+                const params = {
+                    sort_by: sortBy,
+                    sort_order: sortOrder,
+                    per_page: 10
+                };
+                
+                console.log('发送请求参数:', params);
+                
+                const response = await window.apiClient.request('GET', '/historical-trades', { params });
+                
+                console.log('API响应:', response);
+                
+                if (response && response.success) {
+                    const trades = response.data.trades || [];
+                    
+                    let tableHTML = `
+                        <div class="alert alert-success">
+                            <h6>API响应成功 (共${trades.length}条记录):</h6>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>股票代码</th>
+                                        <th>完成日期</th>
+                                        <th>收益率</th>
+                                        <th>持仓天数</th>
+                                        <th>投入本金</th>
+                                        <th>实际收益</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    trades.forEach(trade => {
+                        tableHTML += `
+                            <tr>
+                                <td>${trade.stock_code}</td>
+                                <td>${trade.completion_date}</td>
+                                <td>${(trade.return_rate * 100).toFixed(2)}%</td>
+                                <td>${trade.holding_days}天</td>
+                                <td>¥${trade.total_investment}</td>
+                                <td>¥${trade.total_return}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableHTML += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    
+                    apiResponse.innerHTML = tableHTML;
+                } else {
+                    apiResponse.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h6>API请求失败:</h6>
+                            <p>${response?.message || '未知错误'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('请求错误:', error);
+                apiResponse.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h6>请求错误:</h6>
+                        <p>${error.message}</p>
+                        <p><strong>错误详情:</strong> ${error.stack}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // 页面加载时检查API客户端
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiClient();
+        });
+        
+        // 监听排序字段变化
+        document.getElementById('sort-by').addEventListener('change', testSorting);
+        document.getElementById('sort-order').addEventListener('change', testSorting);
+    </script>
+</body>
+</html>

@@ -17,10 +17,10 @@
                         <h5>测试表单验证</h5>
                     </div>
                     <div class="card-body">
-                        <form id="test-form">
+                        <form id="test-form" novalidate>
                             <div class="mb-3">
                                 <label for="required-field" class="form-label">必填字段 *</label>
-                                <input type="text" class="form-control" id="required-field" name="required-field" required>
+                                <input type="text" class="form-control" id="required-field" name="required-field">
                             </div>
                             
                             <div class="mb-3">
@@ -30,7 +30,7 @@
                             
                             <div class="mb-3">
                                 <label for="stock-code" class="form-label">股票代码</label>
-                                <input type="text" class="form-control" id="stock-code" name="stock-code" pattern="[0-9]{6}" title="请输入6位数字">
+                                <input type="text" class="form-control" id="stock-code" name="stock-code" title="请输入6位数字">
                             </div>
                             
                             <button type="submit" class="btn btn-primary">测试提交</button>
@@ -80,8 +80,8 @@
             
             logResult('✅ Validators 对象已加载', 'success');
             
-            // 测试 required 验证器
-            const requiredTests = [
+            // 测试 验证器
+            constTests = [
                 { value: '', expected: false, desc: '空字符串' },
                 { value: '   ', expected: false, desc: '空白字符串' },
                 { value: 'test', expected: true, desc: '有效字符串' },
@@ -94,13 +94,11 @@
             ];
             
             logResult('测试 Validators.required:', 'info');
-            let requiredPassed = 0;
-            requiredTests.forEach(test => {
+            letPassed = 0;Tests.forEach(test => {
                 try {
                     const result = Validators.required(test.value);
                     if (result === test.expected) {
-                        logResult(`  ✅ ${test.desc}: ${result}`, 'success');
-                        requiredPassed++;
+                        logResult(`  ✅ ${test.desc}: ${result}`, 'success');Passed++;
                     } else {
                         logResult(`  ❌ ${test.desc}: 期望 ${test.expected}, 得到 ${result}`, 'error');
                     }
@@ -134,8 +132,8 @@
             });
             
             // 总结
-            const totalTests = requiredTests.length + emailTests.length;
-            const totalPassed = requiredPassed + emailPassed;
+            const totalTests =Tests.length + emailTests.length;
+            const totalPassed =Passed + emailPassed;
             
             if (totalPassed === totalTests) {
                 logResult(`🎉 所有测试通过! (${totalPassed}/${totalTests})`, 'success');

@@ -203,12 +203,18 @@ def get_latest_review_by_stock(stock_code):
 
 @api_bp.route('/holdings', methods=['GET'])
 def get_current_holdings():
-    """获取当前持仓列表"""
+    """获取当前持仓列表（包含实际交易日数）"""
     try:
         # 检查是否需要强制刷新价格
         force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
         
-        holdings = HoldingService.get_current_holdings(force_refresh_prices=force_refresh)
+        # 检查是否需要包含实际持仓天数
+        include_actual_days = request.args.get('include_actual_days', 'true').lower() == 'true'
+        
+        if include_actual_days:
+            holdings = HoldingService.get_current_holdings_with_actual_days(force_refresh_prices=force_refresh)
+        else:
+            holdings = HoldingService.get_current_holdings(force_refresh_prices=force_refresh)
         
         return create_success_response(
             data=holdings,

@@ -152,7 +152,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="review-form">
+                    <form id="review-form" novalidate>
                         <input type="hidden" id="review-stock-code" value="000001">
                         <input type="hidden" id="review-id">
                         
@@ -163,14 +163,14 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">复盘日期</label>
-                                <input type="date" class="form-control" id="review-date" required>
+                                <input type="date" class="form-control" id="review-date">
                             </div>
                         </div>
 
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label class="form-label">持仓天数</label>
-                                <input type="number" class="form-control" id="holding-days" min="1" value="5" required>
+                                <input type="number" class="form-control" id="holding-days" value="5">
                             </div>
                         </div>
 
@@ -185,7 +185,7 @@
                                         <div class="input-group">
                                             <span class="input-group-text">¥</span>
                                             <input type="number" class="form-control" id="current-price-input" 
-                                                   placeholder="输入当前价格" step="0.01" min="0.01" max="9999.99">
+                                                   placeholder="输入当前价格" step="0.01">
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -247,7 +247,7 @@
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label class="form-label">决策结果</label>
-                                <select class="form-select" id="decision" required>
+                                <select class="form-select" id="decision">
                                     <option value="">请选择决策</option>
                                     <option value="hold">继续持有</option>
                                     <option value="sell_partial">部分止盈</option>
@@ -258,7 +258,7 @@
 
                         <div class="mb-3">
                             <label class="form-label">决策理由</label>
-                            <textarea class="form-control" id="reason" rows="2" placeholder="请输入决策理由..." required></textarea>
+                            <textarea class="form-control" id="reason" rows="2" placeholder="请输入决策理由..."></textarea>
                         </div>
                     </form>
                 </div>

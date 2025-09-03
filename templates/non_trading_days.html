@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}非交易日配置 - 股票交易记录系统{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">非交易日配置</li>
+{% endblock %}
+
+{% block page_title %}非交易日配置{% endblock %}
+
+{% block page_actions %}
+<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addHolidayModal">
+    <i class="bi bi-plus-circle"></i>
+    添加节假日
+</button>
+<button type="button" class="btn btn-info" id="viewCalendarBtn">
+    <i class="bi bi-calendar3"></i>
+    查看交易日历
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 功能卡片区域 -->
+    <div class="row mb-4">
+        <!-- 交易日检查卡片 -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calendar-check"></i>
+                        交易日检查
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="checkDate" class="form-label">选择日期</label>
+                        <input type="date" class="form-control" id="checkDate">
+                    </div>
+                    <button type="button" class="btn btn-outline-primary w-100" id="checkTradingDayBtn">
+                        检查是否为交易日
+                    </button>
+                    <div id="checkResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 持仓天数计算卡片 -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calculator"></i>
+                        持仓天数计算
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="buyDate" class="form-label">买入日期</label>
+                        <input type="date" class="form-control" id="buyDate">
+                    </div>
+                    <div class="mb-3">
+                        <label for="sellDate" class="form-label">卖出日期（可选）</label>
+                        <input type="date" class="form-control" id="sellDate">
+                    </div>
+                    <button type="button" class="btn btn-outline-success w-100" id="calculateHoldingDaysBtn">
+                        计算持仓天数
+                    </button>
+                    <div id="holdingResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 统计信息卡片 -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-bar-chart"></i>
+                        统计信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="statsYear" class="form-label">选择年份</label>
+                        <select class="form-select" id="statsYear">
+                            <option value="">请选择年份</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-outline-info w-100" id="getStatsBtn">
+                        获取统计信息
+                    </button>
+                    <div id="statsResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 节假日列表 -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="bi bi-calendar-x"></i>
+                节假日列表
+            </h5>
+            <div>
+                <select class="form-select form-select-sm" id="yearFilter" style="width: auto; display: inline-block;">
+                    <option value="">所有年份</option>
+                </select>
+                <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="refreshListBtn">
+                    <i class="bi bi-arrow-clockwise"></i>
+                    刷新
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="holidaysTable">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>名称</th>
+                            <th>类型</th>
+                            <th>描述</th>
+                            <th>星期</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="holidaysTableBody">
+                        <!-- 数据将通过JavaScript动态加载 -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="noDataMessage" class="text-center text-muted py-4" style="display: none;">
+                <i class="bi bi-calendar-x fs-1"></i>
+                <p class="mt-2">暂无节假日数据</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加节假日模态框 -->
+<div class="modal fade" id="addHolidayModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加节假日</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addHolidayForm" novalidate>
+                    <div class="mb-3">
+                        <label for="holidayDate" class="form-label">日期 <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="holidayDate">
+                        <div class="invalid-feedback"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="holidayName" class="form-label">名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="holidayName" placeholder="例如：春节">
+                        <div class="invalid-feedback"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="holidayDescription" class="form-label">描述</label>
+                        <textarea class="form-control" id="holidayDescription" rows="3" placeholder="节假日描述（可选）"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="saveHolidayBtn">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑节假日模态框 -->
+<div class="modal fade" id="editHolidayModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑节假日</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editHolidayForm" novalidate>
+                    <input type="hidden" id="editHolidayId">
+                    <div class="mb-3">
+                        <label for="editHolidayDate" class="form-label">日期</label>
+                        <input type="date" class="form-control" id="editHolidayDate" readonly>
+                        <small class="form-text text-muted">日期不可修改</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editHolidayName" class="form-label">名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editHolidayName">
+                        <div class="invalid-feedback"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editHolidayDescription" class="form-label">描述</label>
+                        <textarea class="form-control" id="editHolidayDescription" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="updateHolidayBtn">更新</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 交易日历模态框 -->
+<div class="modal fade" id="calendarModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">交易日历</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="calendarYear" class="form-label">选择年份</label>
+                    <select class="form-select" id="calendarYear">
+                        <option value="">请选择年份</option>
+                    </select>
+                </div>
+                <div id="calendarContent">
+                    <!-- 日历内容将通过JavaScript动态加载 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 批量导入模态框 -->
+<div class="modal fade" id="bulkImportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">批量导入节假日</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="bulkImportData" class="form-label">节假日数据（JSON格式）</label>
+                    <textarea class="form-control" id="bulkImportData" rows="10" placeholder='[
+  {
+    "date": "2024-01-01",
+    "name": "元旦",
+    "description": "新年第一天"
+  },
+  {
+    "date": "2024-02-10",
+    "name": "春节",
+    "description": "农历新年"
+  }
+]'></textarea>
+                    <small class="form-text text-muted">请输入有效的JSON格式数据</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="bulkImportBtn">导入</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/non-trading-days.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,52 @@
+{
+  "timestamp": "2025-08-31T22:26:55.128919",
+  "analysis_type": "static_compatibility",
+  "summary": {
+    "total_tests": 6,
+    "passed_tests": 5,
+    "failed_tests": 1,
+    "success_rate": 83.33333333333334
+  },
+  "test_results": {
+    "API路由兼容性分析": {
+      "success": true,
+      "message": "API路由兼容性验证通过，包含 6 个端点"
+    },
+    "服务层只读访问分析": {
+      "success": true,
+      "message": "服务层只读访问模式验证通过"
+    },
+    "错误处理机制分析": {
+      "success": true,
+      "message": "错误处理机制验证通过"
+    },
+    "前端兼容性分析": {
+      "success": false,
+      "message": "缺少JavaScript功能: updateTimeRange"
+    },
+    "数据库访问模式分析": {
+      "success": true,
+      "message": "数据库访问模式验证通过"
+    },
+    "文件结构完整性检查": {
+      "success": true,
+      "message": "文件结构完整，包含 7 个必需文件"
+    }
+  },
+  "requirements_coverage": {
+    "covered": [
+      "8.3",
+      "8.2",
+      "8.5",
+      "8.4",
+      "8.1"
+    ],
+    "total": [
+      "8.1",
+      "8.2",
+      "8.3",
+      "8.4",
+      "8.5"
+    ]
+  }
+}

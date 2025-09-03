@@ -73,6 +73,12 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('frontend.historical_trades') }}" data-page="historical-trades">
+                                <i class="bi bi-clock-history"></i>
+                                历史交易
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('frontend.stock_pool') }}" data-page="stock-pool">
                                 <i class="bi bi-collection"></i>
                                 股票池
@@ -94,6 +100,12 @@
                             <a class="nav-link" href="{{ url_for('frontend.analytics') }}" data-page="analytics">
                                 <i class="bi bi-graph-up-arrow"></i>
                                 统计分析
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('frontend.non_trading_days') }}" data-page="non-trading-days">
+                                <i class="bi bi-calendar-x"></i>
+                                非交易日配置
                             </a>
                         </li>
                     </ul>
@@ -161,8 +173,21 @@
     <script src="{{ url_for('static', filename='js/form-validation.js') }}"></script>
     <script src="{{ url_for('static', filename='js/api.js') }}"></script>
     <script src="{{ url_for('static', filename='js/no-data-handler.js') }}"></script>
+    
+    <!-- Utility modules -->
+    <script src="{{ url_for('static', filename='js/validation-utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/responsive-utils.js') }}"></script>
+    
+    <!-- Historical trades modules -->
+    <script src="{{ url_for('static', filename='js/image-uploader.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/review-editor.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/review-viewer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/historical-trades-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/historical-trades-integration.js') }}"></script>
+    
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     
     {% block extra_js %}{% endblock %}
+    <script src="{{ url_for('static', filename='js/disable-validation.js') }}"></script>
 </body>
 </html>

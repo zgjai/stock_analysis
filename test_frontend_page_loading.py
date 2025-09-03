@@ -66,9 +66,7 @@ class FrontendPageLoadingTester:
                 'id="profitChart"',
                 'id="distributionChart"',
                 
-                # 数据表格
-                'id="recent-trades"',
-                'id="holding-alerts"',
+                # Removed recent-trades and holding-alerts as modules have been removed
                 
                 # 页面标题和导航
                 '仪表板',
@@ -325,9 +323,7 @@ class FrontendPageLoadingTester:
                 'id="review-date-filter"',
                 'id="review-stock-filter"',
                 
-                # 持仓提醒区域
-                'id="holding-alerts"',
-                '持仓策略提醒',
+                # Removed holding alerts area as module has been removed
                 
                 # 快速复盘面板
                 'id="quick-review-stock"',

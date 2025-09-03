@@ -39,6 +39,16 @@ class App {
 
         // 全局错误处理
         window.addEventListener('error', (e) => {
+            // 检查是否是 Chart.js datalabels 相关错误
+            if (e.error && e.error.message) {
+                const errorMsg = e.error.message;
+                if (errorMsg.includes('datalabels') || 
+                    (errorMsg.includes('Cannot read properties of null') && errorMsg.includes('reading \'x\''))) {
+                    console.warn('Chart.js datalabels错误已被拦截:', e.error);
+                    return; // 不显示用户提示
+                }
+            }
+            
             console.error('Global error:', e.error);
             this.showMessage('系统发生错误，请刷新页面重试', 'error');
         });
@@ -117,10 +127,12 @@ class App {
             'dashboard': '/',
             'trading': '/trading-records',
             'review': '/review',
+            'historical-trades': '/historical-trades',
             'stock-pool': '/stock-pool',
             'sector': '/sector-analysis',
             'cases': '/cases',
-            'analytics': '/analytics'
+            'analytics': '/analytics',
+            'non-trading-days': '/non-trading-days'
         };
 
         const url = routes[page];
@@ -154,6 +166,11 @@ class App {
                     initReview();
                 }
                 break;
+            case 'historical-trades':
+                if (typeof HistoricalTradesManager !== 'undefined') {
+                    console.log('历史交易页面已加载');
+                }
+                break;
             case 'stock-pool':
                 if (typeof initStockPool === 'function') {
                     initStockPool();
@@ -172,6 +189,12 @@ class App {
             case 'analytics':
                 if (typeof initAnalytics === 'function') {
                     initAnalytics();
+                }
+                break;
+            case 'non-trading-days':
+                if (typeof NonTradingDaysManager !== 'undefined') {
+                    // 非交易日页面已经有自己的初始化逻辑
+                    console.log('非交易日配置页面已加载');
                 }
                 break;
         }

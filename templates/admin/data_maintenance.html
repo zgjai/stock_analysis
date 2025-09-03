@@ -1,0 +1,676 @@
+{% extends "base.html" %}
+
+{% block title %}数据维护管理{% endblock %}
+
+{% block extra_css %}
+<style>
+.maintenance-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background: white;
+}
+
+.maintenance-card h3 {
+    margin-top: 0;
+    color: #333;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.status-ok { background-color: #28a745; }
+.status-warning { background-color: #ffc107; }
+.status-error { background-color: #dc3545; }
+
+.btn-group-custom {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 4px solid #007bff;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.operation-log {
+    max-height: 300px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 15px;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #007bff;
+    transition: width 0.3s ease;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1>数据维护管理</h1>
+            <p class="text-muted">管理历史交易数据的同步、完整性检查和维护操作</p>
+        </div>
+    </div>
+
+    <!-- 系统状态概览 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="maintenance-card">
+                <h3>系统状态概览</h3>
+                <div class="stats-grid">
+                    {% if trade_stats %}
+                    <div class="stat-item">
+                        <div class="stat-value">{{ trade_stats.total_trades }}</div>
+                        <div class="stat-label">历史交易总数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ "%.2f"|format(trade_stats.win_rate) }}%</div>
+                        <div class="stat-label">胜率</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">¥{{ "{:,.2f}".format(trade_stats.total_return) }}</div>
+                        <div class="stat-label">总收益</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ "%.2f"|format(trade_stats.overall_return_rate) }}%</div>
+                        <div class="stat-label">总收益率</div>
+                    </div>
+                    {% else %}
+                    <div class="stat-item">
+                        <div class="stat-value">-</div>
+                        <div class="stat-label">数据加载失败</div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- 同步状态 -->
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h5>同步状态</h5>
+                        {% if sync_status %}
+                        <p>
+                            <span class="status-indicator {{ 'status-ok' if not sync_status.needs_sync else 'status-warning' }}"></span>
+                            {{ '数据已同步' if not sync_status.needs_sync else '需要同步' }}
+                        </p>
+                        <p><small>最后同步: {{ sync_status.last_sync_time or '从未同步' }}</small></p>
+                        {% else %}
+                        <p>
+                            <span class="status-indicator status-error"></span>
+                            无法获取同步状态
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h5>数据完整性</h5>
+                        {% if integrity_summary %}
+                        <p>
+                            <span class="status-indicator {{ 'status-ok' if not integrity_summary.has_issues else 'status-warning' }}"></span>
+                            {{ '数据完整' if not integrity_summary.has_issues else '发现问题' }}
+                        </p>
+                        {% if integrity_summary.has_issues %}
+                        <p><small>问题数量: {{ integrity_summary.issues_count }}</small></p>
+                        {% endif %}
+                        {% else %}
+                        <p>
+                            <span class="status-indicator status-error"></span>
+                            无法检查完整性
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据同步操作 -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="maintenance-card">
+                <h3>数据同步</h3>
+                <p>管理历史交易数据的同步操作</p>
+                
+                <div class="btn-group-custom">
+                    <button class="btn btn-primary" onclick="performSync('incremental')">
+                        <i class="fas fa-sync"></i> 增量同步
+                    </button>
+                    <button class="btn btn-warning" onclick="performSync('initialize')">
+                        <i class="fas fa-database"></i> 完整初始化
+                    </button>
+                    <button class="btn btn-danger" onclick="performSync('force_initialize')">
+                        <i class="fas fa-redo"></i> 强制重建
+                    </button>
+                </div>
+
+                <div class="mt-3">
+                    <button class="btn btn-info btn-sm" onclick="refreshSyncStatus()">
+                        <i class="fas fa-refresh"></i> 刷新状态
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="maintenance-card">
+                <h3>数据完整性</h3>
+                <p>检查和修复数据完整性问题</p>
+                
+                <div class="btn-group-custom">
+                    <button class="btn btn-info" onclick="checkIntegrity()">
+                        <i class="fas fa-search"></i> 检查完整性
+                    </button>
+                    <button class="btn btn-warning" onclick="repairIntegrity()">
+                        <i class="fas fa-wrench"></i> 修复问题
+                    </button>
+                    <a href="{{ url_for('admin.integrity_report') }}" class="btn btn-secondary">
+                        <i class="fas fa-file-alt"></i> 详细报告
+                    </a>
+                </div>
+
+                <!-- 修复选项 -->
+                <div class="mt-3" id="repairOptions" style="display: none;">
+                    <h6>修复选项:</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="removeDuplicates" checked>
+                        <label class="form-check-label" for="removeDuplicates">删除重复记录</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="fixInconsistencies" checked>
+                        <label class="form-check-label" for="fixInconsistencies">修复数据不一致</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="updateReferences" checked>
+                        <label class="form-check-label" for="updateReferences">更新无效引用</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据维护操作 -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="maintenance-card">
+                <h3>数据清理</h3>
+                <p>清理系统中的冗余和临时数据</p>
+                
+                <div class="btn-group-custom">
+                    <button class="btn btn-outline-warning" onclick="cleanupData('orphaned_records')">
+                        <i class="fas fa-trash"></i> 清理孤立记录
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="cleanupData('old_logs')">
+                        <i class="fas fa-file-alt"></i> 清理旧日志
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="cleanupData('temp_files')">
+                        <i class="fas fa-folder"></i> 清理临时文件
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="maintenance-card">
+                <h3>数据备份</h3>
+                <p>创建数据备份以确保数据安全</p>
+                
+                <div class="btn-group-custom">
+                    <button class="btn btn-success" onclick="backupData('historical_trades')">
+                        <i class="fas fa-download"></i> 备份历史交易
+                    </button>
+                    <button class="btn btn-success" onclick="backupData('all_data')">
+                        <i class="fas fa-database"></i> 完整备份
+                    </button>
+                    <a href="{{ url_for('admin.statistics_report') }}" class="btn btn-info">
+                        <i class="fas fa-chart-bar"></i> 统计报告
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 操作日志 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="maintenance-card">
+                <h3>操作日志</h3>
+                <div id="operationLog" class="operation-log">
+                    <div class="text-muted">等待操作...</div>
+                </div>
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="clearLog()">
+                        <i class="fas fa-eraser"></i> 清空日志
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 进度条 -->
+    <div id="progressContainer" style="display: none;">
+        <div class="progress-bar">
+            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+        </div>
+        <div id="progressText" class="text-center">操作进行中...</div>
+    </div>
+</div>
+
+<!-- 确认对话框 -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认操作</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">确定要执行此操作吗？</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="confirmButton">确认</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentOperation = null;
+
+// 日志记录函数
+function logMessage(message, type = 'info') {
+    const log = document.getElementById('operationLog');
+    const timestamp = new Date().toLocaleString();
+    const typeClass = type === 'error' ? 'text-danger' : type === 'success' ? 'text-success' : 'text-info';
+    
+    const logEntry = document.createElement('div');
+    logEntry.className = typeClass;
+    logEntry.innerHTML = `[${timestamp}] ${message}`;
+    
+    log.appendChild(logEntry);
+    log.scrollTop = log.scrollHeight;
+}
+
+function clearLog() {
+    document.getElementById('operationLog').innerHTML = '<div class="text-muted">日志已清空</div>';
+}
+
+// 显示/隐藏进度条
+function showProgress(show = true) {
+    const container = document.getElementById('progressContainer');
+    container.style.display = show ? 'block' : 'none';
+    
+    if (!show) {
+        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('progressText').textContent = '操作进行中...';
+    }
+}
+
+function updateProgress(percent, text = null) {
+    document.getElementById('progressFill').style.width = percent + '%';
+    if (text) {
+        document.getElementById('progressText').textContent = text;
+    }
+}
+
+// 设置页面加载状态
+function setLoading(loading = true) {
+    const body = document.body;
+    if (loading) {
+        body.classList.add('loading');
+    } else {
+        body.classList.remove('loading');
+    }
+}
+
+// 数据同步操作
+function performSync(type) {
+    const messages = {
+        'incremental': '执行增量同步？这将同步最新的交易数据。',
+        'initialize': '执行完整初始化？这将重新分析所有交易记录。',
+        'force_initialize': '强制重建所有数据？这将删除现有历史交易记录并重新创建。此操作不可逆！'
+    };
+    
+    showConfirmDialog(messages[type], () => {
+        logMessage(`开始${type}操作...`);
+        showProgress(true);
+        setLoading(true);
+        
+        let url, data;
+        if (type === 'incremental') {
+            url = '/admin/api/sync/incremental';
+            data = {};
+        } else {
+            url = '/admin/api/sync/initialize';
+            data = { force_regenerate: type === 'force_initialize' };
+        }
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                logMessage(`${type}操作完成`, 'success');
+                logMessage(`创建记录: ${result.data.created_count || 0}`, 'info');
+                logMessage(`更新记录: ${result.data.updated_count || 0}`, 'info');
+                logMessage(`跳过记录: ${result.data.skipped_count || 0}`, 'info');
+                
+                if (result.data.errors && result.data.errors.length > 0) {
+                    result.data.errors.forEach(error => {
+                        logMessage(`错误: ${error}`, 'error');
+                    });
+                }
+                
+                // 刷新页面状态
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            } else {
+                logMessage(`${type}操作失败: ${result.error}`, 'error');
+            }
+        })
+        .catch(error => {
+            logMessage(`${type}操作异常: ${error.message}`, 'error');
+        })
+        .finally(() => {
+            showProgress(false);
+            setLoading(false);
+        });
+    });
+}
+
+// 检查数据完整性
+function checkIntegrity() {
+    logMessage('开始检查数据完整性...');
+    showProgress(true);
+    setLoading(true);
+    
+    fetch('/admin/api/integrity/check', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            const data = result.data;
+            logMessage('完整性检查完成', 'success');
+            logMessage(`数据有效性: ${data.is_valid ? '有效' : '无效'}`, data.is_valid ? 'success' : 'error');
+            logMessage(`发现问题: ${data.issues.length}`, data.issues.length > 0 ? 'error' : 'success');
+            logMessage(`警告信息: ${data.warnings.length}`, data.warnings.length > 0 ? 'error' : 'info');
+            
+            if (data.issues.length > 0) {
+                data.issues.forEach(issue => {
+                    logMessage(`问题: ${issue}`, 'error');
+                });
+            }
+            
+            if (data.warnings.length > 0) {
+                data.warnings.forEach(warning => {
+                    logMessage(`警告: ${warning}`, 'error');
+                });
+            }
+        } else {
+            logMessage(`完整性检查失败: ${result.error}`, 'error');
+        }
+    })
+    .catch(error => {
+        logMessage(`完整性检查异常: ${error.message}`, 'error');
+    })
+    .finally(() => {
+        showProgress(false);
+        setLoading(false);
+    });
+}
+
+// 修复数据完整性
+function repairIntegrity() {
+    // 显示修复选项
+    const options = document.getElementById('repairOptions');
+    if (options.style.display === 'none') {
+        options.style.display = 'block';
+        return;
+    }
+    
+    const removeDuplicates = document.getElementById('removeDuplicates').checked;
+    const fixInconsistencies = document.getElementById('fixInconsistencies').checked;
+    const updateReferences = document.getElementById('updateReferences').checked;
+    
+    if (!removeDuplicates && !fixInconsistencies && !updateReferences) {
+        alert('请至少选择一个修复选项');
+        return;
+    }
+    
+    showConfirmDialog('确定要修复数据完整性问题吗？此操作可能会修改或删除数据。', () => {
+        logMessage('开始修复数据完整性...');
+        showProgress(true);
+        setLoading(true);
+        
+        const data = {
+            remove_duplicates: removeDuplicates,
+            fix_inconsistencies: fixInconsistencies,
+            update_references: updateReferences
+        };
+        
+        fetch('/admin/api/integrity/repair', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                logMessage('数据修复完成', 'success');
+                
+                result.data.repair_actions.forEach(action => {
+                    if (action.removed_count !== undefined) {
+                        logMessage(`${action.action}: 删除 ${action.removed_count} 条记录`, 'info');
+                    } else if (action.fixed_count !== undefined) {
+                        logMessage(`${action.action}: 修复 ${action.fixed_count} 条记录`, 'info');
+                    }
+                });
+                
+                // 显示修复后的完整性状态
+                const postCheck = result.data.post_repair_check;
+                logMessage(`修复后状态: ${postCheck.is_valid ? '有效' : '仍有问题'}`, 
+                          postCheck.is_valid ? 'success' : 'error');
+                
+                // 刷新页面
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            } else {
+                logMessage(`数据修复失败: ${result.error}`, 'error');
+            }
+        })
+        .catch(error => {
+            logMessage(`数据修复异常: ${error.message}`, 'error');
+        })
+        .finally(() => {
+            showProgress(false);
+            setLoading(false);
+        });
+    });
+}
+
+// 数据清理
+function cleanupData(type) {
+    const messages = {
+        'orphaned_records': '清理孤立记录？',
+        'old_logs': '清理30天前的旧日志文件？',
+        'temp_files': '清理临时文件？'
+    };
+    
+    showConfirmDialog(messages[type], () => {
+        logMessage(`开始清理${type}...`);
+        setLoading(true);
+        
+        fetch('/admin/api/maintenance/cleanup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ type: type })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                logMessage(`清理完成: 清理了 ${result.data.cleaned_count} 项`, 'success');
+            } else {
+                logMessage(`清理失败: ${result.error}`, 'error');
+            }
+        })
+        .catch(error => {
+            logMessage(`清理异常: ${error.message}`, 'error');
+        })
+        .finally(() => {
+            setLoading(false);
+        });
+    });
+}
+
+// 数据备份
+function backupData(type) {
+    const messages = {
+        'historical_trades': '备份历史交易数据？',
+        'all_data': '备份所有数据？'
+    };
+    
+    showConfirmDialog(messages[type], () => {
+        logMessage(`开始备份${type}...`);
+        setLoading(true);
+        
+        fetch('/admin/api/maintenance/backup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ type: type })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                if (result.data.backup_file) {
+                    logMessage(`备份完成: ${result.data.backup_file}`, 'success');
+                    logMessage(`备份记录数: ${result.data.records_count}`, 'info');
+                } else {
+                    logMessage(`备份完成: ${result.data.message}`, 'success');
+                }
+            } else {
+                logMessage(`备份失败: ${result.error}`, 'error');
+            }
+        })
+        .catch(error => {
+            logMessage(`备份异常: ${error.message}`, 'error');
+        })
+        .finally(() => {
+            setLoading(false);
+        });
+    });
+}
+
+// 刷新同步状态
+function refreshSyncStatus() {
+    logMessage('刷新同步状态...');
+    
+    fetch('/admin/api/sync/status')
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            logMessage('同步状态已刷新', 'success');
+            // 这里可以更新页面上的状态显示
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            logMessage(`获取状态失败: ${result.error}`, 'error');
+        }
+    })
+    .catch(error => {
+        logMessage(`获取状态异常: ${error.message}`, 'error');
+    });
+}
+
+// 确认对话框
+function showConfirmDialog(message, callback) {
+    document.getElementById('confirmMessage').textContent = message;
+    
+    const confirmButton = document.getElementById('confirmButton');
+    confirmButton.onclick = () => {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+        modal.hide();
+        callback();
+    };
+    
+    const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    modal.show();
+}
+
+// 页面加载完成后的初始化
+document.addEventListener('DOMContentLoaded', function() {
+    logMessage('数据维护管理页面已加载', 'success');
+});
+</script>
+{% endblock %}

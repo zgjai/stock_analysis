@@ -50,45 +50,85 @@ class TradeRecord(BaseModel):
     )
     
     def __init__(self, **kwargs):
+        from flask import current_app
+        current_app.logger.info(f"=== TradeRecord.__init__ 开始 ===")
+        current_app.logger.info(f"初始化参数: {kwargs}")
+        
         # 数据验证
+        current_app.logger.info("开始数据验证")
         self._validate_data(kwargs)
+        current_app.logger.info("数据验证通过")
+        
+        current_app.logger.info("调用父类构造函数")
         super().__init__(**kwargs)
+        current_app.logger.info("父类构造函数完成")
+        
         # 如果是买入记录，自动计算止损止盈比例
         if self.trade_type == 'buy' and self.price:
+            current_app.logger.info("开始计算风险收益比")
             self._calculate_risk_reward()
+            current_app.logger.info("风险收益比计算完成")
+        
+        current_app.logger.info("=== TradeRecord.__init__ 完成 ===")
     
     def _validate_data(self, data):
         """验证交易记录数据"""
+        from flask import current_app
+        current_app.logger.info(f"=== _validate_data 开始 ===")
+        current_app.logger.info(f"验证数据: {data}")
+        
         if 'stock_code' in data:
+            current_app.logger.info(f"验证股票代码: {data['stock_code']}")
             validate_stock_code(data['stock_code'])
         
         if 'price' in data:
+            current_app.logger.info(f"验证价格: {data['price']}")
             data['price'] = validate_price(data['price'])
+            current_app.logger.info(f"价格验证后: {data['price']}")
         
         if 'quantity' in data:
-            data['quantity'] = validate_quantity(data['quantity'])
+            stock_code = data.get('stock_code')
+            current_app.logger.info(f"验证数量: {data['quantity']}, 股票代码: {stock_code}")
+            data['quantity'] = validate_quantity(data['quantity'], stock_code)
+            current_app.logger.info(f"数量验证后: {data['quantity']}")
         
         if 'trade_type' in data:
+            current_app.logger.info(f"验证交易类型: {data['trade_type']}")
             validate_trade_type(data['trade_type'])
         
         if 'take_profit_ratio' in data and data['take_profit_ratio'] is not None:
+            current_app.logger.info(f"验证止盈比例: {data['take_profit_ratio']}")
             data['take_profit_ratio'] = validate_ratio(data['take_profit_ratio'], 'take_profit_ratio')
+            current_app.logger.info(f"止盈比例验证后: {data['take_profit_ratio']}")
         
         if 'sell_ratio' in data and data['sell_ratio'] is not None:
+            current_app.logger.info(f"验证卖出比例: {data['sell_ratio']}")
             data['sell_ratio'] = validate_ratio(data['sell_ratio'], 'sell_ratio')
+            current_app.logger.info(f"卖出比例验证后: {data['sell_ratio']}")
         
         # 验证止损价格
         if 'stop_loss_price' in data and data['stop_loss_price'] is not None:
+            current_app.logger.info(f"验证止损价格: {data['stop_loss_price']}")
+            # 先验证并转换止损价格为数值类型
+            data['stop_loss_price'] = validate_price(data['stop_loss_price'])
+            current_app.logger.info(f"止损价格验证后: {data['stop_loss_price']}")
+            
+            # 然后进行价格比较
             if 'price' in data and data['stop_loss_price'] >= data['price']:
+                current_app.logger.error(f"止损价格 {data['stop_loss_price']} >= 买入价格 {data['price']}")
                 raise ValidationError("止损价格必须小于买入价格", "stop_loss_price")
         
         # 验证交易日期
         if 'trade_date' in data and data['trade_date'] is None:
+            current_app.logger.error("交易日期为None")
             raise ValidationError("交易日期不能为空", "trade_date")
         
         # 验证原因
         if 'reason' in data and not data['reason']:
+            current_app.logger.error(f"交易原因为空: {data['reason']}")
             raise ValidationError("交易原因不能为空", "reason")
+        
+        current_app.logger.info("=== _validate_data 完成 ===")
     
     def _calculate_risk_reward(self):
         """计算风险收益比"""

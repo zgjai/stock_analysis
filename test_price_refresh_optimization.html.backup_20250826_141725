@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>价格刷新优化测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .test-card {
+            margin-bottom: 20px;
+        }
+        .log-container {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .log-info { background-color: #d1ecf1; color: #0c5460; }
+        .log-success { background-color: #d4edda; color: #155724; }
+        .log-warning { background-color: #fff3cd; color: #856404; }
+        .log-error { background-color: #f8d7da; color: #721c24; }
+        .metrics-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .performance-indicator {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .perf-excellent { background-color: #28a745; color: white; }
+        .perf-good { background-color: #17a2b8; color: white; }
+        .perf-warning { background-color: #ffc107; color: #212529; }
+        .perf-poor { background-color: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="fas fa-chart-line text-primary"></i> 价格刷新优化测试</h2>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="startOptimizationTest()">
+                            <i class="fas fa-play"></i> 开始测试
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearLogs()">
+                            <i class="fas fa-trash"></i> 清空日志
+                        </button>
+                        <button class="btn btn-info" onclick="exportResults()">
+                            <i class="fas fa-download"></i> 导出结果
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 性能指标卡片 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card metrics-card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">API调用次数</h5>
+                        <h2 id="api-call-count">0</h2>
+                        <small>优化前 vs 优化后</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metrics-card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">平均响应时间</h5>
+                        <h2 id="avg-response-time">0ms</h2>
+                        <small>网络请求延迟</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metrics-card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">缓存命中率</h5>
+                        <h2 id="cache-hit-rate">0%</h2>
+                        <small>内存缓存效果</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metrics-card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">性能评分</h5>
+                        <h2 id="performance-score">-</h2>
+                        <small>综合性能指标</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 测试控制面板 -->
+            <div class="col-md-4">
+                <div class="card test-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-cogs"></i> 测试控制</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">测试模式</label>
+                            <select class="form-select" id="test-mode">
+                                <option value="single">单次刷新测试</option>
+                                <option value="multiple">多次刷新测试</option>
+                                <option value="auto">自动刷新测试</option>
+                                <option value="batch">批量刷新测试</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">测试持续时间 (秒)</label>
+                            <input type="number" class="form-control" id="test-duration" value="60" min="10" max="300">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">刷新间隔 (秒)</label>
+                            <input type="number" class="form-control" id="refresh-interval" value="30" min="5" max="120">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enable-cache" checked>
+                                <label class="form-check-label" for="enable-cache">
+                                    启用缓存优化
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enable-debounce" checked>
+                                <label class="form-check-label" for="enable-debounce">
+                                    启用防抖机制
+                                </label>
+                            </div>
+                        </div>
+                        <button class="btn btn-success w-100" onclick="runPerformanceComparison()">
+                            <i class="fas fa-chart-bar"></i> 性能对比测试
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 实时状态 -->
+                <div class="card test-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-heartbeat"></i> 实时状态</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <strong>测试状态:</strong> 
+                            <span id="test-status" class="badge bg-secondary">待开始</span>
+                        </div>
+                        <div class="mb-2">
+                            <strong>当前操作:</strong> 
+                            <span id="current-operation">无</span>
+                        </div>
+                        <div class="mb-2">
+                            <strong>已完成:</strong> 
+                            <span id="completed-operations">0</span> / <span id="total-operations">0</span>
+                        </div>
+                        <div class="progress mb-2">
+                            <div class="progress-bar" id="test-progress" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div class="mb-2">
+                            <strong>剩余时间:</strong> 
+                            <span id="remaining-time">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 测试结果和日志 -->
+            <div class="col-md-8">
+                <div class="card test-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-list-alt"></i> 测试日志</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-logs" class="log-container">
+                            <div class="log-entry log-info">
+                                <span class="timestamp">[等待开始]</span> 
+                                价格刷新优化测试系统已就绪
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 性能分析结果 -->
+                <div class="card test-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-chart-pie"></i> 性能分析</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="performance-analysis">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-chart-line fa-3x mb-3"></i>
+                                <p>运行测试后将显示性能分析结果</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 测试状态管理
+        let testState = {
+            isRunning: false,
+            startTime: null,
+            endTime: null,
+            apiCalls: [],
+            cacheHits: 0,
+            totalRequests: 0,
+            errors: []
+        };
+
+        // 日志管理
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logContainer = document.getElementById('test-logs');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('test-logs').innerHTML = '';
+            addLog('日志已清空', 'info');
+        }
+
+        // 性能监控
+        function updateMetrics() {
+            const apiCallCount = testState.apiCalls.length;
+            const avgResponseTime = apiCallCount > 0 ? 
+                testState.apiCalls.reduce((sum, call) => sum + call.duration, 0) / apiCallCount : 0;
+            const cacheHitRate = testState.totalRequests > 0 ? 
+                (testState.cacheHits / testState.totalRequests * 100).toFixed(1) : 0;
+
+            document.getElementById('api-call-count').textContent = apiCallCount;
+            document.getElementById('avg-response-time').textContent = Math.round(avgResponseTime) + 'ms';
+            document.getElementById('cache-hit-rate').textContent = cacheHitRate + '%';
+
+            // 计算性能评分
+            let score = 100;
+            if (avgResponseTime > 2000) score -= 30;
+            else if (avgResponseTime > 1000) score -= 15;
+            
+            if (cacheHitRate < 50) score -= 20;
+            else if (cacheHitRate < 70) score -= 10;
+
+            if (testState.errors.length > 0) score -= testState.errors.length * 5;
+
+            const performanceEl = document.getElementById('performance-score');
+            performanceEl.textContent = Math.max(0, score);
+            
+            // 设置性能指示器颜色
+            performanceEl.className = '';
+            if (score >= 90) performanceEl.className = 'performance-indicator perf-excellent';
+            else if (score >= 75) performanceEl.className = 'performance-indicator perf-good';
+            else if (score >= 60) performanceEl.className = 'performance-indicator perf-warning';
+            else performanceEl.className = 'performance-indicator perf-poor';
+        }
+
+        // API调用监控
+        async function monitoredFetch(url, options = {}) {
+            const startTime = Date.now();
+            testState.totalRequests++;
+
+            try {
+                addLog(`发起API请求: ${url}`, 'info');
+                const response = await fetch(url, options);
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+
+                const callInfo = {
+                    url,
+                    duration,
+                    status: response.status,
+                    timestamp: new Date().toISOString()
+                };
+
+                testState.apiCalls.push(callInfo);
+
+                if (response.headers.get('X-Cache-Hit') === 'true') {
+                    testState.cacheHits++;
+                    addLog(`缓存命中: ${url} (${duration}ms)`, 'success');
+                } else {
+                    addLog(`API响应: ${url} - ${response.status} (${duration}ms)`, 'success');
+                }
+
+                updateMetrics();
+                return response;
+
+            } catch (error) {
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                
+                testState.errors.push({
+                    url,
+                    error: error.message,
+                    timestamp: new Date().toISOString()
+                });
+
+                addLog(`API错误: ${url} - ${error.message} (${duration}ms)`, 'error');
+                updateMetrics();
+                throw error;
+            }
+        }
+
+        // 单次刷新测试
+        async function testSingleRefresh() {
+            addLog('开始单次刷新测试', 'info');
+            
+            try {
+                const response = await monitoredFetch('/api/holdings?force_refresh=true');
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`单次刷新成功，获取到 ${data.data.length} 只股票`, 'success');
+                } else {
+                    addLog(`单次刷新失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`单次刷新异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 多次刷新测试
+        async function testMultipleRefresh() {
+            const duration = parseInt(document.getElementById('test-duration').value) * 1000;
+            const interval = parseInt(document.getElementById('refresh-interval').value) * 1000;
+            const iterations = Math.floor(duration / interval);
+
+            addLog(`开始多次刷新测试，持续 ${duration/1000} 秒，间隔 ${interval/1000} 秒`, 'info');
+
+            for (let i = 0; i < iterations && testState.isRunning; i++) {
+                updateTestProgress(i + 1, iterations, `第 ${i + 1} 次刷新`);
+                
+                try {
+                    await monitoredFetch('/api/holdings?force_refresh=true');
+                    addLog(`第 ${i + 1}/${iterations} 次刷新完成`, 'success');
+                } catch (error) {
+                    addLog(`第 ${i + 1}/${iterations} 次刷新失败: ${error.message}`, 'error');
+                }
+
+                if (i < iterations - 1) {
+                    await new Promise(resolve => setTimeout(resolve, interval));
+                }
+            }
+
+            addLog('多次刷新测试完成', 'success');
+        }
+
+        // 批量刷新测试
+        async function testBatchRefresh() {
+            addLog('开始批量刷新测试', 'info');
+            
+            try {
+                // 先获取持仓股票列表
+                const holdingsResponse = await monitoredFetch('/api/holdings');
+                const holdingsData = await holdingsResponse.json();
+                
+                if (!holdingsData.success || !holdingsData.data.length) {
+                    addLog('没有持仓股票，无法进行批量测试', 'warning');
+                    return;
+                }
+
+                const stockCodes = holdingsData.data.map(h => h.stock_code);
+                addLog(`准备批量刷新 ${stockCodes.length} 只股票: ${stockCodes.join(', ')}`, 'info');
+
+                // 使用新的批量刷新API
+                const batchResponse = await monitoredFetch('/api/holdings/refresh-prices', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        stock_codes: stockCodes
+                    })
+                });
+
+                const batchData = await batchResponse.json();
+                
+                if (batchData.success) {
+                    addLog(`批量刷新完成，成功: ${batchData.data.success_count}, 失败: ${batchData.data.failed_count}`, 'success');
+                } else {
+                    addLog(`批量刷新失败: ${batchData.message}`, 'error');
+                }
+
+            } catch (error) {
+                addLog(`批量刷新异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 自动刷新测试
+        async function testAutoRefresh() {
+            const duration = parseInt(document.getElementById('test-duration').value) * 1000;
+            const interval = parseInt(document.getElementById('refresh-interval').value) * 1000;
+            
+            addLog(`开始自动刷新测试，持续 ${duration/1000} 秒，间隔 ${interval/1000} 秒`, 'info');
+
+            let refreshCount = 0;
+            const startTime = Date.now();
+
+            const refreshTimer = setInterval(async () => {
+                if (!testState.isRunning || Date.now() - startTime >= duration) {
+                    clearInterval(refreshTimer);
+                    addLog(`自动刷新测试完成，共执行 ${refreshCount} 次刷新`, 'success');
+                    return;
+                }
+
+                refreshCount++;
+                updateTestProgress(refreshCount, Math.floor(duration / interval), `自动刷新 #${refreshCount}`);
+
+                try {
+                    await monitoredFetch('/api/holdings?force_refresh=true');
+                    addLog(`自动刷新 #${refreshCount} 完成`, 'success');
+                } catch (error) {
+                    addLog(`自动刷新 #${refreshCount} 失败: ${error.message}`, 'error');
+                }
+            }, interval);
+
+            // 设置总体超时
+            setTimeout(() => {
+                if (testState.isRunning) {
+                    clearInterval(refreshTimer);
+                    testState.isRunning = false;
+                    updateTestStatus('completed');
+                }
+            }, duration);
+        }
+
+        // 性能对比测试
+        async function runPerformanceComparison() {
+            addLog('开始性能对比测试', 'info');
+            
+            // 重置状态
+            testState = {
+                isRunning: true,
+                startTime: Date.now(),
+                endTime: null,
+                apiCalls: [],
+                cacheHits: 0,
+                totalRequests: 0,
+                errors: []
+            };
+
+            updateTestStatus('running');
+
+            try {
+                // 测试1: 传统方式（多次单独调用）
+                addLog('阶段1: 传统方式测试', 'info');
+                const traditionalStart = Date.now();
+                
+                for (let i = 0; i < 3; i++) {
+                    await monitoredFetch('/api/holdings?force_refresh=true');
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+                
+                const traditionalTime = Date.now() - traditionalStart;
+                addLog(`传统方式耗时: ${traditionalTime}ms`, 'warning');
+
+                // 等待缓存生效
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // 测试2: 优化方式（批量调用 + 缓存）
+                addLog('阶段2: 优化方式测试', 'info');
+                const optimizedStart = Date.now();
+                
+                await testBatchRefresh();
+                
+                // 测试缓存效果
+                for (let i = 0; i < 3; i++) {
+                    await monitoredFetch('/api/holdings');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                const optimizedTime = Date.now() - optimizedStart;
+                addLog(`优化方式耗时: ${optimizedTime}ms`, 'success');
+
+                // 计算性能提升
+                const improvement = ((traditionalTime - optimizedTime) / traditionalTime * 100).toFixed(1);
+                addLog(`性能提升: ${improvement}%`, 'success');
+
+                // 显示详细分析
+                showPerformanceAnalysis(traditionalTime, optimizedTime, improvement);
+
+            } catch (error) {
+                addLog(`性能对比测试失败: ${error.message}`, 'error');
+            } finally {
+                testState.isRunning = false;
+                testState.endTime = Date.now();
+                updateTestStatus('completed');
+            }
+        }
+
+        // 显示性能分析
+        function showPerformanceAnalysis(traditionalTime, optimizedTime, improvement) {
+            const analysisContainer = document.getElementById('performance-analysis');
+            
+            analysisContainer.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>传统方式</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-clock text-warning"></i> 耗时: ${traditionalTime}ms</li>
+                            <li><i class="fas fa-exchange-alt text-info"></i> API调用: 多次单独请求</li>
+                            <li><i class="fas fa-database text-secondary"></i> 缓存: 未优化</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>优化方式</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-clock text-success"></i> 耗时: ${optimizedTime}ms</li>
+                            <li><i class="fas fa-layer-group text-info"></i> API调用: 批量请求</li>
+                            <li><i class="fas fa-database text-success"></i> 缓存: 内存缓存</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="alert alert-success mt-3">
+                    <h6><i class="fas fa-chart-line"></i> 性能提升: ${improvement}%</h6>
+                    <p class="mb-0">通过批量请求和缓存优化，显著减少了API调用次数和响应时间。</p>
+                </div>
+                <div class="mt-3">
+                    <h6>优化建议:</h6>
+                    <ul class="small">
+                        <li>继续使用批量刷新API减少网络请求</li>
+                        <li>合理设置缓存时间，平衡数据新鲜度和性能</li>
+                        <li>在高频操作场景下启用防抖机制</li>
+                        <li>监控API调用频率，避免过度请求</li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        // 更新测试状态
+        function updateTestStatus(status) {
+            const statusEl = document.getElementById('test-status');
+            const statusMap = {
+                'waiting': { text: '待开始', class: 'bg-secondary' },
+                'running': { text: '运行中', class: 'bg-primary' },
+                'completed': { text: '已完成', class: 'bg-success' },
+                'error': { text: '错误', class: 'bg-danger' }
+            };
+
+            const statusInfo = statusMap[status] || statusMap['waiting'];
+            statusEl.textContent = statusInfo.text;
+            statusEl.className = `badge ${statusInfo.class}`;
+        }
+
+        // 更新测试进度
+        function updateTestProgress(current, total, operation) {
+            const progress = (current / total) * 100;
+            document.getElementById('test-progress').style.width = progress + '%';
+            document.getElementById('completed-operations').textContent = current;
+            document.getElementById('total-operations').textContent = total;
+            document.getElementById('current-operation').textContent = operation;
+
+            const remaining = total - current;
+            document.getElementById('remaining-time').textContent = remaining > 0 ? `${remaining} 步骤` : '完成';
+        }
+
+        // 主测试函数
+        async function startOptimizationTest() {
+            const testMode = document.getElementById('test-mode').value;
+            
+            if (testState.isRunning) {
+                addLog('测试已在运行中', 'warning');
+                return;
+            }
+
+            // 重置状态
+            testState = {
+                isRunning: true,
+                startTime: Date.now(),
+                endTime: null,
+                apiCalls: [],
+                cacheHits: 0,
+                totalRequests: 0,
+                errors: []
+            };
+
+            updateTestStatus('running');
+            addLog(`开始 ${testMode} 模式测试`, 'info');
+
+            try {
+                switch (testMode) {
+                    case 'single':
+                        await testSingleRefresh();
+                        break;
+                    case 'multiple':
+                        await testMultipleRefresh();
+                        break;
+                    case 'auto':
+                        await testAutoRefresh();
+                        return; // 自动刷新有自己的完成逻辑
+                    case 'batch':
+                        await testBatchRefresh();
+                        break;
+                    default:
+                        addLog('未知的测试模式', 'error');
+                        return;
+                }
+
+                testState.endTime = Date.now();
+                const totalTime = testState.endTime - testState.startTime;
+                addLog(`测试完成，总耗时: ${totalTime}ms`, 'success');
+                updateTestStatus('completed');
+
+            } catch (error) {
+                addLog(`测试异常: ${error.message}`, 'error');
+                updateTestStatus('error');
+            } finally {
+                testState.isRunning = false;
+            }
+        }
+
+        // 导出测试结果
+        function exportResults() {
+            const results = {
+                testState,
+                timestamp: new Date().toISOString(),
+                metrics: {
+                    apiCallCount: testState.apiCalls.length,
+                    avgResponseTime: testState.apiCalls.length > 0 ? 
+                        testState.apiCalls.reduce((sum, call) => sum + call.duration, 0) / testState.apiCalls.length : 0,
+                    cacheHitRate: testState.totalRequests > 0 ? 
+                        testState.cacheHits / testState.totalRequests * 100 : 0,
+                    errorCount: testState.errors.length
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `price_refresh_test_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            addLog('测试结果已导出', 'success');
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            addLog('价格刷新优化测试系统初始化完成', 'success');
+            updateTestStatus('waiting');
+        });
+    </script>
+</body>
+</html>

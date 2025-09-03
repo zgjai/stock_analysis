@@ -127,15 +127,15 @@
             const ratioElement = document.getElementById('floating-profit-ratio');
             if (ratioElement) {
                 ratioElement.textContent = `${sign}${percentage}%`;
-                ratioElement.className = profitRatio > 0 ? 'text-success' : 
-                                        profitRatio < 0 ? 'text-danger' : 'text-muted';
+                ratioElement.className = profitRatio > 0 ? 'text-danger' : 
+                                        profitRatio < 0 ? 'text-success' : 'text-muted';
             }
             
             const amountElement = document.getElementById('profit-amount-display');
             if (amountElement) {
                 amountElement.textContent = `${sign}¥${profitAmount.toFixed(2)}`;
-                amountElement.className = profitRatio > 0 ? 'text-success' : 
-                                         profitRatio < 0 ? 'text-danger' : 'text-muted';
+                amountElement.className = profitRatio > 0 ? 'text-danger' : 
+                                         profitRatio < 0 ? 'text-success' : 'text-muted';
             }
             
             console.log(`💰 浮盈计算: ${sign}${percentage}% (¥${profitAmount.toFixed(2)})`);

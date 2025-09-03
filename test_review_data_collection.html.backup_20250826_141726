@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复盘数据收集测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>复盘数据收集测试</h2>
+        
+        <!-- 模拟复盘表单 -->
+        <div class="card">
+            <div class="card-header">
+                <h5>复盘表单</h5>
+            </div>
+            <div class="card-body">
+                <form id="review-form">
+                    <input type="hidden" id="review-stock-code" value="000001">
+                    <input type="hidden" id="review-id">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">复盘日期</label>
+                            <input type="date" class="form-control" id="review-date" value="2025-01-21" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">持仓天数</label>
+                            <input type="number" class="form-control" id="holding-days" min="1" value="5" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">当前价格</label>
+                            <div class="input-group">
+                                <span class="input-group-text">¥</span>
+                                <input type="number" class="form-control" id="current-price-input" 
+                                       placeholder="输入当前价格" step="0.01" min="0.01" max="9999.99" value="10.50">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 评分项 -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label">技术指标评分</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="price-up-score" checked>
+                                <label class="form-check-label" for="price-up-score">价格上涨</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="bbi-score" checked>
+                                <label class="form-check-label" for="bbi-score">BBI指标</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="volume-score">
+                                <label class="form-check-label" for="volume-score">成交量</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="trend-score" checked>
+                                <label class="form-check-label" for="trend-score">趋势</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="j-score">
+                                <label class="form-check-label" for="j-score">J值</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label">分析</label>
+                            <textarea class="form-control" id="analysis" rows="3">测试分析内容</textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">决策</label>
+                            <select class="form-control" id="decision">
+                                <option value="">请选择</option>
+                                <option value="hold" selected>继续持有</option>
+                                <option value="sell">卖出</option>
+                                <option value="add">加仓</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label">决策理由</label>
+                            <textarea class="form-control" id="reason" rows="3">测试决策理由</textarea>
+                        </div>
+                    </div>
+                </form>
+                
+                <button class="btn btn-primary" onclick="testDataCollection()">测试数据收集</button>
+                <button class="btn btn-secondary" onclick="testValidation()">测试数据验证</button>
+                <button class="btn btn-success" onclick="testApiCall()">测试API调用</button>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>测试结果</h5>
+            </div>
+            <div class="card-body">
+                <pre id="test-output" style="background: #f8f9fa; padding: 10px; max-height: 400px; overflow-y: auto;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const output = document.getElementById('test-output');
+            const timestamp = new Date().toLocaleTimeString();
+            output.textContent += `[${timestamp}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // 复制review-save-manager.js中的数据收集逻辑
+        function collectReviewData() {
+            const data = {
+                stock_code: document.getElementById('review-stock-code')?.value || '',
+                review_date: document.getElementById('review-date')?.value || '',
+                holding_days: parseInt(document.getElementById('holding-days')?.value) || 0,
+                current_price: parseFloat(document.getElementById('current-price-input')?.value) || null,
+                floating_profit_ratio: null, // 将在后端计算
+                buy_price: null, // 将从交易记录获取
+                price_up_score: document.getElementById('price-up-score')?.checked ? 1 : 0,
+                bbi_score: document.getElementById('bbi-score')?.checked ? 1 : 0,
+                volume_score: document.getElementById('volume-score')?.checked ? 1 : 0,
+                trend_score: document.getElementById('trend-score')?.checked ? 1 : 0,
+                j_score: document.getElementById('j-score')?.checked ? 1 : 0,
+                analysis: document.getElementById('analysis')?.value || '',
+                decision: document.getElementById('decision')?.value || '',
+                reason: document.getElementById('reason')?.value || ''
+            };
+
+            // 计算总分
+            data.total_score = data.price_up_score + data.bbi_score + data.volume_score + 
+                              data.trend_score + data.j_score;
+
+            return data;
+        }
+
+        // 复制review-save-manager.js中的数据验证逻辑
+        function validateReviewData(data) {
+            const errors = [];
+
+            if (!data.stock_code) {
+                errors.push('股票代码不能为空');
+            }
+
+            if (!data.review_date) {
+                errors.push('复盘日期不能为空');
+            }
+
+            if (!data.holding_days || data.holding_days < 1) {
+                errors.push('持仓天数必须大于0');
+            }
+
+            if (!data.decision) {
+                errors.push('请选择决策结果');
+            }
+
+            if (!data.reason.trim()) {
+                errors.push('决策理由不能为空');
+            }
+
+            if (data.current_price !== null && (data.current_price <= 0 || data.current_price > 9999.99)) {
+                errors.push('当前价格必须在0.01-9999.99之间');
+            }
+
+            return {
+                isValid: errors.length === 0,
+                message: errors.join('；'),
+                errors: errors
+            };
+        }
+
+        function testDataCollection() {
+            log('=== 开始测试数据收集 ===');
+            
+            try {
+                const data = collectReviewData();
+                log('✅ 数据收集成功');
+                log('收集的数据: ' + JSON.stringify(data, null, 2));
+                
+                // 检查关键字段
+                log('关键字段检查:');
+                log('  股票代码: ' + (data.stock_code || '空'));
+                log('  复盘日期: ' + (data.review_date || '空'));
+                log('  持仓天数: ' + data.holding_days);
+                log('  当前价格: ' + data.current_price);
+                log('  决策: ' + (data.decision || '空'));
+                log('  理由: ' + (data.reason ? '已填写' : '空'));
+                
+            } catch (error) {
+                log('❌ 数据收集失败: ' + error.message);
+            }
+        }
+
+        function testValidation() {
+            log('=== 开始测试数据验证 ===');
+            
+            try {
+                const data = collectReviewData();
+                const validation = validateReviewData(data);
+                
+                if (validation.isValid) {
+                    log('✅ 数据验证通过');
+                } else {
+                    log('❌ 数据验证失败: ' + validation.message);
+                    log('错误列表: ' + JSON.stringify(validation.errors, null, 2));
+                }
+                
+            } catch (error) {
+                log('❌ 验证过程出错: ' + error.message);
+            }
+        }
+
+        async function testApiCall() {
+            log('=== 开始测试API调用 ===');
+            
+            try {
+                const data = collectReviewData();
+                log('准备发送的数据: ' + JSON.stringify(data, null, 2));
+                
+                const response = await fetch('http://localhost:5001/api/reviews', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                log('响应状态: ' + response.status);
+                
+                const responseData = await response.json();
+                log('响应数据: ' + JSON.stringify(responseData, null, 2));
+                
+                if (response.ok) {
+                    log('✅ API调用成功');
+                } else {
+                    log('❌ API调用失败');
+                }
+                
+            } catch (error) {
+                log('❌ API调用出错: ' + error.message);
+            }
+        }
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('测试页面已加载，可以开始测试...');
+        });
+    </script>
+</body>
+</html>

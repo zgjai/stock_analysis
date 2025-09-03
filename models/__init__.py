@@ -11,6 +11,10 @@ from .configuration import Configuration
 from .stock_price import StockPrice
 from .sector_data import SectorData, SectorRanking
 from .trading_strategy import TradingStrategy
+from .non_trading_day import NonTradingDay
+from .profit_distribution_config import ProfitDistributionConfig
+from .historical_trade import HistoricalTrade
+from .trade_review import TradeReview, ReviewImage
 
 __all__ = [
     'BaseModel',
@@ -24,5 +28,10 @@ __all__ = [
     'StockPrice',
     'SectorData',
     'SectorRanking',
-    'TradingStrategy'
+    'TradingStrategy',
+    'NonTradingDay',
+    'ProfitDistributionConfig',
+    'HistoricalTrade',
+    'TradeReview',
+    'ReviewImage'
 ]

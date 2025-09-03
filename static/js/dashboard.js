@@ -42,8 +42,7 @@ async function loadDashboardData() {
         current_holdings_count: 0,
         success_rate: 0
     });
-    updateRecentTrades([]);
-    updateHoldingAlerts([]);
+    // Removed recent trades and holding alerts functionality
     
     try {
         // 检查apiClient是否存在
@@ -71,37 +70,7 @@ async function loadDashboardData() {
             // 保持默认数据，不阻塞页面
         }
         
-        console.log('Loading trades data...');
-        try {
-            const recentTrades = await Promise.race([
-                apiClient.getTrades({ limit: 5, order: 'desc' }),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeout))
-            ]);
-            if (recentTrades && recentTrades.data) {
-                const tradesData = recentTrades.data;
-                const tradesList = Array.isArray(tradesData) ? tradesData : (tradesData.trades || []);
-                updateRecentTrades(tradesList);
-                console.log('Trades data updated');
-            }
-        } catch (error) {
-            console.warn('Failed to load trades:', error.message);
-            // 保持空数组，显示"暂无数据"
-        }
-        
-        console.log('Loading alerts data...');
-        try {
-            const holdingAlerts = await Promise.race([
-                apiClient.getHoldingAlerts(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeout))
-            ]);
-            if (holdingAlerts && holdingAlerts.data) {
-                updateHoldingAlerts(holdingAlerts.data);
-                console.log('Alerts data updated');
-            }
-        } catch (error) {
-            console.warn('Failed to load alerts:', error.message);
-            // 保持空数组，显示"暂无数据"
-        }
+        // Removed recent trades and holding alerts loading functionality
         
         // 异步更新图表，不阻塞主要内容
         setTimeout(() => {
@@ -121,12 +90,43 @@ async function loadDashboardData() {
             current_holdings_count: 0,
             success_rate: 0
         });
-        updateRecentTrades([]);
-        updateHoldingAlerts([]);
+        // Removed recent trades and holding alerts functionality
     }
 }
 
 function updateStatsCards(data) {
+    // 更新已清仓收益
+    const realizedProfitElement = document.getElementById('realized-profit');
+    if (realizedProfitElement) {
+        const realizedProfit = data.realized_profit || 0;
+        realizedProfitElement.textContent = Formatters.currency(realizedProfit);
+        // 根据盈亏情况设置颜色
+        realizedProfitElement.className = 'stats-value';
+        if (realizedProfit > 0) {
+            realizedProfitElement.style.color = '#dc3545'; // 红色表示盈利
+        } else if (realizedProfit < 0) {
+            realizedProfitElement.style.color = '#28a745'; // 绿色表示亏损
+        } else {
+            realizedProfitElement.style.color = '#6c757d'; // 灰色表示持平
+        }
+    }
+
+    // 更新当前持仓收益
+    const currentHoldingsProfitElement = document.getElementById('current-holdings-profit');
+    if (currentHoldingsProfitElement) {
+        const holdingsProfit = data.current_holdings_profit || 0;
+        currentHoldingsProfitElement.textContent = Formatters.currency(holdingsProfit);
+        // 根据盈亏情况设置颜色
+        currentHoldingsProfitElement.className = 'stats-value';
+        if (holdingsProfit > 0) {
+            currentHoldingsProfitElement.style.color = '#dc3545'; // 红色表示盈利
+        } else if (holdingsProfit < 0) {
+            currentHoldingsProfitElement.style.color = '#28a745'; // 绿色表示亏损
+        } else {
+            currentHoldingsProfitElement.style.color = '#6c757d'; // 灰色表示持平
+        }
+    }
+
     // 更新总交易次数
     const totalTradesElement = document.getElementById('total-trades');
     if (totalTradesElement) {
@@ -137,20 +137,20 @@ function updateStatsCards(data) {
     // 更新总收益率
     const totalProfitElement = document.getElementById('total-profit');
     if (totalProfitElement) {
-        const profit = (data.total_return_rate || 0) / 100; // 转换为小数
+        const profit = data.total_return_rate || 0; // 后端已返回小数形式，直接使用
         totalProfitElement.textContent = Formatters.percentage(profit);
         // 移除之前的颜色类，根据盈亏情况添加新的颜色
         totalProfitElement.className = 'stats-value';
         if (profit > 0) {
-            totalProfitElement.style.color = '#28a745'; // 绿色表示盈利
+            totalProfitElement.style.color = '#dc3545'; // 红色表示盈利
         } else if (profit < 0) {
-            totalProfitElement.style.color = '#dc3545'; // 红色表示亏损
+            totalProfitElement.style.color = '#28a745'; // 绿色表示亏损
         } else {
             totalProfitElement.style.color = '#6c757d'; // 灰色表示持平
         }
     }
 
-    // 更新当前持仓
+    // 更新当前持仓数量
     const currentHoldingsElement = document.getElementById('current-holdings');
     if (currentHoldingsElement) {
         currentHoldingsElement.textContent = data.current_holdings_count || 0;
@@ -159,79 +159,34 @@ function updateStatsCards(data) {
     // 更新成功率
     const successRateElement = document.getElementById('success-rate');
     if (successRateElement) {
-        const rate = (data.success_rate || 0) / 100; // 转换为小数
+        const rate = data.success_rate || 0; // 后端已返回小数形式，直接使用
         successRateElement.textContent = Formatters.percentage(rate);
     }
-}
 
-function updateRecentTrades(trades) {
-    const tbody = document.getElementById('recent-trades');
-    if (!tbody) return;
-
-    if (!trades || trades.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无交易记录</td></tr>';
-        return;
+    // 更新总投入资金
+    const totalInvestmentElement = document.getElementById('total-investment');
+    if (totalInvestmentElement) {
+        const investment = data.total_investment || 0;
+        totalInvestmentElement.textContent = Formatters.currency(investment);
     }
 
-    tbody.innerHTML = trades.map(trade => `
-        <tr>
-            <td>${Formatters.date(trade.trade_date)}</td>
-            <td>
-                <span class="fw-bold">${trade.stock_name}</span>
-                <small class="text-muted d-block">${trade.stock_code}</small>
-            </td>
-            <td>
-                <span class="badge ${trade.trade_type === 'buy' ? 'bg-success' : 'bg-danger'}">
-                    ${trade.trade_type === 'buy' ? '买入' : '卖出'}
-                </span>
-            </td>
-            <td>${Formatters.currency(trade.price)}</td>
-            <td>${Formatters.number(trade.quantity, 0)}</td>
-        </tr>
-    `).join('');
-}
-
-function updateHoldingAlerts(alerts) {
-    const container = document.getElementById('holding-alerts');
-    if (!container) return;
-
-    if (!alerts || alerts.length === 0) {
-        container.innerHTML = '<div class="text-center text-muted">暂无持仓提醒</div>';
-        return;
+    // 更新最后更新时间
+    const lastUpdatedElement = document.getElementById('last-updated');
+    if (lastUpdatedElement) {
+        if (data.last_updated) {
+            const updateTime = new Date(data.last_updated);
+            lastUpdatedElement.textContent = updateTime.toLocaleTimeString('zh-CN', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } else {
+            lastUpdatedElement.textContent = '--';
+        }
     }
-
-    container.innerHTML = alerts.map(alert => `
-        <div class="alert alert-${getAlertClass(alert.alert_type)} alert-dismissible fade show" role="alert">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <h6 class="alert-heading mb-1">${alert.stock_name} (${alert.stock_code})</h6>
-                    <p class="mb-1">${alert.alert_message}</p>
-                    <small class="text-muted">
-                        持仓天数: ${alert.holding_days}天 | 
-                        盈亏: ${Formatters.percentage(alert.profit_loss_ratio)}
-                    </small>
-                </div>
-                <div class="text-end">
-                    ${alert.sell_ratio > 0 ? `
-                        <span class="badge bg-warning">
-                            建议卖出 ${Formatters.percentage(alert.sell_ratio)}
-                        </span>
-                    ` : ''}
-                </div>
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `).join('');
 }
 
-function getAlertClass(alertType) {
-    const classes = {
-        'sell_all': 'danger',
-        'sell_partial': 'warning',
-        'hold': 'info'
-    };
-    return classes[alertType] || 'info';
-}
+// Removed updateRecentTrades, updateHoldingAlerts, and getAlertClass functions
+// as these modules have been removed from the dashboard interface
 
 async function updateCharts() {
     try {
@@ -350,10 +305,29 @@ function updateProfitChart(data) {
     }
 
     const labels = chartData.map(item => item.month_name || item.month);
-    const profits = chartData.map(item => item.profit_rate || 0);
+    // 处理月度收益率数据：null值表示无数据，显示为0但在工具提示中标明
+    const profits = chartData.map(item => {
+        if (item.profit_rate === null || item.profit_rate === undefined) {
+            return null; // Chart.js会跳过null值
+        }
+        return item.profit_rate;
+    });
 
     profitChart.data.labels = labels;
     profitChart.data.datasets[0].data = profits;
+    
+    // 更新图表配置以处理null值
+    profitChart.options.plugins.tooltip.callbacks.label = function(context) {
+        const dataIndex = context.dataIndex;
+        const monthData = chartData[dataIndex];
+        
+        if (monthData.profit_rate === null || !monthData.has_data) {
+            return '无交易数据';
+        }
+        
+        return `收益率: ${Formatters.percentage(context.parsed.y)}`;
+    };
+    
     profitChart.update();
 }
 
@@ -451,8 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     current_holdings_count: 0,
                     success_rate: 0
                 });
-                updateRecentTrades([]);
-                updateHoldingAlerts([]);
+                // Removed recent trades and holding alerts functionality
             }
         }, 100);
     }

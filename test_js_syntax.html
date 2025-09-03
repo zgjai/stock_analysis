@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript语法测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container py-4">
+        <h2>JavaScript语法测试</h2>
+        <div id="test-results" class="mt-3">
+            <p>正在测试JavaScript文件...</p>
+        </div>
+    </div>
+
+    <script>
+        // 测试JavaScript文件是否能正常加载
+        function testJavaScript() {
+            const results = document.getElementById('test-results');
+            
+            try {
+                // 尝试加载expectation-comparison-manager.js
+                const script = document.createElement('script');
+                script.src = '/static/js/expectation-comparison-manager.js';
+                
+                script.onload = function() {
+                    results.innerHTML = `
+                        <div class="alert alert-success">
+                            <h5>✅ JavaScript文件加载成功</h5>
+                            <p>expectation-comparison-manager.js 语法正确，可以正常加载。</p>
+                        </div>
+                    `;
+                    
+                    // 检查类是否正确定义
+                    if (typeof ExpectationComparisonManager !== 'undefined') {
+                        results.innerHTML += `
+                            <div class="alert alert-info">
+                                <h6>✅ ExpectationComparisonManager 类已定义</h6>
+                                <p>类构造函数和方法都可以正常访问。</p>
+                            </div>
+                        `;
+                    }
+                };
+                
+                script.onerror = function() {
+                    results.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h5>❌ JavaScript文件加载失败</h5>
+                            <p>expectation-comparison-manager.js 存在语法错误或无法加载。</p>
+                        </div>
+                    `;
+                };
+                
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>❌ 测试过程中发生错误</h5>
+                        <p>错误信息: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 页面加载完成后开始测试
+        document.addEventListener('DOMContentLoaded', testJavaScript);
+    </script>
+</body>
+</html>

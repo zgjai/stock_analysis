@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>前端API调试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <h1>前端API调试工具</h1>
+    
+    <button onclick="testAPI()">测试 Analytics API</button>
+    <button onclick="clearResults()">清除结果</button>
+    
+    <div id="results"></div>
+
+    <script>
+        async function testAPI() {
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                addResult('🔄 正在请求 /api/analytics/overview...', 'result');
+                
+                const response = await fetch('/api/analytics/overview');
+                addResult(`📡 响应状态: ${response.status}`, response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('📦 原始响应数据:', 'result');
+                    addResult(JSON.stringify(data, null, 2), 'result');
+                    
+                    if (data.success && data.data) {
+                        const analytics = data.data;
+                        
+                        addResult('🔍 关键字段分析:', 'success');
+                        addResult(`total_return_rate: ${analytics.total_return_rate} (类型: ${typeof analytics.total_return_rate})`, 'result');
+                        addResult(`success_rate: ${analytics.success_rate} (类型: ${typeof analytics.success_rate})`, 'result');
+                        
+                        addResult('🎯 前端显示计算:', 'success');
+                        const displayReturnRate = (analytics.total_return_rate * 100).toFixed(2) + '%';
+                        const displaySuccessRate = (analytics.success_rate * 100).toFixed(1) + '%';
+                        
+                        addResult(`总收益率应显示: ${displayReturnRate}`, 'success');
+                        addResult(`成功率应显示: ${displaySuccessRate}`, 'success');
+                        
+                        // 模拟前端更新
+                        addResult('🔄 模拟前端更新...', 'result');
+                        updateDisplay(analytics);
+                        
+                    } else {
+                        addResult('❌ API返回格式错误', 'error');
+                    }
+                } else {
+                    addResult(`❌ HTTP错误: ${response.status}`, 'error');
+                }
+                
+            } catch (error) {
+                addResult(`❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function updateDisplay(data) {
+            // 创建显示区域
+            if (!document.getElementById('display-test')) {
+                const displayDiv = document.createElement('div');
+                displayDiv.id = 'display-test';
+                displayDiv.innerHTML = `
+                    <h3>📊 显示测试</h3>
+                    <p>总收益率: <span id="test-return-rate">-</span></p>
+                    <p>成功率: <span id="test-success-rate">-</span></p>
+                `;
+                document.body.appendChild(displayDiv);
+            }
+            
+            // 更新显示
+            document.getElementById('test-return-rate').textContent =
+                data.total_return_rate ? `${(data.total_return_rate * 100).toFixed(2)}%` : '0.00%';
+            
+            document.getElementById('test-success-rate').textContent =
+                data.success_rate ? `${(data.success_rate * 100).toFixed(1)}%` : '0.0%';
+                
+            addResult('✅ 显示更新完成', 'success');
+        }
+        
+        function addResult(message, className) {
+            const resultsDiv = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${className}`;
+            div.textContent = message;
+            resultsDiv.appendChild(div);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            const displayTest = document.getElementById('display-test');
+            if (displayTest) {
+                displayTest.remove();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -292,7 +292,7 @@
                 const profitAmount = (currentPrice - buyPrice) * quantity;
                 const profitPercentage = (profitRatio * 100).toFixed(2);
                 
-                const color = profitRatio > 0 ? 'text-success' : profitRatio < 0 ? 'text-danger' : 'text-muted';
+                const color = profitRatio > 0 ? 'text-danger' : profitRatio < 0 ? 'text-success' : 'text-muted';
                 resultEl.innerHTML = `
                     <span class="${color}">
                         ${profitPercentage}%

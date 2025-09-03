@@ -1,0 +1,575 @@
+{% extends "base.html" %}
+
+{% block title %}股票池 - 股票交易记录系统{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">股票池</li>
+{% endblock %}
+
+{% block page_title %}股票池管理{% endblock %}
+
+{% block content %}
+<!-- 操作按钮区域 -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStockModal">
+                    <i class="fas fa-plus"></i> 添加股票
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="refreshStockPool()">
+                    <i class="fas fa-sync-alt"></i> 刷新
+                </button>
+            </div>
+            <div>
+                <span class="badge bg-info" id="pool-stats">总计: 0 只股票</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 股票池管理区域 -->
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-eye text-info"></i> 待观测池
+                </h5>
+                <span class="badge bg-info" id="watch-pool-count">0</span>
+            </div>
+            <div class="card-body">
+                <div id="watch-pool">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin"></i> 加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-shopping-cart text-success"></i> 待买入池
+                </h5>
+                <span class="badge bg-success" id="buy-pool-count">0</span>
+            </div>
+            <div class="card-body">
+                <div id="buy-pool">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin"></i> 加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 股票池历史记录 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history text-secondary"></i> 操作历史
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="pool-history">
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-spinner fa-spin"></i> 加载历史记录...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加股票模态框 -->
+<div class="modal fade" id="addStockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加股票到池中</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addStockForm">
+                    <div class="mb-3">
+                        <label for="stockCode" class="form-label">股票代码 *</label>
+                        <input type="text" class="form-control" id="stockCode" required 
+                               placeholder="例如: 000001" maxlength="6">
+                        <div class="form-text">请输入6位股票代码</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stockName" class="form-label">股票名称 *</label>
+                        <input type="text" class="form-control" id="stockName" required 
+                               placeholder="例如: 平安银行">
+                    </div>
+                    <div class="mb-3">
+                        <label for="poolType" class="form-label">池类型 *</label>
+                        <select class="form-select" id="poolType" required>
+                            <option value="">请选择池类型</option>
+                            <option value="watch">待观测池</option>
+                            <option value="buy_ready">待买入池</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="targetPrice" class="form-label">目标价位</label>
+                        <input type="number" class="form-control" id="targetPrice" 
+                               step="0.01" min="0" placeholder="例如: 12.50">
+                        <div class="form-text">可选，设置期望的买入价格</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addReason" class="form-label">添加原因 *</label>
+                        <textarea class="form-control" id="addReason" rows="3" required
+                                  placeholder="请说明添加到池中的原因..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddStock()">
+                    <i class="fas fa-plus"></i> 添加
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑股票模态框 -->
+<div class="modal fade" id="editStockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑股票信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editStockForm">
+                    <input type="hidden" id="editStockId">
+                    <div class="mb-3">
+                        <label for="editStockCode" class="form-label">股票代码</label>
+                        <input type="text" class="form-control" id="editStockCode" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editStockName" class="form-label">股票名称</label>
+                        <input type="text" class="form-control" id="editStockName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPoolType" class="form-label">池类型 *</label>
+                        <select class="form-select" id="editPoolType" required>
+                            <option value="watch">待观测池</option>
+                            <option value="buy_ready">待买入池</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTargetPrice" class="form-label">目标价位</label>
+                        <input type="number" class="form-control" id="editTargetPrice" 
+                               step="0.01" min="0">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editReason" class="form-label">更新原因</label>
+                        <textarea class="form-control" id="editReason" rows="3"
+                                  placeholder="请说明更新的原因..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditStock()">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let stockPoolData = [];
+let currentEditingStock = null;
+
+// 初始化股票池页面
+function initStockPool() {
+    console.log('Stock pool page initialized');
+    loadStockPool();
+    
+    // 绑定表单验证
+    setupFormValidation();
+}
+
+// 加载股票池数据
+async function loadStockPool() {
+    try {
+        showLoading();
+        
+        // 设置3秒超时
+        const timeout = 3000;
+        const response = await Promise.race([
+            apiClient.getStockPool(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('请求超时')), timeout))
+        ]);
+        
+        if (response.success) {
+            // 处理API返回的数据结构
+            const data = response.data || {};
+            stockPoolData = data.items || data || [];
+            renderStockPools();
+            updatePoolStats();
+        } else {
+            throw new Error(response.error?.message || '获取股票池数据失败');
+        }
+    } catch (error) {
+        console.error('Load stock pool error:', error);
+        if (error.message === '请求超时') {
+            showMessage('加载超时，可能是系统刚启动或网络较慢，请稍后重试', 'warning');
+        } else {
+            showMessage('加载股票池数据失败: ' + error.message, 'error');
+        }
+        // 显示空状态
+        stockPoolData = [];
+        renderStockPools();
+        updatePoolStats();
+    }
+}
+
+// 渲染股票池
+function renderStockPools() {
+    const watchPool = stockPoolData.filter(stock => stock.pool_type === 'watch' && stock.status === 'active');
+    const buyPool = stockPoolData.filter(stock => stock.pool_type === 'buy_ready' && stock.status === 'active');
+    
+    renderPoolSection('watch-pool', watchPool, 'watch');
+    renderPoolSection('buy-pool', buyPool, 'buy_ready');
+    
+    // 更新计数
+    document.getElementById('watch-pool-count').textContent = watchPool.length;
+    document.getElementById('buy-pool-count').textContent = buyPool.length;
+    
+    // 渲染历史记录
+    renderPoolHistory();
+}
+
+// 渲染单个池区域
+function renderPoolSection(containerId, stocks, poolType) {
+    const container = document.getElementById(containerId);
+    
+    if (stocks.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-inbox"></i>
+                <p class="mb-0 mt-2">暂无股票</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const stocksHtml = stocks.map(stock => `
+        <div class="stock-item border rounded p-3 mb-2" data-stock-id="${stock.id}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center mb-2">
+                        <h6 class="mb-0 me-2">${stock.stock_code}</h6>
+                        <span class="text-muted">${stock.stock_name}</span>
+                    </div>
+                    ${stock.target_price ? `
+                        <div class="mb-1">
+                            <small class="text-muted">目标价位:</small>
+                            <span class="badge bg-light text-dark">¥${parseFloat(stock.target_price).toFixed(2)}</span>
+                        </div>
+                    ` : ''}
+                    <div class="mb-1">
+                        <small class="text-muted">添加原因:</small>
+                        <span class="text-sm">${stock.add_reason || '无'}</span>
+                    </div>
+                    <div>
+                        <small class="text-muted">添加时间:</small>
+                        <span class="text-sm">${formatDateTime(stock.created_at)}</span>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                            data-bs-toggle="dropdown">
+                        操作
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="editStock(${stock.id})">
+                            <i class="fas fa-edit"></i> 编辑
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" onclick="moveStock(${stock.id}, '${poolType === 'watch' ? 'buy_ready' : 'watch'}')">
+                            <i class="fas fa-exchange-alt"></i> 移至${poolType === 'watch' ? '待买入池' : '待观测池'}
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="removeStock(${stock.id})">
+                            <i class="fas fa-trash"></i> 移除
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = stocksHtml;
+}
+
+// 渲染操作历史
+function renderPoolHistory() {
+    const historyContainer = document.getElementById('pool-history');
+    
+    // 获取所有非活跃状态的记录作为历史
+    const historyRecords = stockPoolData.filter(stock => stock.status !== 'active');
+    
+    if (historyRecords.length === 0) {
+        historyContainer.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <i class="fas fa-history"></i>
+                <p class="mb-0 mt-2">暂无操作历史</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const historyHtml = historyRecords.slice(0, 10).map(record => `
+        <div class="history-item border-start border-3 ps-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1">${record.stock_code} ${record.stock_name}</h6>
+                    <p class="mb-1 text-sm">
+                        <span class="badge bg-${record.status === 'moved' ? 'warning' : 'secondary'}">
+                            ${record.status === 'moved' ? '已移动' : '已移除'}
+                        </span>
+                        从 ${record.pool_type === 'watch' ? '待观测池' : '待买入池'}
+                    </p>
+                    <small class="text-muted">${formatDateTime(record.updated_at)}</small>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    historyContainer.innerHTML = historyHtml;
+}
+
+// 更新池统计信息
+function updatePoolStats() {
+    const activeStocks = stockPoolData.filter(stock => stock.status === 'active');
+    document.getElementById('pool-stats').textContent = `总计: ${activeStocks.length} 只股票`;
+}
+
+// 刷新股票池
+async function refreshStockPool() {
+    const refreshBtn = document.querySelector('button[onclick="refreshStockPool()"]');
+    const originalHtml = refreshBtn.innerHTML;
+    
+    try {
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 刷新中...';
+        refreshBtn.disabled = true;
+        
+        await loadStockPool();
+        showMessage('股票池数据已刷新', 'success');
+    } catch (error) {
+        showMessage('刷新失败: ' + error.message, 'error');
+    } finally {
+        refreshBtn.innerHTML = originalHtml;
+        refreshBtn.disabled = false;
+    }
+}
+
+// 添加股票到池中
+async function submitAddStock() {
+    const form = document.getElementById('addStockForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const formData = {
+        stock_code: document.getElementById('stockCode').value.trim().toUpperCase(),
+        stock_name: document.getElementById('stockName').value.trim(),
+        pool_type: document.getElementById('poolType').value,
+        target_price: document.getElementById('targetPrice').value || null,
+        add_reason: document.getElementById('addReason').value.trim()
+    };
+    
+    try {
+        const response = await apiClient.addToStockPool(formData);
+        
+        if (response.success) {
+            showMessage('股票添加成功', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('addStockModal')).hide();
+            form.reset();
+            await loadStockPool();
+        } else {
+            showMessage('添加失败: ' + (response.error?.message || '未知错误'), 'error');
+        }
+    } catch (error) {
+        console.error('Add stock error:', error);
+        showMessage('添加失败: ' + error.message, 'error');
+    }
+}
+
+// 编辑股票
+function editStock(stockId) {
+    const stock = stockPoolData.find(s => s.id === stockId);
+    if (!stock) return;
+    
+    currentEditingStock = stock;
+    
+    // 填充编辑表单
+    document.getElementById('editStockId').value = stock.id;
+    document.getElementById('editStockCode').value = stock.stock_code;
+    document.getElementById('editStockName').value = stock.stock_name;
+    document.getElementById('editPoolType').value = stock.pool_type;
+    document.getElementById('editTargetPrice').value = stock.target_price || '';
+    document.getElementById('editReason').value = '';
+    
+    // 显示编辑模态框
+    new bootstrap.Modal(document.getElementById('editStockModal')).show();
+}
+
+// 提交编辑
+async function submitEditStock() {
+    const form = document.getElementById('editStockForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const stockId = document.getElementById('editStockId').value;
+    const formData = {
+        pool_type: document.getElementById('editPoolType').value,
+        target_price: document.getElementById('editTargetPrice').value || null,
+        update_reason: document.getElementById('editReason').value.trim()
+    };
+    
+    try {
+        const response = await apiClient.updateStockPool(stockId, formData);
+        
+        if (response.success) {
+            showMessage('股票信息更新成功', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('editStockModal')).hide();
+            await loadStockPool();
+        } else {
+            showMessage('更新失败: ' + (response.error?.message || '未知错误'), 'error');
+        }
+    } catch (error) {
+        console.error('Update stock error:', error);
+        showMessage('更新失败: ' + error.message, 'error');
+    }
+}
+
+// 移动股票到另一个池
+async function moveStock(stockId, targetPoolType) {
+    const stock = stockPoolData.find(s => s.id === stockId);
+    if (!stock) return;
+    
+    const poolName = targetPoolType === 'watch' ? '待观测池' : '待买入池';
+    
+    if (!confirm(`确定要将 ${stock.stock_code} ${stock.stock_name} 移至${poolName}吗？`)) {
+        return;
+    }
+    
+    try {
+        const response = await apiClient.updateStockPool(stockId, {
+            pool_type: targetPoolType,
+            update_reason: `移至${poolName}`
+        });
+        
+        if (response.success) {
+            showMessage(`已移至${poolName}`, 'success');
+            await loadStockPool();
+        } else {
+            showMessage('移动失败: ' + (response.error?.message || '未知错误'), 'error');
+        }
+    } catch (error) {
+        console.error('Move stock error:', error);
+        showMessage('移动失败: ' + error.message, 'error');
+    }
+}
+
+// 移除股票
+async function removeStock(stockId) {
+    const stock = stockPoolData.find(s => s.id === stockId);
+    if (!stock) return;
+    
+    if (!confirm(`确定要移除 ${stock.stock_code} ${stock.stock_name} 吗？`)) {
+        return;
+    }
+    
+    try {
+        const response = await apiClient.removeFromStockPool(stockId);
+        
+        if (response.success) {
+            showMessage('股票已移除', 'success');
+            await loadStockPool();
+        } else {
+            showMessage('移除失败: ' + (response.error?.message || '未知错误'), 'error');
+        }
+    } catch (error) {
+        console.error('Remove stock error:', error);
+        showMessage('移除失败: ' + error.message, 'error');
+    }
+}
+
+// 设置表单验证
+function setupFormValidation() {
+    // 股票代码格式验证
+    const stockCodeInput = document.getElementById('stockCode');
+    stockCodeInput.addEventListener('input', function() {
+        let value = this.value.replace(/\D/g, ''); // 只保留数字
+        if (value.length > 6) {
+            value = value.substring(0, 6);
+        }
+        this.value = value;
+    });
+    
+    // 目标价格验证
+    const targetPriceInputs = document.querySelectorAll('#targetPrice, #editTargetPrice');
+    targetPriceInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            if (this.value < 0) {
+                this.value = 0;
+            }
+        });
+    });
+}
+
+// 显示加载状态
+function showLoading() {
+    document.getElementById('watch-pool').innerHTML = `
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-spinner fa-spin"></i> 加载中...
+        </div>
+    `;
+    document.getElementById('buy-pool').innerHTML = `
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-spinner fa-spin"></i> 加载中...
+        </div>
+    `;
+}
+
+// 显示空状态
+function showEmptyState() {
+    document.getElementById('watch-pool').innerHTML = `
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p class="mb-0 mt-2">加载失败</p>
+        </div>
+    `;
+    document.getElementById('buy-pool').innerHTML = `
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p class="mb-0 mt-2">加载失败</p>
+        </div>
+    `;
+}
+
+// 页面初始化
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.pathname.includes('stock-pool') || window.location.pathname.includes('stock_pool')) {
+        initStockPool();
+    }
+});
+</script>
+{% endblock %}

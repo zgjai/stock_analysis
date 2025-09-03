@@ -331,9 +331,9 @@ class FloatingProfitCalculator {
         }
         
         if (this.profitRatio > 0) {
-            return 'text-success'; // 绿色 - 盈利
+            return 'text-danger'; // 红色 - 盈利
         } else if (this.profitRatio < 0) {
-            return 'text-danger';  // 红色 - 亏损
+            return 'text-success';  // 绿色 - 亏损
         } else {
             return 'text-muted';   // 灰色 - 持平
         }

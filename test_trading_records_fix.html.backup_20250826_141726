@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试交易记录修复</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        button { margin: 5px; padding: 8px 15px; }
+    </style>
+</head>
+<body>
+    <h1>交易记录保存问题修复测试</h1>
+    
+    <div class="test-section">
+        <h2>测试1: 创建交易记录</h2>
+        <button onclick="testCreateTrade()">测试创建</button>
+        <div id="create-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试2: 更新交易记录</h2>
+        <button onclick="testUpdateTrade()">测试更新</button>
+        <div id="update-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试3: 边界值测试</h2>
+        <button onclick="testEdgeCases()">测试边界值</button>
+        <div id="edge-result"></div>
+    </div>
+
+    <script>
+        // 设置axios
+        axios.defaults.timeout = 10000;
+        axios.defaults.headers.common['Content-Type'] = 'application/json';
+
+        // 添加请求拦截器
+        axios.interceptors.request.use(
+            (config) => {
+                console.log('发送请求:', config.method.toUpperCase(), config.url, config.data);
+                return config;
+            },
+            (error) => {
+                console.error('请求拦截器错误:', error);
+                return Promise.reject(error);
+            }
+        );
+
+        // 添加响应拦截器
+        axios.interceptors.response.use(
+            (response) => {
+                console.log('请求成功:', response.status, response.data);
+                return response;
+            },
+            (error) => {
+                console.error('请求失败:', error.response?.status, error.response?.data);
+                return Promise.reject(error);
+            }
+        );
+
+        async function testCreateTrade() {
+            const resultDiv = document.getElementById('create-result');
+            resultDiv.innerHTML = '<p class="info">测试中...</p>';
+            
+            try {
+                const testData = {
+                    stock_code: '000001',
+                    stock_name: '平安银行',
+                    trade_type: 'buy',
+                    price: 15.50,
+                    quantity: 1000,
+                    reason: '技术分析',
+                    notes: '修复测试 - 创建'
+                };
+                
+                const response = await axios.post('/api/trades', testData);
+                
+                resultDiv.innerHTML = `
+                    <p class="success">✓ 创建成功</p>
+                    <pre>${JSON.stringify(response.data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                let errorInfo = '未知错误';
+                if (error.response) {
+                    errorInfo = `HTTP ${error.response.status}: ${JSON.stringify(error.response.data, null, 2)}`;
+                } else {
+                    errorInfo = error.message;
+                }
+                
+                resultDiv.innerHTML = `
+                    <p class="error">✗ 创建失败</p>
+                    <pre>${errorInfo}</pre>
+                `;
+            }
+        }
+
+        async function testUpdateTrade() {
+            const resultDiv = document.getElementById('update-result');
+            resultDiv.innerHTML = '<p class="info">测试中...</p>';
+            
+            try {
+                // 先获取一个交易记录ID
+                const listResponse = await axios.get('/api/trades?page=1&per_page=1');
+                
+                if (!listResponse.data.success || !listResponse.data.data.trades.length) {
+                    resultDiv.innerHTML = '<p class="error">✗ 没有找到可更新的交易记录</p>';
+                    return;
+                }
+                
+                const tradeId = listResponse.data.data.trades[0].id;
+                
+                const updateData = {
+                    price: 16.80,
+                    quantity: 1200,
+                    notes: '修复测试 - 更新'
+                };
+                
+                const response = await axios.put(`/api/trades/${tradeId}`, updateData);
+                
+                resultDiv.innerHTML = `
+                    <p class="success">✓ 更新成功 (ID: ${tradeId})</p>
+                    <pre>${JSON.stringify(response.data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                let errorInfo = '未知错误';
+                if (error.response) {
+                    errorInfo = `HTTP ${error.response.status}: ${JSON.stringify(error.response.data, null, 2)}`;
+                } else {
+                    errorInfo = error.message;
+                }
+                
+                resultDiv.innerHTML = `
+                    <p class="error">✗ 更新失败</p>
+                    <pre>${errorInfo}</pre>
+                `;
+            }
+        }
+
+        async function testEdgeCases() {
+            const resultDiv = document.getElementById('edge-result');
+            resultDiv.innerHTML = '<p class="info">测试中...</p>';
+            
+            const testCases = [
+                {
+                    name: '字符串数字',
+                    data: {
+                        stock_code: '000002',
+                        stock_name: '万科A',
+                        trade_type: 'buy',
+                        price: '12.50',
+                        quantity: '1000',
+                        reason: '技术分析',
+                        notes: '字符串数字测试'
+                    }
+                },
+                {
+                    name: '包含空值',
+                    data: {
+                        stock_code: '000003',
+                        stock_name: '中国平安',
+                        trade_type: 'buy',
+                        price: 88.50,
+                        quantity: 100,
+                        reason: '技术分析',
+                        notes: '空值测试',
+                        stop_loss_price: null,
+                        take_profit_ratio: null
+                    }
+                },
+                {
+                    name: '最小有效值',
+                    data: {
+                        stock_code: '000004',
+                        stock_name: '国农科技',
+                        trade_type: 'buy',
+                        price: 0.01,
+                        quantity: 100,
+                        reason: '技术分析',
+                        notes: '最小值测试'
+                    }
+                }
+            ];
+            
+            let results = [];
+            
+            for (const testCase of testCases) {
+                try {
+                    const response = await axios.post('/api/trades', testCase.data);
+                    results.push(`✓ ${testCase.name}: 成功`);
+                } catch (error) {
+                    const errorMsg = error.response?.data?.error?.message || error.message;
+                    results.push(`✗ ${testCase.name}: ${errorMsg}`);
+                }
+            }
+            
+            resultDiv.innerHTML = `
+                <h3>边界值测试结果:</h3>
+                ${results.map(result => `<p class="${result.startsWith('✓') ? 'success' : 'error'}">${result}</p>`).join('')}
+            `;
+        }
+
+        // 页面加载时测试连接
+        window.onload = function() {
+            console.log('页面加载完成，测试API连接...');
+            
+            axios.get('/api/trades?page=1&per_page=1')
+                .then(response => {
+                    console.log('API连接正常:', response.data);
+                })
+                .catch(error => {
+                    console.error('API连接失败:', error);
+                });
+        };
+    </script>
+</body>
+</html>

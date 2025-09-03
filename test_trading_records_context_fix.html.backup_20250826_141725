@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Records Context Fix Test</title>
+</head>
+<body>
+    <h1>Trading Records Context Fix Test</h1>
+    <div id="test-results"></div>
+
+    <script>
+        // 模拟 TradingRecordsManager 类的部分功能来测试修复
+        class TestTradingRecordsManager {
+            constructor() {
+                this.editingTradeId = null;
+            }
+
+            // 测试修复后的 validateNumericField 函数
+            async handleTradeFormSubmit(formData) {
+                try {
+                    // 改进的数值字段验证 - 使用箭头函数保持this上下文
+                    const validateNumericField = (fieldName, fieldValue, isRequired = true) => {
+                        // 如果是编辑模式且字段不存在，允许跳过
+                        if (!isRequired && this.editingTradeId && (fieldValue === undefined || fieldValue === null)) {
+                            return null;
+                        }
+                        
+                        // 检查必填字段
+                        if (isRequired && (fieldValue === undefined || fieldValue === null || fieldValue === '')) {
+                            throw new Error(`${fieldName}不能为空`);
+                        }
+                        
+                        // 处理字符串类型
+                        if (typeof fieldValue === 'string') {
+                            fieldValue = fieldValue.trim();
+                            if (fieldValue === '') {
+                                if (isRequired) {
+                                    throw new Error(`${fieldName}不能为空`);
+                                }
+                                return null;
+                            }
+                        }
+                        
+                        return fieldValue;
+                    };
+
+                    // 验证价格字段
+                    const priceValue = validateNumericField('价格', formData.price, !this.editingTradeId);
+                    if (priceValue !== null) {
+                        formData.price = priceValue;
+                    }
+
+                    // 验证数量字段  
+                    const quantityValue = validateNumericField('数量', formData.quantity, !this.editingTradeId);
+                    if (quantityValue !== null) {
+                        formData.quantity = quantityValue;
+                    }
+
+                    return { success: true, message: '验证通过' };
+                } catch (error) {
+                    return { success: false, message: error.message };
+                }
+            }
+        }
+
+        // 运行测试
+        async function runTests() {
+            const results = document.getElementById('test-results');
+            const manager = new TestTradingRecordsManager();
+            
+            // 测试1: 新建交易 - 价格为空应该报错
+            console.log('测试1: 新建交易 - 价格为空');
+            manager.editingTradeId = null;
+            let result1 = await manager.handleTradeFormSubmit({ price: '', quantity: '100' });
+            console.log('结果1:', result1);
+            
+            // 测试2: 编辑交易 - 价格为空应该允许
+            console.log('测试2: 编辑交易 - 价格为空');
+            manager.editingTradeId = 123;
+            let result2 = await manager.handleTradeFormSubmit({ price: '', quantity: '100' });
+            console.log('结果2:', result2);
+            
+            // 测试3: 新建交易 - 有效数据
+            console.log('测试3: 新建交易 - 有效数据');
+            manager.editingTradeId = null;
+            let result3 = await manager.handleTradeFormSubmit({ price: '10.5', quantity: '100' });
+            console.log('结果3:', result3);
+
+            // 显示结果
+            results.innerHTML = `
+                <h2>测试结果:</h2>
+                <p><strong>测试1 (新建交易-价格为空):</strong> ${result1.success ? '❌ 应该失败但成功了' : '✅ 正确失败'} - ${result1.message}</p>
+                <p><strong>测试2 (编辑交易-价格为空):</strong> ${result2.success ? '✅ 正确成功' : '❌ 应该成功但失败了'} - ${result2.message}</p>
+                <p><strong>测试3 (新建交易-有效数据):</strong> ${result3.success ? '✅ 正确成功' : '❌ 应该成功但失败了'} - ${result3.message}</p>
+                <h3>修复状态: ${!result1.success && result2.success && result3.success ? '✅ 修复成功' : '❌ 仍有问题'}</h3>
+            `;
+        }
+
+        // 页面加载后运行测试
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>

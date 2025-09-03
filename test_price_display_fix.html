@@ -234,7 +234,7 @@
             };
             
             const profitRatio = ((mockHolding.current_price - mockHolding.avg_buy_price) / mockHolding.avg_buy_price * 100).toFixed(2);
-            const profitClass = profitRatio > 0 ? 'text-success' : profitRatio < 0 ? 'text-danger' : 'text-muted';
+            const profitClass = profitRatio > 0 ? 'text-danger' : profitRatio < 0 ? 'text-success' : 'text-muted';
             
             let html = '<div class="card">';
             html += '<div class="card-body">';

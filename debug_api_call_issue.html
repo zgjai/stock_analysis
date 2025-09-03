@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API调用问题调试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">🔍 API调用问题调试</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <h6>🤔 当前问题分析：</h6>
+                            <ul class="mb-0">
+                                <li>表单验证通过 ✅</li>
+                                <li>表单数据获取成功 ✅</li>
+                                <li>但是API请求没有发送到后端 ❌</li>
+                                <li>可能在 <code>createTradeWithProfitTargets</code> 或 <code>apiClient.createTrade</code> 中出现问题</li>
+                            </ul>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <h6>📋 调试步骤：</h6>
+                            <ol>
+                                <li>添加了详细的调试日志到关键方法</li>
+                                <li>检查 <code>createTradeWithProfitTargets</code> 方法执行</li>
+                                <li>检查 <code>apiClient.createTrade</code> 调用</li>
+                                <li>检查异常处理和错误捕获</li>
+                            </ol>
+                        </div>
+
+                        <div class="alert alert-success">
+                            <h6>🔧 已添加的调试日志：</h6>
+                            <ul>
+                                <li><code>🎯 按钮点击事件开始处理...</code></li>
+                                <li><code>🎯 准备调用 tradingManager.saveTrade()...</code></li>
+                                <li><code>🚀 准备发送API请求...</code></li>
+                                <li><code>🔧 createTradeWithProfitTargets 被调用</code></li>
+                                <li><code>📡 调用 apiClient.createTrade...</code></li>
+                                <li><code>📨 apiClient.createTrade 响应:</code></li>
+                                <li><code>📥 API响应:</code></li>
+                            </ul>
+                        </div>
+
+                        <h6>🧪 测试步骤：</h6>
+                        <ol>
+                            <li>打开交易记录页面</li>
+                            <li>点击"添加交易"按钮</li>
+                            <li>选择"卖出"类型</li>
+                            <li>填写表单数据</li>
+                            <li>点击"保存"按钮</li>
+                            <li>观察浏览器控制台的详细日志</li>
+                            <li>检查网络面板是否有API请求</li>
+                        </ol>
+
+                        <div class="alert alert-danger">
+                            <h6>🚨 可能的问题点：</h6>
+                            <ul class="mb-0">
+                                <li><strong>异步调用问题</strong> - await 调用可能被中断</li>
+                                <li><strong>this 上下文问题</strong> - 方法调用时上下文丢失</li>
+                                <li><strong>API客户端问题</strong> - apiClient.createTrade 方法异常</li>
+                                <li><strong>网络请求问题</strong> - axios 请求被阻止或失败</li>
+                                <li><strong>表单数据问题</strong> - 数据格式不符合后端要求</li>
+                            </ul>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="button" class="btn btn-primary" onclick="testDirectAPI()">
+                                🧪 直接测试API调用
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="window.location.href='/trading-records'">
+                                🚀 前往交易记录页面调试
+                            </button>
+                        </div>
+
+                        <div id="test-result" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+    
+    <script>
+        async function testDirectAPI() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '<div class="alert alert-info">🔄 测试直接API调用...</div>';
+            
+            // 模拟卖出交易数据
+            const testData = {
+                stock_code: '002460',
+                stock_name: '赣锋锂业',
+                trade_type: 'sell',
+                trade_date: new Date().toISOString(),
+                price: 38.16,
+                quantity: 7600,
+                reason: '部分止盈',
+                notes: '测试卖出记录'
+            };
+            
+            try {
+                console.log('🧪 直接测试API调用');
+                console.log('📤 测试数据:', testData);
+                
+                const response = await axios.post('/api/trades', testData, {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 10000
+                });
+                
+                console.log('📨 API响应:', response);
+                
+                if (response.data && response.data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h6>✅ 直接API调用成功</h6>
+                            <p class="mb-0">后端API工作正常，问题可能在前端的调用链中。</p>
+                            <small class="text-muted">响应: ${JSON.stringify(response.data, null, 2)}</small>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-warning">
+                            <h6>⚠️ API响应异常</h6>
+                            <p class="mb-0">API有响应但格式不符合预期</p>
+                            <small class="text-muted">响应: ${JSON.stringify(response.data, null, 2)}</small>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('💥 直接API调用失败:', error);
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h6>❌ 直接API调用失败</h6>
+                        <p class="mb-0">错误信息: ${error.message}</p>
+                        <small class="text-muted">这说明问题可能在网络层或后端</small>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

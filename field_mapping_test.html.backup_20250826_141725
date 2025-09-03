@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>字段映射测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .test-result {
+            background: #212529;
+            color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>🔧 字段映射测试</h1>
+        <p class="text-muted">测试分批止盈字段映射是否正确</p>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试数据</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">买入价格</label>
+                            <input type="number" class="form-control" id="buy-price" value="10.00" step="0.01">
+                        </div>
+                        
+                        <h6>分批止盈目标</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label">目标价格1</label>
+                                <input type="number" class="form-control" id="target-price-1" value="12.00" step="0.01">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">止盈比例1 (%)</label>
+                                <input type="number" class="form-control" id="profit-ratio-1" value="20" step="0.01">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">卖出比例1 (%)</label>
+                                <input type="number" class="form-control" id="sell-ratio-1" value="50" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-2">
+                            <div class="col-md-4">
+                                <label class="form-label">目标价格2</label>
+                                <input type="number" class="form-control" id="target-price-2" value="15.00" step="0.01">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">止盈比例2 (%)</label>
+                                <input type="number" class="form-control" id="profit-ratio-2" value="50" step="0.01">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">卖出比例2 (%)</label>
+                                <input type="number" class="form-control" id="sell-ratio-2" value="50" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-primary" onclick="testFrontendFormat()">
+                                测试前端格式
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="testBackendFormat()">
+                                测试后端格式
+                            </button>
+                            <button type="button" class="btn btn-warning" onclick="testApiCall()">
+                                测试API调用
+                            </button>
+                            <button type="button" class="btn btn-info" onclick="clearResults()">
+                                清空结果
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试结果</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="test-output" class="test-result">等待测试...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        function log(message, type = 'info') {
+            const output = document.getElementById('test-output');
+            const time = new Date().toLocaleTimeString();
+            output.textContent += `[${time}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function clearResults() {
+            document.getElementById('test-output').textContent = '测试结果已清空...\n';
+        }
+        
+        function getTestData() {
+            return {
+                buyPrice: parseFloat(document.getElementById('buy-price').value),
+                targets: [
+                    {
+                        targetPrice: parseFloat(document.getElementById('target-price-1').value),
+                        profitRatio: parseFloat(document.getElementById('profit-ratio-1').value),
+                        sellRatio: parseFloat(document.getElementById('sell-ratio-1').value),
+                        sequenceOrder: 1
+                    },
+                    {
+                        targetPrice: parseFloat(document.getElementById('target-price-2').value),
+                        profitRatio: parseFloat(document.getElementById('profit-ratio-2').value),
+                        sellRatio: parseFloat(document.getElementById('sell-ratio-2').value),
+                        sequenceOrder: 2
+                    }
+                ]
+            };
+        }
+        
+        function testFrontendFormat() {
+            clearResults();
+            log('=== 测试前端格式 ===');
+            
+            const data = getTestData();
+            log('前端格式数据:');
+            log(JSON.stringify(data, null, 2));
+            
+            // 验证数据完整性
+            log('\n数据验证:');
+            data.targets.forEach((target, index) => {
+                log(`目标${index + 1}:`);
+                log(`  targetPrice: ${target.targetPrice} (${typeof target.targetPrice})`);
+                log(`  profitRatio: ${target.profitRatio}% (${typeof target.profitRatio})`);
+                log(`  sellRatio: ${target.sellRatio}% (${typeof target.sellRatio})`);
+                
+                const isValid = target.targetPrice > 0 && target.sellRatio > 0 && target.sellRatio <= 100;
+                log(`  有效性: ${isValid ? '✅ 有效' : '❌ 无效'}`);
+            });
+        }
+        
+        function testBackendFormat() {
+            clearResults();
+            log('=== 测试后端格式 ===');
+            
+            const data = getTestData();
+            
+            // 转换为后端格式
+            const backendData = {
+                buy_price: data.buyPrice,
+                profit_targets: data.targets.map(target => ({
+                    target_price: target.targetPrice,
+                    profit_ratio: target.profitRatio / 100, // 转换为小数
+                    sell_ratio: target.sellRatio / 100, // 转换为小数
+                    sequence_order: target.sequenceOrder
+                }))
+            };
+            
+            log('后端格式数据:');
+            log(JSON.stringify(backendData, null, 2));
+            
+            // 验证转换结果
+            log('\n转换验证:');
+            backendData.profit_targets.forEach((target, index) => {
+                log(`目标${index + 1}:`);
+                log(`  target_price: ${target.target_price} (${typeof target.target_price})`);
+                log(`  profit_ratio: ${target.profit_ratio} (${typeof target.profit_ratio})`);
+                log(`  sell_ratio: ${target.sell_ratio} (${typeof target.sell_ratio})`);
+                
+                const isValid = target.target_price > 0 && target.sell_ratio > 0 && target.sell_ratio <= 1;
+                log(`  有效性: ${isValid ? '✅ 有效' : '❌ 无效'}`);
+            });
+        }
+        
+        async function testApiCall() {
+            clearResults();
+            log('=== 测试API调用 ===');
+            
+            const data = getTestData();
+            
+            // 转换为后端格式
+            const apiData = {
+                buy_price: data.buyPrice,
+                profit_targets: data.targets.map(target => ({
+                    target_price: target.targetPrice,
+                    profit_ratio: target.profitRatio / 100,
+                    sell_ratio: target.sellRatio / 100,
+                    sequence_order: target.sequenceOrder
+                }))
+            };
+            
+            log('发送API数据:');
+            log(JSON.stringify(apiData, null, 2));
+            
+            try {
+                const response = await axios.post('/api/trades/validate-profit-targets', apiData, {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 10000
+                });
+                
+                log('\n✅ API调用成功!');
+                log(`状态码: ${response.status}`);
+                log('响应数据:');
+                log(JSON.stringify(response.data, null, 2));
+                
+            } catch (error) {
+                log('\n❌ API调用失败!');
+                
+                if (error.response) {
+                    log(`HTTP错误: ${error.response.status}`);
+                    try {
+                        const errorData = error.response.data;
+                        log('错误详情:');
+                        log(JSON.stringify(errorData, null, 2));
+                    } catch (e) {
+                        log('无法解析错误响应');
+                    }
+                } else if (error.request) {
+                    log('网络错误: 无法连接到服务器');
+                } else {
+                    log(`请求错误: ${error.message}`);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -28,8 +28,12 @@ def create_app(config_class=Config):
     # 注册独立的功能蓝图
     from api.sector_routes import sector_bp
     from api.case_routes import case_bp
+    from api.profit_distribution_routes import profit_distribution_bp
+    from api.optimized_analytics_routes import optimized_analytics_bp
     app.register_blueprint(sector_bp)
     app.register_blueprint(case_bp)
+    app.register_blueprint(profit_distribution_bp)
+    app.register_blueprint(optimized_analytics_bp)
     
     # 注册前端路由
     from routes import frontend_bp
@@ -42,4 +46,4 @@ def create_app(config_class=Config):
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, host='0.0.0.0', port=5002)
+    app.run(debug=True, host='0.0.0.0', port=5001)

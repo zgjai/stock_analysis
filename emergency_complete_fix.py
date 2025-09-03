@@ -391,7 +391,7 @@ function displayHoldings(holdings) {
                         </div>
                         <div class="col-md-2">
                             <div class="small text-muted">盈亏</div>
-                            <div class="${(holding.floating_profit || 0) >= 0 ? 'text-success' : 'text-danger'}">
+                            <div class="${(holding.floating_profit || 0) >= 0 ? 'text-danger' : 'text-success'}">
                                 ${holding.floating_profit ? (holding.floating_profit > 0 ? '+' : '') + holding.floating_profit.toFixed(2) : '--'}
                             </div>
                         </div>

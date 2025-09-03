@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>期望对比布局修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .card {
+            transition: transform 0.2s ease-in-out;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .badge {
+            font-size: 0.75rem;
+        }
+        
+        .text-primary { color: #0d6efd !important; }
+        .text-info { color: #0dcaf0 !important; }
+        .text-muted { color: #6c757d !important; }
+        
+        .border-primary { border-color: #0d6efd !important; }
+        .border-success { border-color: #198754 !important; }
+        .border-warning { border-color: #ffc107 !important; }
+        .border-info { border-color: #0dcaf0 !important; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h2 class="mb-4">期望对比分析 - 布局修复测试</h2>
+        
+        <!-- 期望vs实际对比卡片 - 修复后的布局 -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-muted">收益率对比</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-primary">
+                                    <small>期望</small>
+                                    <div class="h5 mb-0">4.10%</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-info">
+                                    <small>实际</small>
+                                    <div class="h5 mb-0">14.18%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge bg-success">+10.08% (超出期望)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-muted">收益金额对比</h6>
+                        <small class="text-muted d-block mb-2">基于320万本金（自2025年8月1日）</small>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-primary">
+                                    <small>期望</small>
+                                    <div class="h5 mb-0">¥131,200</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-info">
+                                    <small>实际</small>
+                                    <div class="h5 mb-0">¥453,854.06</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge bg-success">+¥322,654.06 (超出期望)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-muted">持仓天数对比</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-primary">
+                                    <small>期望</small>
+                                    <div class="h5 mb-0">11.3天</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-info">
+                                    <small>实际</small>
+                                    <div class="h5 mb-0">17.0天</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge bg-danger">+5.7天 (低于期望)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <h6 class="card-title text-muted">胜率对比</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-primary">
+                                    <small>期望</small>
+                                    <div class="h5 mb-0">60.0%</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-info">
+                                    <small>实际</small>
+                                    <div class="h5 mb-0">100.0%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge bg-success">+40.0% (超出期望)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 说明区域 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">收益金额计算说明</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle me-2"></i>为什么实际收益金额是45万多？</h6>
+                            <p class="mb-2">期望对比分析使用<strong>标准化计算方法</strong>，将实际交易的收益率应用到统一的基准本金上：</p>
+                            <ul class="mb-2">
+                                <li><strong>实际交易情况</strong>：000776股票，成本¥149,842，收益¥21,252，收益率14.18%</li>
+                                <li><strong>标准化计算</strong>：320万 × 14.18% = ¥453,854.06</li>
+                                <li><strong>对比基准</strong>：期望收益率4.10% × 320万 = ¥131,200</li>
+                            </ul>
+                            <p class="mb-0">这样可以公平地比较不同规模投资的收益表现，消除本金差异的影响。</p>
+                        </div>
+                        
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-chart-line me-2"></i>布局修复说明</h6>
+                            <p class="mb-0">已修复HTML结构中多余的&lt;/div&gt;标签，现在四个对比卡片正确地排列在一行中。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 响应式测试 -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">响应式布局测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>在不同屏幕尺寸下的布局表现：</p>
+                        <ul>
+                            <li><strong>大屏幕 (≥992px)</strong>：4个卡片一行显示 (col-lg-3)</li>
+                            <li><strong>中等屏幕 (≥768px)</strong>：2个卡片一行显示 (col-md-6)</li>
+                            <li><strong>小屏幕 (&lt;768px)</strong>：1个卡片一行显示</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加载状态修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>加载状态修复测试</h2>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试场景</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-primary mb-2" onclick="testNormalLoading()">正常加载测试</button>
+                        <button class="btn btn-warning mb-2" onclick="testErrorLoading()">错误加载测试</button>
+                        <button class="btn btn-danger mb-2" onclick="testStuckLoading()">卡住加载测试</button>
+                        <button class="btn btn-success mb-2" onclick="forceHideLoading()">强制隐藏加载</button>
+                        <button class="btn btn-info mb-2" onclick="testEditTrade()">模拟编辑交易</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results">
+                            <p class="text-muted">点击测试按钮查看结果</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>控制台日志</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="console-log" style="height: 300px; overflow-y: auto; background: #f8f9fa; padding: 10px; font-family: monospace; font-size: 12px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast容器 -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    
+    <script>
+        // 模拟API客户端
+        const mockApiClient = {
+            async getTradeWithProfitTargets(tradeId) {
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        if (tradeId === 'error') {
+                            reject(new Error('模拟API错误'));
+                        } else if (tradeId === 'stuck') {
+                            // 永远不resolve，模拟卡住的情况
+                            return;
+                        } else {
+                            resolve({
+                                success: true,
+                                data: {
+                                    id: tradeId,
+                                    stock_code: '000001',
+                                    stock_name: '平安银行',
+                                    trade_type: 'buy',
+                                    price: 20.00,
+                                    quantity: 1000,
+                                    trade_date: '2025-01-18',
+                                    use_batch_profit_taking: true,
+                                    stop_loss_price: 18.00,
+                                    profit_targets: [
+                                        { target_price: 22.00, sell_ratio: 50 },
+                                        { target_price: 24.00, sell_ratio: 50 }
+                                    ]
+                                }
+                            });
+                        }
+                    }, 2000);
+                });
+            }
+        };
+
+        // 模拟交易管理器
+        class MockTradingManager {
+            constructor() {
+                this.editingTradeId = null;
+            }
+
+            async editTrade(tradeId) {
+                logToConsole(`开始编辑交易记录: ${tradeId}`);
+                let loadingShown = false;
+                
+                try {
+                    logToConsole('显示全局加载状态...');
+                    UXUtils.showGlobalLoading('加载交易记录...');
+                    loadingShown = true;
+                    
+                    logToConsole('获取交易数据...');
+                    const response = await mockApiClient.getTradeWithProfitTargets(tradeId);
+                    logToConsole('交易数据获取成功:', response);
+
+                    if (response.success) {
+                        const trade = response.data;
+                        this.editingTradeId = tradeId;
+                        
+                        logToConsole('填充表单数据...');
+                        await this.populateBuySettings(trade);
+                        
+                        // 确保在显示模态框前隐藏加载状态
+                        if (loadingShown) {
+                            UXUtils.hideGlobalLoading();
+                            loadingShown = false;
+                            logToConsole('在显示模态框前隐藏加载状态');
+                        }
+                        
+                        logToConsole('模拟显示模态框...');
+                        addTestResult('success', `编辑交易记录 ${tradeId} 成功`);
+                    } else {
+                        throw new Error(response.message || '获取交易记录失败');
+                    }
+                } catch (error) {
+                    logToConsole('编辑交易记录失败:', error);
+                    addTestResult('error', `编辑交易记录失败: ${error.message}`);
+                } finally {
+                    logToConsole('finally块 - 隐藏加载状态...');
+                    if (loadingShown) {
+                        UXUtils.hideGlobalLoading();
+                        logToConsole('在finally块中隐藏加载状态');
+                    }
+                    logToConsole('editTrade完成');
+                }
+            }
+
+            async populateBuySettings(trade) {
+                logToConsole('开始填充买入设置:', trade);
+                try {
+                    // 模拟一些可能失败的异步操作
+                    if (trade.id === 'error') {
+                        throw new Error('模拟买入设置加载失败');
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    logToConsole('买入设置填充完成');
+                } catch (error) {
+                    logToConsole('买入设置填充失败:', error);
+                    // 不重新抛出错误，让主流程继续
+                }
+            }
+
+            forceHideGlobalLoading() {
+                logToConsole('强制隐藏全局加载状态...');
+                
+                // 调用标准的隐藏方法
+                if (typeof UXUtils !== 'undefined' && UXUtils.hideGlobalLoading) {
+                    UXUtils.hideGlobalLoading();
+                }
+                
+                // 强制清理所有可能的加载遮罩
+                const overlays = document.querySelectorAll('#global-loading-overlay, .loading-overlay, [id*="loading"], [class*="loading"]');
+                overlays.forEach(overlay => {
+                    if (overlay.style) {
+                        overlay.style.display = 'none';
+                    }
+                    try {
+                        if (overlay.parentNode) {
+                            overlay.parentNode.removeChild(overlay);
+                        }
+                    } catch (e) {
+                        logToConsole('移除遮罩失败:', e);
+                    }
+                });
+                
+                // 清理Bootstrap模态背景
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => {
+                    try {
+                        backdrop.remove();
+                    } catch (e) {
+                        logToConsole('移除背景失败:', e);
+                    }
+                });
+                
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+                
+                logToConsole('强制隐藏完成');
+                addTestResult('success', '强制隐藏加载状态成功');
+            }
+        }
+
+        const mockTradingManager = new MockTradingManager();
+
+        // 测试函数
+        function testNormalLoading() {
+            logToConsole('=== 开始正常加载测试 ===');
+            UXUtils.showGlobalLoading('正常加载测试...');
+            
+            setTimeout(() => {
+                UXUtils.hideGlobalLoading();
+                addTestResult('success', '正常加载测试完成');
+                logToConsole('=== 正常加载测试完成 ===');
+            }, 3000);
+        }
+
+        function testErrorLoading() {
+            logToConsole('=== 开始错误加载测试 ===');
+            mockTradingManager.editTrade('error');
+        }
+
+        function testStuckLoading() {
+            logToConsole('=== 开始卡住加载测试 ===');
+            mockTradingManager.editTrade('stuck');
+            
+            // 15秒后检查是否自动清理
+            setTimeout(() => {
+                const overlay = document.getElementById('global-loading-overlay');
+                if (overlay && overlay.style.display !== 'none') {
+                    addTestResult('warning', '加载状态未自动清理，需要手动处理');
+                } else {
+                    addTestResult('success', '加载状态已自动清理');
+                }
+            }, 16000);
+        }
+
+        function forceHideLoading() {
+            logToConsole('=== 开始强制隐藏测试 ===');
+            mockTradingManager.forceHideGlobalLoading();
+        }
+
+        function testEditTrade() {
+            logToConsole('=== 开始编辑交易测试 ===');
+            mockTradingManager.editTrade('123');
+        }
+
+        // 工具函数
+        function logToConsole(message, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('console-log');
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span class="text-muted">[${timestamp}]</span> ${message}`;
+            if (data) {
+                logEntry.innerHTML += ` <span class="text-info">${JSON.stringify(data)}</span>`;
+            }
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            // 同时输出到浏览器控制台
+            if (data) {
+                console.log(`[${timestamp}] ${message}`, data);
+            } else {
+                console.log(`[${timestamp}] ${message}`);
+            }
+        }
+
+        function addTestResult(type, message) {
+            const resultsElement = document.getElementById('test-results');
+            const resultEntry = document.createElement('div');
+            const iconClass = {
+                'success': 'bi-check-circle text-success',
+                'error': 'bi-x-circle text-danger',
+                'warning': 'bi-exclamation-triangle text-warning',
+                'info': 'bi-info-circle text-info'
+            }[type] || 'bi-info-circle text-info';
+            
+            resultEntry.className = 'mb-2';
+            resultEntry.innerHTML = `
+                <i class="bi ${iconClass} me-2"></i>
+                <span class="text-${type === 'error' ? 'danger' : type === 'warning' ? 'warning' : type === 'success' ? 'success' : 'info'}">${message}</span>
+                <small class="text-muted ms-2">${new Date().toLocaleTimeString()}</small>
+            `;
+            
+            resultsElement.appendChild(resultEntry);
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            logToConsole('页面加载完成，开始初始化测试环境');
+            addTestResult('info', '测试环境初始化完成');
+            
+            // 检查UXUtils是否可用
+            if (typeof UXUtils !== 'undefined') {
+                addTestResult('success', 'UXUtils加载成功');
+            } else {
+                addTestResult('error', 'UXUtils加载失败');
+            }
+        });
+    </script>
+</body>
+</html>

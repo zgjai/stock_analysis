@@ -53,11 +53,11 @@ def insert_initial_data():
             return True
         
         # 插入买入原因配置
-        buy_reasons = ["少妇B1战法", "少妇SB1战法", "少妇B2战法", "单针二十战法"]
+        buy_reasons = ["少妇B1战法", "少妇SB1战法", "少妇B2战法", "单针二十战法", "不符合交易纪律"]
         Configuration.set_value('buy_reasons', buy_reasons, '买入原因选项')
         
         # 插入卖出原因配置
-        sell_reasons = ["部分止盈", "止损", "下等马/草泥马"]
+        sell_reasons = ["部分止盈", "止损", "下等马/草泥马", "见顶信号", "不符合交易纪律"]
         Configuration.set_value('sell_reasons', sell_reasons, '卖出原因选项')
         
         # 插入默认交易策略

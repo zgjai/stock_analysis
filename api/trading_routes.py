@@ -76,60 +76,107 @@ def get_trades():
 def create_trade():
     """创建交易记录"""
     try:
+        # 添加详细的请求数据日志
+        current_app.logger.info("=== 开始处理交易记录创建请求 ===")
+        
+        # 记录原始请求数据
+        raw_data = request.get_data(as_text=True)
+        current_app.logger.info(f"原始请求数据: {raw_data}")
+        
         data = request.get_json()
+        current_app.logger.info(f"解析后的JSON数据: {data}")
         
         if not data:
+            current_app.logger.error("请求数据为空")
             raise ValidationError("请求数据不能为空")
+        
+        # 记录数据类型和结构
+        current_app.logger.info(f"数据类型: {type(data)}")
+        current_app.logger.info(f"数据键: {list(data.keys()) if isinstance(data, dict) else 'Not a dict'}")
         
         # 必填字段验证 - 更宽松的验证逻辑
         required_fields = ['stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 'reason']
+        current_app.logger.info(f"开始验证必填字段: {required_fields}")
+        
         for field in required_fields:
+            current_app.logger.info(f"验证字段: {field}")
+            
             # 检查字段是否存在
             if field not in data:
+                current_app.logger.error(f"缺少必填字段: {field}")
                 raise ValidationError(f"缺少必填字段: {field}")
             
             # 获取字段值
             value = data[field]
+            current_app.logger.info(f"字段 {field} 的值: {value} (类型: {type(value)})")
             
             # 处理None值
             if value is None:
+                current_app.logger.error(f"字段 {field} 为None")
                 raise ValidationError(f"{field}不能为空")
             
             # 处理字符串值
             if isinstance(value, str):
                 value = value.strip()
+                current_app.logger.info(f"字段 {field} 去除空格后: '{value}'")
                 if value == '':
+                    current_app.logger.error(f"字段 {field} 为空字符串")
                     raise ValidationError(f"{field}不能为空")
                 # 更新处理后的值
                 data[field] = value
             
-            # 处理数值字段
-            elif field in ['price', 'quantity']:
+            # 处理数值字段 - 无论原始类型是什么都尝试转换
+            if field in ['price', 'quantity']:
+                current_app.logger.info(f"开始转换数值字段 {field}: {value}")
                 try:
                     if field == 'price':
-                        data[field] = float(value)
+                        converted_value = float(value)
+                        data[field] = converted_value
+                        current_app.logger.info(f"价格转换成功: {converted_value}")
                     elif field == 'quantity':
-                        data[field] = int(value)
-                except (ValueError, TypeError):
+                        converted_value = int(value)
+                        data[field] = converted_value
+                        current_app.logger.info(f"数量转换成功: {converted_value}")
+                except (ValueError, TypeError) as e:
+                    current_app.logger.error(f"数值转换失败 {field}: {e}")
                     raise ValidationError(f"{field}格式不正确")
         
+        # 记录分批止盈相关字段
+        if 'use_batch_profit_taking' in data:
+            current_app.logger.info(f"使用分批止盈: {data['use_batch_profit_taking']}")
+        if 'profit_targets' in data:
+            current_app.logger.info(f"止盈目标: {data['profit_targets']}")
+        
         # 设置交易日期（如果未提供）
+        current_app.logger.info("处理交易日期")
         if 'trade_date' not in data or not data['trade_date']:
             data['trade_date'] = datetime.now()
+            current_app.logger.info(f"设置默认交易日期: {data['trade_date']}")
         elif isinstance(data['trade_date'], str):
             try:
                 data['trade_date'] = datetime.fromisoformat(data['trade_date'].replace('Z', '+00:00'))
-            except ValueError:
+                current_app.logger.info(f"解析交易日期成功: {data['trade_date']}")
+            except ValueError as e:
+                current_app.logger.error(f"交易日期解析失败: {e}")
                 raise ValidationError("交易日期格式不正确")
         
+        # 记录最终处理后的数据
+        current_app.logger.info(f"最终处理后的数据: {data}")
+        
         # 创建交易记录
+        current_app.logger.info("开始调用 TradingService.create_trade")
         trade = TradingService.create_trade(data)
+        current_app.logger.info(f"交易记录创建成功，ID: {trade.id}")
         
         # 如果使用分批止盈，返回包含止盈目标的详细信息
         if trade.use_batch_profit_taking:
+            current_app.logger.info("获取包含止盈目标的详细信息")
             trade_data = TradingService.get_trade_with_profit_targets(trade.id)
         else:
+            current_app.logger.info("获取基本交易信息")
             trade_data = trade.to_dict()
+        
+        current_app.logger.info("=== 交易记录创建请求处理完成 ===")
         
         return create_success_response(
             data=trade_data,
@@ -137,6 +184,10 @@ def create_trade():
         ), 201
     
     except Exception as e:
+        current_app.logger.error(f"创建交易记录时发生错误: {str(e)}")
+        current_app.logger.error(f"错误类型: {type(e)}")
+        import traceback
+        current_app.logger.error(f"错误堆栈: {traceback.format_exc()}")
         raise e
 
 
@@ -680,6 +731,52 @@ def ensure_compatibility():
         return create_success_response(
             data=result,
             message='兼容性处理完成'
+        )
+    
+    except Exception as e:
+        raise e
+
+
+@api_bp.route('/trades/current-holdings', methods=['GET'])
+def get_current_holdings_for_trading():
+    """获取当前持仓列表，用于卖出操作的股票选择
+    
+    Requirements: 3.2
+    - 为卖出操作提供股票选择
+    """
+    try:
+        from services.analytics_service import AnalyticsService
+        from models.trade_record import TradeRecord
+        
+        # 获取所有未订正的交易记录
+        trades = TradeRecord.query.filter_by(is_corrected=False).all()
+        
+        # 计算当前持仓
+        holdings = AnalyticsService._calculate_current_holdings(trades)
+        
+        # 转换为适合前端使用的格式
+        holdings_list = []
+        for stock_code, holding in holdings.items():
+            holdings_list.append({
+                'stock_code': stock_code,
+                'stock_name': holding['stock_name'],
+                'quantity': holding['quantity'],
+                'avg_cost': round(holding['avg_cost'], 2),
+                'current_price': round(holding['current_price'], 2),
+                'market_value': round(holding['market_value'], 2),
+                'profit_amount': round(holding['profit_amount'], 2),
+                'profit_rate': round(holding['profit_rate'] * 100, 2)
+            })
+        
+        # 按股票代码排序
+        holdings_list.sort(key=lambda x: x['stock_code'])
+        
+        return create_success_response(
+            data={
+                'holdings': holdings_list,
+                'total_count': len(holdings_list)
+            },
+            message='获取当前持仓成功'
         )
     
     except Exception as e:

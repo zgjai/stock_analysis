@@ -259,12 +259,12 @@ class ReviewService(BaseService):
             # 格式化显示
             if profit_ratio > 0:
                 formatted_ratio = f'+{profit_ratio * 100:.2f}%'
-                color_class = 'text-success'
+                color_class = 'text-danger'
                 is_profit = True
                 is_loss = False
             elif profit_ratio < 0:
                 formatted_ratio = f'{profit_ratio * 100:.2f}%'
-                color_class = 'text-danger'
+                color_class = 'text-success'
                 is_profit = False
                 is_loss = True
             else:
@@ -490,9 +490,18 @@ class HoldingService:
                     # 获取最新复盘记录
                     latest_review = ReviewService.get_latest_review_by_stock(stock_code)
                     
-                    # 计算持仓天数
+                    # 获取当前持仓的实际开始日期
+                    current_holding_start_date = cls._get_current_holding_start_date(stock_code)
+                    
+                    # 计算实际持仓交易日数
+                    actual_holding_days = cls._calculate_actual_holding_days(
+                        current_holding_start_date,
+                        latest_review.holding_days if latest_review else None
+                    )
+                    
+                    # 保持原有的持仓天数计算（兼容性）
                     holding_days = cls._calculate_holding_days(
-                        buy_record.first_buy_date,
+                        current_holding_start_date,
                         latest_review.holding_days if latest_review else None
                     )
                     
@@ -508,16 +517,17 @@ class HoldingService:
                         'avg_buy_price': float(buy_record.avg_buy_price),
                         'avg_price': float(buy_record.avg_buy_price),  # 兼容字段
                         'current_price': current_price,
-                        'first_buy_date': buy_record.first_buy_date.isoformat(),
+                        'first_buy_date': current_holding_start_date.isoformat(),
                         'last_buy_date': buy_record.last_buy_date.isoformat(),
-                        'holding_days': holding_days,
+                        'holding_days': holding_days,  # 原有字段（兼容性）
+                        'actual_holding_days': actual_holding_days,  # 新增：实际交易日数
                         'latest_review': latest_review.to_dict() if latest_review else None
                     }
                     
                     holdings.append(holding)
             
-            # 按持仓天数倒序排列
-            holdings.sort(key=lambda x: x['holding_days'], reverse=True)
+            # 按实际持仓天数倒序排列
+            holdings.sort(key=lambda x: x['actual_holding_days'], reverse=True)
             
             return holdings
             
@@ -647,16 +657,112 @@ class HoldingService:
             raise DatabaseError(f"删除持仓天数失败: {str(e)}")
     
     @classmethod
+    def _get_current_holding_start_date(cls, stock_code: str) -> datetime:
+        """获取当前持仓的实际开始日期
+        
+        逻辑：
+        1. 按时间顺序处理所有交易记录
+        2. 跟踪累计持仓数量
+        3. 当累计持仓归零后，下一次买入就是新持仓的开始
+        """
+        try:
+            # 获取该股票所有未订正的交易记录，按时间排序
+            records = TradeRecord.query.filter(
+                and_(
+                    TradeRecord.stock_code == stock_code,
+                    TradeRecord.is_corrected == False
+                )
+            ).order_by(TradeRecord.trade_date, TradeRecord.id).all()
+            
+            if not records:
+                raise ValueError(f"股票 {stock_code} 没有找到交易记录")
+            
+            cumulative_quantity = 0
+            current_holding_start = None
+            
+            for record in records:
+                if record.trade_type == 'buy':
+                    # 如果当前没有持仓，这次买入就是新持仓的开始
+                    if cumulative_quantity == 0:
+                        current_holding_start = record.trade_date
+                    cumulative_quantity += record.quantity
+                elif record.trade_type == 'sell':
+                    cumulative_quantity -= record.quantity
+                    # 如果卖出后持仓归零，重置开始日期
+                    if cumulative_quantity <= 0:
+                        current_holding_start = None
+                        cumulative_quantity = 0  # 防止负数
+            
+            # 如果当前有持仓但没有找到开始日期，使用最早的买入日期
+            if current_holding_start is None and cumulative_quantity > 0:
+                first_buy = next((r for r in records if r.trade_type == 'buy'), None)
+                if first_buy:
+                    current_holding_start = first_buy.trade_date
+                    logger.warning(f"股票 {stock_code} 无法确定当前持仓开始日期，使用最早买入日期: {current_holding_start}")
+            
+            if current_holding_start is None:
+                raise ValueError(f"股票 {stock_code} 无法确定当前持仓开始日期")
+            
+            logger.debug(f"股票 {stock_code} 当前持仓开始日期: {current_holding_start}")
+            return current_holding_start
+            
+        except Exception as e:
+            logger.error(f"获取股票 {stock_code} 当前持仓开始日期失败: {e}")
+            # 回退到使用最早买入日期
+            first_buy = TradeRecord.query.filter(
+                and_(
+                    TradeRecord.stock_code == stock_code,
+                    TradeRecord.trade_type == 'buy',
+                    TradeRecord.is_corrected == False
+                )
+            ).order_by(TradeRecord.trade_date).first()
+            
+            if first_buy:
+                return first_buy.trade_date
+            else:
+                raise DatabaseError(f"股票 {stock_code} 没有找到买入记录")
+    
+    @classmethod
     def _calculate_holding_days(cls, first_buy_date: datetime, manual_holding_days: Optional[int]) -> int:
-        """计算持仓天数"""
+        """计算持仓天数（仅计算交易日）"""
         if manual_holding_days is not None:
             return manual_holding_days
         
-        # 如果没有手动设置，则根据首次买入日期计算
+        # 如果没有手动设置，则根据首次买入日期计算实际交易日数
         if isinstance(first_buy_date, datetime):
             first_buy_date = first_buy_date.date()
         
-        return (date.today() - first_buy_date).days + 1
+        try:
+            # 使用非交易日服务计算实际交易日数
+            from services.non_trading_day_service import NonTradingDayService
+            return NonTradingDayService.calculate_holding_days(first_buy_date, date.today())
+        except Exception as e:
+            logger.warning(f"使用非交易日服务计算持仓天数失败: {e}，使用简单日期计算")
+            # 如果非交易日服务不可用，回退到简单计算
+            return (date.today() - first_buy_date).days + 1
+    
+    @classmethod
+    def _calculate_actual_holding_days(cls, first_buy_date: datetime, manual_holding_days: Optional[int]) -> int:
+        """计算实际持仓交易日数（集成非交易日计算功能）"""
+        if manual_holding_days is not None:
+            return manual_holding_days
+        
+        # 如果没有手动设置，则根据首次买入日期计算实际交易日数
+        if isinstance(first_buy_date, datetime):
+            first_buy_date = first_buy_date.date()
+        
+        try:
+            # 使用非交易日服务计算实际交易日数
+            from services.non_trading_day_service import NonTradingDayService
+            actual_days = NonTradingDayService.calculate_holding_days(first_buy_date, date.today())
+            logger.debug(f"计算实际持仓天数: {first_buy_date} 到 {date.today()} = {actual_days} 个交易日")
+            return actual_days
+        except Exception as e:
+            logger.warning(f"使用非交易日服务计算实际持仓天数失败: {e}，使用简单日期计算")
+            # 如果非交易日服务不可用，回退到简单计算
+            simple_days = (date.today() - first_buy_date).days + 1
+            logger.debug(f"简单计算持仓天数: {first_buy_date} 到 {date.today()} = {simple_days} 天")
+            return simple_days
     
     # 价格缓存，避免重复调用
     _price_cache = {}
@@ -725,6 +831,43 @@ class HoldingService:
             return None
     
     @classmethod
+    def get_current_holdings_with_actual_days(cls, force_refresh_prices: bool = False) -> List[Dict[str, Any]]:
+        """获取当前持仓及实际持仓交易日数"""
+        try:
+            holdings = cls.get_current_holdings(force_refresh_prices)
+            
+            # 为每个持仓添加实际交易日数信息
+            for holding in holdings:
+                # 已经在get_current_holdings中计算了actual_holding_days
+                # 这里添加额外的格式化信息
+                actual_days = holding.get('actual_holding_days', 0)
+                holding['holding_days_display'] = f"{actual_days} 个交易日"
+                holding['holding_days_tooltip'] = f"实际持仓 {actual_days} 个交易日（不含周末及节假日）"
+            
+            return holdings
+            
+        except Exception as e:
+            raise DatabaseError(f"获取当前持仓及实际持仓天数失败: {str(e)}")
+    
+    @classmethod
+    def get_earliest_buy_date(cls, stock_code: str) -> Optional[date]:
+        """获取股票的最早买入日期"""
+        try:
+            earliest_record = TradeRecord.query.filter(
+                and_(
+                    TradeRecord.stock_code == stock_code,
+                    TradeRecord.trade_type == 'buy',
+                    TradeRecord.is_corrected == False
+                )
+            ).order_by(TradeRecord.trade_date.asc()).first()
+            
+            if earliest_record:
+                return earliest_record.trade_date.date() if isinstance(earliest_record.trade_date, datetime) else earliest_record.trade_date
+            
+            return None
+            
+        except Exception as e:
+            raise DatabaseError(f"获取最早买入日期失败: {str(e)}")
     
     @classmethod
     def refresh_all_holdings_prices(cls, stock_codes: List[str]) -> Dict[str, Any]:

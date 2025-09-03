@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>紧急验证测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .test-result {
+            background: #212529;
+            color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>🚨 紧急验证测试</h1>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>测试表单</h5>
+            </div>
+            <div class="card-body">
+                <form id="emergency-test-form">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">股票代码</label>
+                            <input type="text" class="form-control" name="stock_code" value="000001" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">股票名称</label>
+                            <input type="text" class="form-control" name="stock_name" value="平安银行" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">交易类型</label>
+                            <select class="form-select" name="trade_type" required>
+                                <option value="buy" selected>买入</option>
+                                <option value="sell">卖出</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">价格</label>
+                            <input type="number" class="form-control" name="price" value="10.50" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <label class="form-label">数量</label>
+                            <input type="number" class="form-control" name="quantity" value="1000" step="100" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">操作原因</label>
+                            <select class="form-select" name="reason" required>
+                                <option value="少妇B1战法" selected>少妇B1战法</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">交易日期</label>
+                            <input type="datetime-local" class="form-control" name="trade_date" required>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-primary" onclick="testFormData()">测试表单数据</button>
+                        <button type="button" class="btn btn-success" onclick="testApiCall()">测试API调用</button>
+                        <button type="button" class="btn btn-danger" onclick="testEmptyFields()">测试空字段</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>测试结果</h5>
+            </div>
+            <div class="card-body">
+                <div id="test-output" class="test-result">等待测试...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        // 设置当前时间
+        document.querySelector('[name="trade_date"]').value = new Date().toISOString().slice(0, 16);
+        
+        function log(message) {
+            const output = document.getElementById('test-output');
+            const time = new Date().toLocaleTimeString();
+            output.textContent += `[${time}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function clear() {
+            document.getElementById('test-output').textContent = '';
+        }
+        
+        // FormUtils.serialize 实现
+        const FormUtils = {
+            serialize: (form) => {
+                const formData = new FormData(form);
+                const data = {};
+                for (let [key, value] of formData.entries()) {
+                    data[key] = value;
+                }
+                return data;
+            }
+        };
+        
+        function testFormData() {
+            clear();
+            log('=== 测试表单数据获取 ===');
+            
+            const form = document.getElementById('emergency-test-form');
+            const data = FormUtils.serialize(form);
+            
+            log('表单数据:');
+            log(JSON.stringify(data, null, 2));
+            
+            // 验证必填字段
+            const required = ['stock_code', 'stock_name', 'trade_type', 'price', 'quantity', 'reason'];
+            let valid = true;
+            
+            log('\n必填字段检查:');
+            required.forEach(field => {
+                const value = data[field];
+                const isEmpty = !value || value.toString().trim() === '';
+                log(`${field}: ${isEmpty ? '❌ 空' : '✅ 有值'} ("${value}")`);
+                if (isEmpty) valid = false;
+            });
+            
+            log(`\n验证结果: ${valid ? '✅ 通过' : '❌ 失败'}`);
+        }
+        
+        async function testApiCall() {
+            clear();
+            log('=== 测试API调用 ===');
+            
+            const form = document.getElementById('emergency-test-form');
+            const data = FormUtils.serialize(form);
+            
+            // 数据预处理
+            if (data.price) data.price = parseFloat(data.price);
+            if (data.quantity) data.quantity = parseInt(data.quantity);
+            
+            log('发送数据:');
+            log(JSON.stringify(data, null, 2));
+            
+            try {
+                const response = await axios.post('/api/trades', data, {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 10000
+                });
+                
+                log('\n✅ API调用成功!');
+                log('响应: ' + JSON.stringify(response.data, null, 2));
+                
+            } catch (error) {
+                log('\n❌ API调用失败!');
+                if (error.response) {
+                    log(`状态码: ${error.response.status}`);
+                    log('错误详情: ' + JSON.stringify(error.response.data, null, 2));
+                } else {
+                    log('错误: ' + error.message);
+                }
+            }
+        }
+        
+        function testEmptyFields() {
+            clear();
+            log('=== 测试空字段处理 ===');
+            
+            const form = document.getElementById('emergency-test-form');
+            
+            // 临时清空一些字段
+            const stockCode = form.querySelector('[name="stock_code"]');
+            const originalValue = stockCode.value;
+            stockCode.value = '';
+            
+            const data = FormUtils.serialize(form);
+            log('空字段测试数据:');
+            log(JSON.stringify(data, null, 2));
+            
+            // 恢复原值
+            stockCode.value = originalValue;
+            
+            log('\n空字段检测:');
+            Object.keys(data).forEach(key => {
+                const value = data[key];
+                const isEmpty = !value || value.toString().trim() === '';
+                if (isEmpty) {
+                    log(`❌ ${key} 为空`);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

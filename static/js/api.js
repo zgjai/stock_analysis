@@ -169,9 +169,7 @@ if (typeof window.ApiClient === 'undefined') {
         return this.request('GET', '/holdings');
     }
 
-    async getHoldingAlerts() {
-        return this.request('GET', '/holdings/alerts');
-    }
+    // Removed getHoldingAlerts method as holding alerts module has been removed
 
     // 持仓天数更新API - 需求1
     async updateHoldingDays(stockCode, holdingDays) {
@@ -328,6 +326,10 @@ if (typeof window.ApiClient === 'undefined') {
 
     async exportAnalytics() {
         return this.request('GET', '/analytics/export');
+    }
+
+    async getExpectationComparison(params = {}) {
+        return this.request('GET', '/analytics/expectation-comparison', params);
     }
 
     // 股票价格相关API

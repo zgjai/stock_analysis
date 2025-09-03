@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务7 - 未保存更改警告机制测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>任务7 - 未保存更改警告机制测试</h1>
+        
+        <div class="card">
+            <div class="card-body">
+                <button class="btn btn-primary" onclick="testWarningMechanisms()">测试警告机制</button>
+                <div id="test-results" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 复盘模态框 -->
+    <div class="modal fade" id="reviewModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">复盘评分</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="review-form">
+                        <div class="mb-3">
+                            <label class="form-label">决策理由</label>
+                            <textarea class="form-control" id="reason" rows="2" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary">保存复盘</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/unified-message-system.js"></script>
+    <script src="static/js/api.js"></script>
+    <script src="static/js/review-save-manager.js"></script>
+    
+    <script>
+        let reviewSaveManager = null;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化保存管理器
+            if (typeof ReviewSaveManager !== 'undefined') {
+                reviewSaveManager = new ReviewSaveManager('#review-form');
+                console.log('✅ 保存管理器初始化成功');
+            }
+        });
+
+        function testWarningMechanisms() {
+            const results = document.getElementById('test-results');
+            let html = '<h5>测试结果:</h5>';
+            
+            // 测试1: 检查beforeunload警告
+            if (reviewSaveManager) {
+                html += '<div class="alert alert-success">✅ 保存管理器已初始化</div>';
+                
+                // 模拟表单变化
+                const reasonField = document.getElementById('reason');
+                if (reasonField) {
+                    reasonField.value = '测试内容';
+                    reasonField.dispatchEvent(new Event('input'));
+                    
+                    setTimeout(() => {
+                        if (reviewSaveManager.hasUnsavedChanges) {
+                            html += '<div class="alert alert-success">✅ 未保存更改检测正常</div>';
+                        } else {
+                            html += '<div class="alert alert-danger">❌ 未保存更改检测失败</div>';
+                        }
+                        results.innerHTML = html;
+                    }, 500);
+                }
+            } else {
+                html += '<div class="alert alert-danger">❌ 保存管理器未初始化</div>';
+            }
+            
+            results.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>收益分布配置 - 股票交易记录系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .config-item {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+        .config-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .config-item.inactive {
+            opacity: 0.6;
+            background: #e9ecef;
+        }
+        .drag-handle {
+            cursor: move;
+            color: #6c757d;
+        }
+        .range-display {
+            font-weight: bold;
+            color: #495057;
+        }
+        .profit-analysis-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .distribution-chart {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .chart-bar {
+            height: 30px;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            border-radius: 15px;
+            position: relative;
+            margin-bottom: 10px;
+        }
+        .chart-label {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .chart-value {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-chart-line me-2"></i>股票交易记录系统
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/dashboard">仪表板</a>
+                <a class="nav-link" href="/trading">交易记录</a>
+                <a class="nav-link" href="/review">复盘分析</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="fas fa-cog me-2"></i>收益分布配置</h2>
+                    <div>
+                        <button class="btn btn-success me-2" onclick="showAddConfigModal()">
+                            <i class="fas fa-plus me-1"></i>添加区间
+                        </button>
+                        <button class="btn btn-warning me-2" onclick="resetToDefault()">
+                            <i class="fas fa-undo me-1"></i>重置默认
+                        </button>
+                        <button class="btn btn-info" onclick="refreshAnalysis()">
+                            <i class="fas fa-sync me-1"></i>刷新分析
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 收益分布分析结果 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="profit-analysis-card">
+                    <h4><i class="fas fa-chart-pie me-2"></i>收益分布分析</h4>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h5 id="totalTrades">-</h5>
+                                <small>总交易数</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h5 id="totalProfit">-</h5>
+                                <small>总收益</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h5 id="avgProfitRate">-</h5>
+                                <small>平均收益率</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h5 id="winRate">-</h5>
+                                <small>胜率</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 配置列表 -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-list me-2"></i>收益区间配置</h5>
+                        <small class="text-muted">拖拽调整顺序</small>
+                    </div>
+                    <div class="card-body">
+                        <div id="configsList">
+                            <!-- 配置项将通过JavaScript动态加载 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分布图表 -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-bar me-2"></i>分布图表</h5>
+                        <div class="form-check form-switch d-inline-block ms-3">
+                            <input class="form-check-input" type="checkbox" id="useTradePairs" checked>
+                            <label class="form-check-label" for="useTradePairs">
+                                使用交易配对分析
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="distributionChart" class="distribution-chart">
+                            <!-- 图表将通过JavaScript动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑配置模态框 -->
+    <div class="modal fade" id="configModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="configModalTitle">添加收益区间</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="configForm">
+                        <input type="hidden" id="configId">
+                        <div class="mb-3">
+                            <label for="rangeName" class="form-label">区间名称 *</label>
+                            <input type="text" class="form-control" id="rangeName" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="minProfitRate" class="form-label">最小收益率</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="minProfitRate" step="0.01" placeholder="留空表示无下限">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="maxProfitRate" class="form-label">最大收益率</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="maxProfitRate" step="0.01" placeholder="留空表示无上限">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3 mt-3">
+                            <label for="sortOrder" class="form-label">排序顺序</label>
+                            <input type="number" class="form-control" id="sortOrder" min="0" value="0">
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="isActive" checked>
+                            <label class="form-check-label" for="isActive">
+                                启用此配置
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveConfig()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">系统通知</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastBody">
+                <!-- 消息内容 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="{{ url_for('static', filename='js/profit-distribution-config.js') }}"></script>
+</body>
+</html>

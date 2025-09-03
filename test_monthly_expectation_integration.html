@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>月度期望收益对比功能测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <h2><i class="fas fa-vial me-2"></i>月度期望收益对比功能测试</h2>
+                <p class="text-muted">测试新增的月度期望收益对比功能是否正常工作</p>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">功能测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>API测试</h6>
+                                <button class="btn btn-primary me-2" onclick="testMonthlyExpectationsAPI()">
+                                    测试月度期望API
+                                </button>
+                                <button class="btn btn-success me-2" onclick="testMonthlyComparisonAPI()">
+                                    测试月度对比API
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>前端测试</h6>
+                                <button class="btn btn-info me-2" onclick="testFrontendIntegration()">
+                                    测试前端集成
+                                </button>
+                                <button class="btn btn-warning" onclick="clearResults()">
+                                    清空结果
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results">
+                            <p class="text-muted">点击上方按钮开始测试...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 功能演示区域 -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-calendar-alt me-2"></i>月度期望收益对比演示
+                        </h5>
+                        <button class="btn btn-outline-primary btn-sm" onclick="loadDemoData()">
+                            <i class="fas fa-sync-alt me-1"></i>加载演示数据
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- 左侧：月份选择 -->
+                            <div class="col-md-4">
+                                <h6 class="mb-3">选择月份</h6>
+                                <div id="demo-monthly-list" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-mouse-pointer fa-2x text-muted mb-2"></i>
+                                        <p class="text-muted">点击"加载演示数据"开始</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 右侧：对比详情 -->
+                            <div class="col-md-8">
+                                <div id="demo-comparison-detail">
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                                        <h6 class="text-muted">演示区域</h6>
+                                        <p class="text-muted">加载数据后选择月份查看对比详情</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let testResults = [];
+        let demoData = null;
+
+        // 测试月度期望API
+        async function testMonthlyExpectationsAPI() {
+            addTestResult('开始测试月度期望API...', 'info');
+            
+            try {
+                const response = await fetch('/api/analytics/monthly-expectations');
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    addTestResult(`✅ 月度期望API测试成功`, 'success');
+                    addTestResult(`   - 状态码: ${response.status}`, 'info');
+                    addTestResult(`   - 数据条数: ${result.data.length}`, 'info');
+                    addTestResult(`   - 第一条数据: ${result.data[0]?.month} - ${result.data[0]?.expected_amount}元`, 'info');
+                } else {
+                    addTestResult(`❌ 月度期望API测试失败: ${result.message}`, 'danger');
+                }
+            } catch (error) {
+                addTestResult(`❌ 月度期望API测试异常: ${error.message}`, 'danger');
+            }
+        }
+
+        // 测试月度对比API
+        async function testMonthlyComparisonAPI() {
+            addTestResult('开始测试月度对比API...', 'info');
+            
+            try {
+                // 测试2025年8月
+                const response = await fetch('/api/analytics/monthly-comparison?year=2025&month=8');
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    addTestResult(`✅ 月度对比API测试成功`, 'success');
+                    addTestResult(`   - 状态码: ${response.status}`, 'info');
+                    addTestResult(`   - 对比月份: ${result.data.month_str}`, 'info');
+                    addTestResult(`   - 期望收益: ${result.data.expected.expected_amount}元`, 'info');
+                    addTestResult(`   - 实际收益: ${result.data.actual.realized_profit}元`, 'info');
+                } else {
+                    addTestResult(`❌ 月度对比API测试失败: ${result.message}`, 'danger');
+                }
+            } catch (error) {
+                addTestResult(`❌ 月度对比API测试异常: ${error.message}`, 'danger');
+            }
+        }
+
+        // 测试前端集成
+        async function testFrontendIntegration() {
+            addTestResult('开始测试前端集成...', 'info');
+            
+            // 检查必要的DOM元素
+            const requiredElements = [
+                'monthly-expectation-list',
+                'monthly-comparison-detail',
+                'refresh-monthly-expectation-btn'
+            ];
+            
+            let missingElements = [];
+            requiredElements.forEach(id => {
+                if (!document.getElementById(id)) {
+                    missingElements.push(id);
+                }
+            });
+            
+            if (missingElements.length > 0) {
+                addTestResult(`❌ 前端集成测试失败: 缺少DOM元素 ${missingElements.join(', ')}`, 'danger');
+                addTestResult('   请确保在analytics.html中正确添加了月度期望收益对比的HTML结构', 'warning');
+            } else {
+                addTestResult(`✅ 前端集成测试成功: 所有必要DOM元素都存在`, 'success');
+            }
+            
+            // 检查JavaScript函数
+            if (typeof window.expectationComparisonManager !== 'undefined') {
+                addTestResult(`✅ 期望对比管理器已加载`, 'success');
+                
+                // 检查新增的方法
+                const manager = window.expectationComparisonManager;
+                const requiredMethods = [
+                    'loadMonthlyExpectations',
+                    'renderMonthlyExpectationsList',
+                    'selectMonth',
+                    'loadMonthlyComparison',
+                    'renderMonthlyComparisonDetail',
+                    'formatCurrency'
+                ];
+                
+                let missingMethods = [];
+                requiredMethods.forEach(method => {
+                    if (typeof manager[method] !== 'function') {
+                        missingMethods.push(method);
+                    }
+                });
+                
+                if (missingMethods.length > 0) {
+                    addTestResult(`❌ 缺少方法: ${missingMethods.join(', ')}`, 'danger');
+                } else {
+                    addTestResult(`✅ 所有必要方法都存在`, 'success');
+                }
+            } else {
+                addTestResult(`❌ 期望对比管理器未加载`, 'danger');
+            }
+        }
+
+        // 加载演示数据
+        async function loadDemoData() {
+            try {
+                const response = await fetch('/api/analytics/monthly-expectations');
+                const result = await response.json();
+                
+                if (result.success) {
+                    demoData = result.data;
+                    renderDemoMonthList();
+                    addTestResult(`✅ 演示数据加载成功: ${demoData.length}条记录`, 'success');
+                } else {
+                    addTestResult(`❌ 演示数据加载失败: ${result.message}`, 'danger');
+                }
+            } catch (error) {
+                addTestResult(`❌ 演示数据加载异常: ${error.message}`, 'danger');
+            }
+        }
+
+        // 渲染演示月份列表
+        function renderDemoMonthList() {
+            const listContainer = document.getElementById('demo-monthly-list');
+            
+            if (!demoData || demoData.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                        <p class="text-muted">暂无演示数据</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            demoData.slice(0, 6).forEach((item, index) => { // 只显示前6个月
+                html += `
+                    <div class="list-group-item list-group-item-action" 
+                         onclick="selectDemoMonth(${index})" 
+                         style="cursor: pointer;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">${item.month}</h6>
+                                <small class="text-muted">期望收益: ${formatCurrency(item.expected_amount)}</small>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">收益率: ${item.expected_rate}%</small><br>
+                                <small class="text-muted">本金: ${formatCurrency(item.start_capital)}</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            listContainer.innerHTML = html;
+        }
+
+        // 选择演示月份
+        async function selectDemoMonth(index) {
+            const selectedMonth = demoData[index];
+            
+            // 解析年月
+            const match = selectedMonth.month.match(/(\d{4})年(\d{2})月/);
+            if (!match) {
+                addTestResult(`❌ 月份格式错误: ${selectedMonth.month}`, 'danger');
+                return;
+            }
+            
+            const year = parseInt(match[1]);
+            const month = parseInt(match[2]);
+            
+            try {
+                const response = await fetch(`/api/analytics/monthly-comparison?year=${year}&month=${month}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderDemoComparisonDetail(result.data);
+                    addTestResult(`✅ 成功加载${selectedMonth.month}的对比数据`, 'success');
+                } else {
+                    addTestResult(`❌ 加载${selectedMonth.month}对比数据失败: ${result.message}`, 'danger');
+                }
+            } catch (error) {
+                addTestResult(`❌ 加载${selectedMonth.month}对比数据异常: ${error.message}`, 'danger');
+            }
+        }
+
+        // 渲染演示对比详情
+        function renderDemoComparisonDetail(data) {
+            const detailContainer = document.getElementById('demo-comparison-detail');
+            
+            const expected = data.expected;
+            const actual = data.actual;
+            const comparison = data.comparison;
+            
+            detailContainer.innerHTML = `
+                <div class="card border-0">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>${data.month_str} 期望与实际对比
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="card border-primary">
+                                    <div class="card-body text-center py-3">
+                                        <h6 class="card-title text-primary mb-2">期望收益</h6>
+                                        <h4 class="text-primary mb-1">${formatCurrency(expected.expected_amount)}</h4>
+                                        <p class="text-muted mb-0 small">收益率: ${expected.expected_rate}%</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-success">
+                                    <div class="card-body text-center py-3">
+                                        <h6 class="card-title text-success mb-2">实际收益</h6>
+                                        <h4 class="${actual.total_profit >= 0 ? 'text-success' : 'text-danger'} mb-1">
+                                            ${formatCurrency(actual.total_profit)}
+                                        </h4>
+                                        <p class="text-muted mb-0 small">收益率: ${(actual.return_rate * 100).toFixed(2)}%</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <h6>对比结果:</h6>
+                            <ul class="mb-0">
+                                <li>收益差异: <strong class="${comparison.amount_diff >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(comparison.amount_diff)}</strong> (${comparison.amount_diff_pct.toFixed(1)}%)</li>
+                                <li>收益率差异: <strong class="${comparison.rate_diff >= 0 ? 'text-success' : 'text-danger'}">${(comparison.rate_diff * 100).toFixed(2)}%</strong> (${comparison.rate_diff_pct.toFixed(1)}%)</li>
+                                <li>交易次数: <strong>${actual.total_trades}</strong></li>
+                                <li>总收益: <strong class="${actual.total_profit >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(actual.total_profit)}</strong> (已实现: ${formatCurrency(actual.realized_profit)}, 未实现: ${formatCurrency(actual.unrealized_profit)})</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 格式化货币
+        function formatCurrency(amount) {
+            if (amount === 0) return '¥0';
+            
+            const absAmount = Math.abs(amount);
+            let formatted;
+            
+            if (absAmount >= 100000000) {
+                formatted = (absAmount / 100000000).toFixed(2) + '亿';
+            } else if (absAmount >= 10000) {
+                formatted = (absAmount / 10000).toFixed(1) + '万';
+            } else {
+                formatted = absAmount.toLocaleString();
+            }
+            
+            return (amount < 0 ? '-¥' : '¥') + formatted;
+        }
+
+        // 添加测试结果
+        function addTestResult(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            testResults.push({ message, type, timestamp });
+            
+            const resultsContainer = document.getElementById('test-results');
+            const alertClass = type === 'info' ? 'primary' : type;
+            
+            resultsContainer.innerHTML += `
+                <div class="alert alert-${alertClass} alert-sm mb-2">
+                    <small class="text-muted">[${timestamp}]</small> ${message}
+                </div>
+            `;
+            
+            // 滚动到底部
+            resultsContainer.scrollTop = resultsContainer.scrollHeight;
+        }
+
+        // 清空结果
+        function clearResults() {
+            testResults = [];
+            document.getElementById('test-results').innerHTML = '<p class="text-muted">测试结果已清空，点击上方按钮开始测试...</p>';
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            addTestResult('页面加载完成，准备进行功能测试', 'success');
+        });
+    </script>
+</body>
+</html>

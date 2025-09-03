@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validators 修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>Validators 修复测试</h2>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试表单验证</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="test-form">
+                            <div class="mb-3">
+                                <label for="required-field" class="form-label">必填字段 *</label>
+                                <input type="text" class="form-control" id="required-field" name="required-field" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="email-field" class="form-label">邮箱字段</label>
+                                <input type="email" class="form-control" id="email-field" name="email-field">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="stock-code" class="form-label">股票代码</label>
+                                <input type="text" class="form-control" id="stock-code" name="stock-code" pattern="[0-9]{6}" title="请输入6位数字">
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">测试提交</button>
+                            <button type="button" class="btn btn-secondary" onclick="testValidators()">测试验证器</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>测试结果</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-results" style="max-height: 400px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/form-validation.js"></script>
+    <script>
+        function logResult(message, type = 'info') {
+            const results = document.getElementById('test-results');
+            const alertClass = type === 'success' ? 'alert-success' : 
+                              type === 'error' ? 'alert-danger' : 'alert-info';
+            
+            results.innerHTML += `
+                <div class="alert ${alertClass} alert-sm py-2 mb-2">
+                    ${new Date().toLocaleTimeString()}: ${message}
+                </div>
+            `;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function testValidators() {
+            logResult('开始测试验证器...', 'info');
+            
+            // 检查 Validators 对象是否存在
+            if (typeof Validators === 'undefined') {
+                logResult('❌ Validators 对象未定义', 'error');
+                return;
+            }
+            
+            logResult('✅ Validators 对象已加载', 'success');
+            
+            // 测试 required 验证器
+            const requiredTests = [
+                { value: '', expected: false, desc: '空字符串' },
+                { value: '   ', expected: false, desc: '空白字符串' },
+                { value: 'test', expected: true, desc: '有效字符串' },
+                { value: null, expected: false, desc: 'null值' },
+                { value: undefined, expected: false, desc: 'undefined值' },
+                { value: 0, expected: true, desc: '数字0' },
+                { value: 123, expected: true, desc: '正数' },
+                { value: false, expected: true, desc: 'false布尔值' },
+                { value: true, expected: true, desc: 'true布尔值' }
+            ];
+            
+            logResult('测试 Validators.required:', 'info');
+            let requiredPassed = 0;
+            requiredTests.forEach(test => {
+                try {
+                    const result = Validators.required(test.value);
+                    if (result === test.expected) {
+                        logResult(`  ✅ ${test.desc}: ${result}`, 'success');
+                        requiredPassed++;
+                    } else {
+                        logResult(`  ❌ ${test.desc}: 期望 ${test.expected}, 得到 ${result}`, 'error');
+                    }
+                } catch (error) {
+                    logResult(`  ❌ ${test.desc}: 错误 ${error.message}`, 'error');
+                }
+            });
+            
+            // 测试 email 验证器
+            const emailTests = [
+                { value: 'test@example.com', expected: true, desc: '有效邮箱' },
+                { value: 'invalid-email', expected: false, desc: '无效邮箱' },
+                { value: '', expected: false, desc: '空邮箱' },
+                { value: 'test@', expected: false, desc: '不完整邮箱' }
+            ];
+            
+            logResult('测试 Validators.email:', 'info');
+            let emailPassed = 0;
+            emailTests.forEach(test => {
+                try {
+                    const result = Validators.email(test.value);
+                    if (result === test.expected) {
+                        logResult(`  ✅ ${test.desc}: ${result}`, 'success');
+                        emailPassed++;
+                    } else {
+                        logResult(`  ❌ ${test.desc}: 期望 ${test.expected}, 得到 ${result}`, 'error');
+                    }
+                } catch (error) {
+                    logResult(`  ❌ ${test.desc}: 错误 ${error.message}`, 'error');
+                }
+            });
+            
+            // 总结
+            const totalTests = requiredTests.length + emailTests.length;
+            const totalPassed = requiredPassed + emailPassed;
+            
+            if (totalPassed === totalTests) {
+                logResult(`🎉 所有测试通过! (${totalPassed}/${totalTests})`, 'success');
+            } else {
+                logResult(`⚠️ 部分测试失败 (${totalPassed}/${totalTests})`, 'error');
+            }
+        }
+
+        // 页面加载完成后初始化表单验证
+        document.addEventListener('DOMContentLoaded', function() {
+            logResult('页面加载完成，初始化表单验证...', 'info');
+            
+            try {
+                // 初始化表单验证器
+                const validator = new FormValidator('#test-form', {
+                    realTimeValidation: true,
+                    showSuccessState: true
+                });
+                
+                logResult('✅ 表单验证器初始化成功', 'success');
+                
+                // 添加自定义提交处理
+                validator.onSubmit = function(formData) {
+                    logResult('📝 表单提交数据:', 'info');
+                    Object.keys(formData).forEach(key => {
+                        logResult(`  ${key}: ${formData[key]}`, 'info');
+                    });
+                    return false; // 阻止实际提交
+                };
+                
+            } catch (error) {
+                logResult(`❌ 表单验证器初始化失败: ${error.message}`, 'error');
+            }
+        });
+    </script>
+</body>
+</html>

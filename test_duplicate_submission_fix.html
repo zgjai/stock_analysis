@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>重复提交修复测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-shield-check"></i> 重复提交修复测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <h6>测试说明：</h6>
+                            <ul>
+                                <li>快速连续点击"测试提交"按钮</li>
+                                <li>观察控制台日志，应该只有一个请求被发送</li>
+                                <li>其他重复点击应该被阻止</li>
+                                <li>2秒冷却时间后才能再次提交</li>
+                            </ul>
+                        </div>
+
+                        <form id="test-form">
+                            <div class="mb-3">
+                                <label for="stock-code" class="form-label">股票代码</label>
+                                <input type="text" class="form-control" id="stock-code" value="002460" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="stock-name" class="form-label">股票名称</label>
+                                <input type="text" class="form-control" id="stock-name" value="赣锋锂业" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="price" class="form-label">价格</label>
+                                <input type="number" class="form-control" id="price" value="39.6" step="0.01" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="quantity" class="form-label">数量</label>
+                                <input type="number" class="form-control" id="quantity" value="7600" required>
+                            </div>
+                            
+                            <button type="button" class="btn btn-primary" id="submit-btn">
+                                <span class="spinner-border spinner-border-sm me-2" style="display: none;"></span>
+                                测试提交
+                            </button>
+                            <button type="button" class="btn btn-secondary ms-2" onclick="clearLog()">清空日志</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>测试日志</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="log-container" style="height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 防重复提交状态管理（从修复后的代码复制）
+        let isSubmitting = false;
+        let lastSubmitTime = 0;
+        const SUBMIT_COOLDOWN = 2000; // 2秒冷却时间
+
+        // 重置提交状态
+        function resetSubmissionState() {
+            isSubmitting = false;
+            log('🔄 提交状态已重置', 'info');
+        }
+
+        // 检查是否可以提交
+        function canSubmit() {
+            const now = Date.now();
+            if (isSubmitting) {
+                log('🛡️ 正在提交中，忽略重复请求', 'warning');
+                return false;
+            }
+            if (now - lastSubmitTime < SUBMIT_COOLDOWN) {
+                log('🛡️ 提交过于频繁，请稍后再试', 'warning');
+                return false;
+            }
+            return true;
+        }
+
+        // 设置提交状态
+        function setSubmitting(state) {
+            isSubmitting = state;
+            if (state) {
+                lastSubmitTime = Date.now();
+                log('🔒 设置提交状态为：正在提交', 'info');
+            } else {
+                log('🔓 设置提交状态为：可以提交', 'info');
+            }
+        }
+
+        // 日志函数
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('log-container');
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                info: '#007bff',
+                success: '#28a745',
+                warning: '#ffc107',
+                error: '#dc3545'
+            };
+            
+            const logEntry = document.createElement('div');
+            logEntry.style.color = colors[type] || colors.info;
+            logEntry.style.marginBottom = '2px';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log-container').innerHTML = '';
+        }
+
+        // 模拟提交函数
+        async function testSubmit() {
+            // 防重复提交检查
+            if (!canSubmit()) {
+                return;
+            }
+            
+            // 设置提交状态
+            setSubmitting(true);
+            
+            const submitBtn = document.getElementById('submit-btn');
+            const spinner = submitBtn.querySelector('.spinner-border');
+            
+            try {
+                // 禁用按钮并显示加载状态
+                submitBtn.disabled = true;
+                spinner.style.display = 'inline-block';
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>提交中...';
+                
+                log('📤 开始发送请求...', 'info');
+                
+                // 收集表单数据
+                const formData = {
+                    stock_code: document.getElementById('stock-code').value,
+                    stock_name: document.getElementById('stock-name').value,
+                    trade_type: 'buy',
+                    trade_date: new Date().toISOString().slice(0, 16),
+                    price: parseFloat(document.getElementById('price').value),
+                    quantity: parseInt(document.getElementById('quantity').value),
+                    reason: '测试提交',
+                    stop_loss_price: 37.95,
+                    take_profit_ratio: 1,
+                    sell_ratio: 0.1,
+                    use_batch_profit_taking: false
+                };
+                
+                log('📋 请求数据: ' + JSON.stringify(formData), 'info');
+                
+                // 发送请求
+                const response = await axios.post('/api/trades', formData, {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 10000
+                });
+                
+                if (response.data.success) {
+                    log('✅ 提交成功！交易ID: ' + response.data.data.id, 'success');
+                } else {
+                    log('❌ 提交失败: ' + response.data.error?.message, 'error');
+                }
+                
+            } catch (error) {
+                log('❌ 请求错误: ' + error.message, 'error');
+            } finally {
+                // 重置按钮状态和提交状态
+                setSubmitting(false);
+                submitBtn.disabled = false;
+                spinner.style.display = 'none';
+                submitBtn.innerHTML = '测试提交';
+            }
+        }
+
+        // 绑定事件
+        document.addEventListener('DOMContentLoaded', function() {
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.addEventListener('click', testSubmit);
+            
+            // 表单提交防护
+            const form = document.getElementById('test-form');
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                if (!canSubmit()) {
+                    return false;
+                }
+                return false;
+            });
+            
+            log('🚀 测试页面已加载，可以开始测试', 'success');
+        });
+
+        // 页面卸载时重置状态
+        window.addEventListener('beforeunload', function() {
+            resetSubmissionState();
+        });
+    </script>
+</body>
+</html>

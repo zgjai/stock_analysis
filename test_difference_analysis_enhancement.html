@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>差异分析功能测试</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 差异分析增强样式 */
+        .alert-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .badge-sm {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.025);
+        }
+
+        .card-header.bg-primary {
+            background-color: #0d6efd !important;
+        }
+
+        .text-success {
+            color: #198754 !important;
+        }
+
+        .text-danger {
+            color: #dc3545 !important;
+        }
+
+        .text-warning {
+            color: #fd7e14 !important;
+        }
+
+        /* 差异徽章增强样式 */
+        .badge.bg-success {
+            background-color: #198754 !important;
+        }
+
+        .badge.bg-danger {
+            background-color: #dc3545 !important;
+        }
+
+        .badge.bg-warning {
+            background-color: #ffc107 !important;
+            color: #000 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>差异分析功能测试</h2>
+        
+        <!-- 测试差异徽章 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h4>差异徽章测试</h4>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h6>收益率差异</h6>
+                                <span class="badge" id="return-rate-diff-badge">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h6>收益金额差异</h6>
+                                <span class="badge" id="return-amount-diff-badge">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h6>持仓天数差异</h6>
+                                <span class="badge" id="holding-days-diff-badge">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h6>胜率差异</h6>
+                                <span class="badge" id="success-rate-diff-badge">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 测试分析摘要 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h4>分析摘要测试</h4>
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">差异分析</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="analysis-summary">
+                            <!-- 这里将显示分析摘要 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 测试按钮 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h4>测试控制</h4>
+                <button class="btn btn-primary me-2" onclick="testPositiveDifferences()">测试正向差异</button>
+                <button class="btn btn-warning me-2" onclick="testNegativeDifferences()">测试负向差异</button>
+                <button class="btn btn-success me-2" onclick="testNearExpectation()">测试接近期望</button>
+                <button class="btn btn-info" onclick="testMixedScenario()">测试混合场景</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 模拟期望对比管理器的核心功能
+        class TestExpectationComparisonManager {
+            constructor() {
+                this.timeRangeConfig = {
+                    'all': { label: '全部时间', days: null }
+                };
+            }
+            
+            // 复制增强的updateDiffBadge方法
+            updateDiffBadge(elementId, diff, isPercentage = false) {
+                const element = document.getElementById(elementId);
+                if (!element) return;
+                
+                // 根据需求5.1-5.6实现差异分析和提示功能
+                const absDiff = Math.abs(diff);
+                let threshold, badgeClass, text, icon;
+                
+                // 根据不同指标设置阈值
+                if (isPercentage) {
+                    // 收益率和胜率：±5%范围内为接近期望 (需求5.6)
+                    threshold = 0.05;
+                } else if (elementId.includes('amount')) {
+                    // 收益金额：±1万元范围内为接近期望
+                    threshold = 10000;
+                } else {
+                    // 持仓天数：±1天范围内为接近期望
+                    threshold = 1;
+                }
+                
+                // 根据需求5.4-5.6设置颜色和文本
+                if (absDiff <= threshold) {
+                    // 需求5.6：差异在±5%范围内使用黄色显示并标注"接近期望"
+                    badgeClass = 'bg-warning text-dark';
+                    text = '接近期望';
+                    icon = '≈';
+                } else if (diff > 0) {
+                    // 需求5.4：差异为正值使用绿色显示并标注"超出期望"
+                    badgeClass = 'bg-success text-white';
+                    text = '超出期望';
+                    icon = '↑';
+                } else {
+                    // 需求5.5：差异为负值使用红色显示并标注"低于期望"
+                    badgeClass = 'bg-danger text-white';
+                    text = '低于期望';
+                    icon = '↓';
+                }
+                
+                // 格式化显示值
+                let displayValue;
+                if (isPercentage) {
+                    displayValue = this.formatPercentage(diff);
+                } else if (elementId.includes('amount')) {
+                    displayValue = this.formatCurrency(diff);
+                } else {
+                    displayValue = diff.toFixed(1);
+                }
+                
+                // 更新徽章样式和内容
+                element.className = `badge ${badgeClass}`;
+                element.innerHTML = `${icon} ${displayValue} (${text})`;
+                
+                // 添加工具提示以提供更详细的差异分析
+                element.title = this.generateDifferenceTooltip(elementId, diff, isPercentage);
+            }
+            
+            generateDifferenceTooltip(elementId, diff, isPercentage) {
+                const absDiff = Math.abs(diff);
+                let metricName, unit, analysis;
+                
+                // 确定指标名称和单位
+                if (elementId.includes('return-rate')) {
+                    metricName = '收益率';
+                    unit = '%';
+                } else if (elementId.includes('return-amount')) {
+                    metricName = '收益金额';
+                    unit = '元';
+                } else if (elementId.includes('holding-days')) {
+                    metricName = '持仓天数';
+                    unit = '天';
+                } else if (elementId.includes('success-rate')) {
+                    metricName = '胜率';
+                    unit = '%';
+                } else {
+                    metricName = '指标';
+                    unit = '';
+                }
+                
+                // 生成分析文本
+                if (diff > 0) {
+                    analysis = `实际${metricName}超出期望${absDiff.toFixed(2)}${unit}，表现优于预期`;
+                } else if (diff < 0) {
+                    analysis = `实际${metricName}低于期望${absDiff.toFixed(2)}${unit}，有改进空间`;
+                } else {
+                    analysis = `实际${metricName}与期望值完全一致`;
+                }
+                
+                return analysis;
+            }
+            
+            formatPercentage(value) {
+                return (value * 100).toFixed(2) + '%';
+            }
+            
+            formatCurrency(value) {
+                return '¥' + value.toLocaleString();
+            }
+            
+            // 简化的分析摘要渲染
+            renderAnalysisSummary(data) {
+                const analysisSummary = document.getElementById('analysis-summary');
+                if (!analysisSummary) return;
+                
+                const { expectation, actual, comparison, time_range } = data;
+                const timeRangeLabel = this.timeRangeConfig[time_range]?.label || '选定时间范围';
+                
+                const summaryHtml = `
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <h6 class="text-primary">
+                                <i class="fas fa-chart-area me-2"></i>
+                                ${timeRangeLabel}内的差异分析报告
+                            </h6>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-0 bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-success">
+                                        <i class="fas fa-arrow-up me-1"></i>优势表现
+                                    </h6>
+                                    ${this.generatePositiveAnalysis(comparison)}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-0 bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-warning">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>改进空间
+                                    </h6>
+                                    ${this.generateImprovementAnalysis(comparison)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                analysisSummary.innerHTML = summaryHtml;
+            }
+            
+            generatePositiveAnalysis(comparison) {
+                const positives = [];
+                
+                // 收益率分析
+                if (comparison.return_rate_diff > 0.01) {
+                    const improvement = (comparison.return_rate_diff * 100).toFixed(2);
+                    positives.push({
+                        text: `收益率超出期望 ${this.formatPercentage(comparison.return_rate_diff)}`,
+                        detail: `相对提升${improvement}个百分点`,
+                        icon: 'fas fa-chart-line text-success'
+                    });
+                }
+                
+                // 收益金额分析
+                if (comparison.return_amount_diff > 10000) {
+                    const amount = this.formatCurrency(comparison.return_amount_diff);
+                    positives.push({
+                        text: `收益金额超出期望 ${amount}`,
+                        detail: `基于320万本金的额外收益`,
+                        icon: 'fas fa-coins text-success'
+                    });
+                }
+                
+                if (positives.length === 0) {
+                    return `
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle fa-2x mb-2"></i>
+                            <p class="mb-0">暂无明显优势表现</p>
+                            <small>继续努力，争取超越期望目标</small>
+                        </div>
+                    `;
+                }
+                
+                const positivesHtml = positives.map(p => `
+                    <div class="d-flex align-items-start mb-2">
+                        <i class="${p.icon} me-2 mt-1"></i>
+                        <div>
+                            <div class="fw-bold">${p.text}</div>
+                            <small class="text-muted">${p.detail}</small>
+                        </div>
+                    </div>
+                `).join('');
+                
+                return `
+                    <div class="mb-2">
+                        ${positivesHtml}
+                    </div>
+                    <div class="alert alert-success alert-sm mb-0">
+                        <i class="fas fa-thumbs-up me-1"></i>
+                        <small>发现 ${positives.length} 项优势表现，继续保持！</small>
+                    </div>
+                `;
+            }
+            
+            generateImprovementAnalysis(comparison) {
+                const improvements = [];
+                
+                // 收益率改进分析
+                if (comparison.return_rate_diff < -0.01) {
+                    const gap = Math.abs(comparison.return_rate_diff * 100).toFixed(2);
+                    improvements.push({
+                        text: `收益率低于期望 ${this.formatPercentage(Math.abs(comparison.return_rate_diff))}`,
+                        detail: `需要提升${gap}个百分点`,
+                        priority: 'high',
+                        icon: 'fas fa-chart-line text-danger'
+                    });
+                }
+                
+                if (improvements.length === 0) {
+                    return `
+                        <div class="text-center text-muted">
+                            <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+                            <p class="mb-0">表现接近期望目标</p>
+                            <small>各项指标均在合理范围内</small>
+                        </div>
+                    `;
+                }
+                
+                const improvementsHtml = improvements.map(imp => `
+                    <div class="d-flex align-items-start mb-2">
+                        <i class="${imp.icon} me-2 mt-1"></i>
+                        <div>
+                            <div class="fw-bold">${imp.text}</div>
+                            <small class="text-muted">${imp.detail}</small>
+                            ${imp.priority === 'high' ? '<span class="badge bg-danger badge-sm ms-2">高优先级</span>' : ''}
+                        </div>
+                    </div>
+                `).join('');
+                
+                return `
+                    <div class="mb-2">
+                        ${improvementsHtml}
+                    </div>
+                    <div class="alert alert-danger alert-sm mb-0">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <small>发现 ${improvements.length} 项改进机会</small>
+                    </div>
+                `;
+            }
+        }
+        
+        // 创建测试实例
+        const testManager = new TestExpectationComparisonManager();
+        
+        // 测试函数
+        function testPositiveDifferences() {
+            console.log('测试正向差异...');
+            
+            // 测试超出期望的情况 (需求5.4)
+            testManager.updateDiffBadge('return-rate-diff-badge', 0.08, true); // 8%差异，超出5%阈值
+            testManager.updateDiffBadge('return-amount-diff-badge', 25000, false); // 2.5万差异
+            testManager.updateDiffBadge('holding-days-diff-badge', -3, false); // 持仓天数少3天（正向）
+            testManager.updateDiffBadge('success-rate-diff-badge', 0.12, true); // 胜率高12%
+            
+            // 渲染分析摘要
+            const testData = {
+                expectation: { return_rate: 0.05, return_amount: 160000, holding_days: 12, success_rate: 0.6 },
+                actual: { return_rate: 0.13, return_amount: 185000, holding_days: 9, success_rate: 0.72 },
+                comparison: { 
+                    return_rate_diff: 0.08, 
+                    return_amount_diff: 25000, 
+                    holding_days_diff: -3, 
+                    success_rate_diff: 0.12 
+                },
+                time_range: 'all'
+            };
+            
+            testManager.renderAnalysisSummary(testData);
+        }
+        
+        function testNegativeDifferences() {
+            console.log('测试负向差异...');
+            
+            // 测试低于期望的情况 (需求5.5)
+            testManager.updateDiffBadge('return-rate-diff-badge', -0.06, true); // -6%差异
+            testManager.updateDiffBadge('return-amount-diff-badge', -18000, false); // -1.8万差异
+            testManager.updateDiffBadge('holding-days-diff-badge', 4, false); // 持仓天数多4天（负向）
+            testManager.updateDiffBadge('success-rate-diff-badge', -0.08, true); // 胜率低8%
+            
+            // 渲染分析摘要
+            const testData = {
+                expectation: { return_rate: 0.05, return_amount: 160000, holding_days: 12, success_rate: 0.6 },
+                actual: { return_rate: -0.01, return_amount: 142000, holding_days: 16, success_rate: 0.52 },
+                comparison: { 
+                    return_rate_diff: -0.06, 
+                    return_amount_diff: -18000, 
+                    holding_days_diff: 4, 
+                    success_rate_diff: -0.08 
+                },
+                time_range: 'all'
+            };
+            
+            testManager.renderAnalysisSummary(testData);
+        }
+        
+        function testNearExpectation() {
+            console.log('测试接近期望...');
+            
+            // 测试接近期望的情况 (需求5.6)
+            testManager.updateDiffBadge('return-rate-diff-badge', 0.02, true); // 2%差异，在5%阈值内
+            testManager.updateDiffBadge('return-amount-diff-badge', 5000, false); // 0.5万差异，在1万阈值内
+            testManager.updateDiffBadge('holding-days-diff-badge', 0.5, false); // 持仓天数差0.5天，在1天阈值内
+            testManager.updateDiffBadge('success-rate-diff-badge', -0.03, true); // 胜率差-3%，在5%阈值内
+            
+            // 渲染分析摘要
+            const testData = {
+                expectation: { return_rate: 0.05, return_amount: 160000, holding_days: 12, success_rate: 0.6 },
+                actual: { return_rate: 0.07, return_amount: 165000, holding_days: 12.5, success_rate: 0.57 },
+                comparison: { 
+                    return_rate_diff: 0.02, 
+                    return_amount_diff: 5000, 
+                    holding_days_diff: 0.5, 
+                    success_rate_diff: -0.03 
+                },
+                time_range: 'all'
+            };
+            
+            testManager.renderAnalysisSummary(testData);
+        }
+        
+        function testMixedScenario() {
+            console.log('测试混合场景...');
+            
+            // 测试混合情况
+            testManager.updateDiffBadge('return-rate-diff-badge', 0.08, true); // 超出期望
+            testManager.updateDiffBadge('return-amount-diff-badge', -15000, false); // 低于期望
+            testManager.updateDiffBadge('holding-days-diff-badge', 0.8, false); // 接近期望
+            testManager.updateDiffBadge('success-rate-diff-badge', 0.12, true); // 超出期望
+            
+            // 渲染分析摘要
+            const testData = {
+                expectation: { return_rate: 0.05, return_amount: 160000, holding_days: 12, success_rate: 0.6 },
+                actual: { return_rate: 0.13, return_amount: 145000, holding_days: 12.8, success_rate: 0.72 },
+                comparison: { 
+                    return_rate_diff: 0.08, 
+                    return_amount_diff: -15000, 
+                    holding_days_diff: 0.8, 
+                    success_rate_diff: 0.12 
+                },
+                time_range: 'all'
+            };
+            
+            testManager.renderAnalysisSummary(testData);
+        }
+        
+        // 页面加载时运行默认测试
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('差异分析功能测试页面已加载');
+            testNearExpectation(); // 默认显示接近期望的情况
+        });
+    </script>
+</body>
+</html>
