@@ -441,57 +441,91 @@ class ReviewService(BaseService):
         
         return validation_result
 
+    @classmethod
+    def get_current_holdings(cls, force_refresh_prices: bool = False) -> List[Dict[str, Any]]:
+        """获取当前持仓列表（修复版：按持仓周期计算成本价）"""
+        try:
+            # 获取所有有交易记录的股票代码
+            stock_codes = db.session.query(TradeRecord.stock_code).filter(
+                TradeRecord.is_corrected == False
+            ).distinct().all()
+            
+            holdings = []
+            
+            for (stock_code,) in stock_codes:
+                period = HoldingService._get_current_holding_period(stock_code)
+                
+                if period and period['current_quantity'] > 0:
+                    # 获取最新复盘记录
+                    latest_review = cls.get_latest_review_by_stock(stock_code)
+                    
+                    # 获取当前持仓的实际开始日期
+                    current_holding_start_date = period['start_date']
+                    
+                    # 计算实际持仓交易日数
+                    actual_holding_days = HoldingService._calculate_actual_holding_days(
+                        current_holding_start_date,
+                        latest_review.holding_days if latest_review else None
+                    )
+                    
+                    # 保持原有的持仓天数计算（兼容性）
+                    holding_days = HoldingService._calculate_holding_days(
+                        current_holding_start_date,
+                        latest_review.holding_days if latest_review else None
+                    )
+                    
+                    # 获取当前价格
+                    current_price = HoldingService._get_current_price(stock_code, force_refresh_prices)
+                    
+                    holding = {
+                        'stock_code': period['stock_code'],
+                        'stock_name': period['stock_name'],
+                        'current_quantity': period['current_quantity'],
+                        'total_buy_quantity': period['total_buy_quantity'],
+                        'total_sell_quantity': period['total_sell_quantity'],
+                        'avg_buy_price': float(period['avg_buy_price']),
+                        'avg_price': float(period['avg_buy_price']),  # 兼容字段
+                        'current_price': current_price,
+                        'first_buy_date': current_holding_start_date.isoformat(),
+                        'last_buy_date': period['buy_trades'][-1].trade_date.isoformat() if period['buy_trades'] else current_holding_start_date.isoformat(),
+                        'holding_days': holding_days,
+                        'actual_holding_days': actual_holding_days,
+                        'latest_review': latest_review.to_dict() if latest_review else None
+                    }
+                    holdings.append(holding)
+            
+            # 按实际持仓天数倒序排列
+            holdings.sort(key=lambda x: x['actual_holding_days'], reverse=True)
+            
+            return holdings
+            
+        except Exception as e:
+            raise DatabaseError(f"获取当前持仓失败: {str(e)}")
+
 
 class HoldingService:
     """持仓管理服务"""
     
     @classmethod
     def get_current_holdings(cls, force_refresh_prices: bool = False) -> List[Dict[str, Any]]:
-        """获取当前持仓列表"""
+        """获取当前持仓列表（修复版：按持仓周期计算成本价）"""
         try:
-            # 查询所有买入记录，按股票代码分组
-            buy_records = db.session.query(
-                TradeRecord.stock_code,
-                TradeRecord.stock_name,
-                func.sum(TradeRecord.quantity).label('total_buy_quantity'),
-                (func.sum(TradeRecord.price * TradeRecord.quantity) / func.sum(TradeRecord.quantity)).label('avg_buy_price'),
-                func.min(TradeRecord.trade_date).label('first_buy_date'),
-                func.max(TradeRecord.trade_date).label('last_buy_date')
-            ).filter(
-                and_(
-                    TradeRecord.trade_type == 'buy',
-                    TradeRecord.is_corrected == False
-                )
-            ).group_by(TradeRecord.stock_code, TradeRecord.stock_name).all()
-            
-            # 查询所有卖出记录，按股票代码分组
-            sell_records = db.session.query(
-                TradeRecord.stock_code,
-                func.sum(TradeRecord.quantity).label('total_sell_quantity')
-            ).filter(
-                and_(
-                    TradeRecord.trade_type == 'sell',
-                    TradeRecord.is_corrected == False
-                )
-            ).group_by(TradeRecord.stock_code).all()
-            
-            # 转换为字典便于查找
-            sell_dict = {record.stock_code: record.total_sell_quantity for record in sell_records}
+            # 获取所有有交易记录的股票代码
+            stock_codes = db.session.query(TradeRecord.stock_code).filter(
+                TradeRecord.is_corrected == False
+            ).distinct().all()
             
             holdings = []
-            for buy_record in buy_records:
-                stock_code = buy_record.stock_code
-                total_buy = int(buy_record.total_buy_quantity)
-                total_sell = int(sell_dict.get(stock_code, 0))
-                current_quantity = total_buy - total_sell
+            
+            for (stock_code,) in stock_codes:
+                period = cls._get_current_holding_period(stock_code)
                 
-                # 只有当前持仓大于0的股票才算持仓
-                if current_quantity > 0:
+                if period and period['current_quantity'] > 0:
                     # 获取最新复盘记录
                     latest_review = ReviewService.get_latest_review_by_stock(stock_code)
                     
                     # 获取当前持仓的实际开始日期
-                    current_holding_start_date = cls._get_current_holding_start_date(stock_code)
+                    current_holding_start_date = period['start_date']
                     
                     # 计算实际持仓交易日数
                     actual_holding_days = cls._calculate_actual_holding_days(
@@ -509,21 +543,20 @@ class HoldingService:
                     current_price = cls._get_current_price(stock_code, force_refresh_prices)
                     
                     holding = {
-                        'stock_code': stock_code,
-                        'stock_name': buy_record.stock_name,
-                        'current_quantity': current_quantity,
-                        'total_buy_quantity': total_buy,
-                        'total_sell_quantity': total_sell,
-                        'avg_buy_price': float(buy_record.avg_buy_price),
-                        'avg_price': float(buy_record.avg_buy_price),  # 兼容字段
+                        'stock_code': period['stock_code'],
+                        'stock_name': period['stock_name'],
+                        'current_quantity': period['current_quantity'],
+                        'total_buy_quantity': period['total_buy_quantity'],
+                        'total_sell_quantity': period['total_sell_quantity'],
+                        'avg_buy_price': float(period['avg_buy_price']),
+                        'avg_price': float(period['avg_buy_price']),  # 兼容字段
                         'current_price': current_price,
                         'first_buy_date': current_holding_start_date.isoformat(),
-                        'last_buy_date': buy_record.last_buy_date.isoformat(),
-                        'holding_days': holding_days,  # 原有字段（兼容性）
-                        'actual_holding_days': actual_holding_days,  # 新增：实际交易日数
+                        'last_buy_date': period['buy_trades'][-1].trade_date.isoformat() if period['buy_trades'] else current_holding_start_date.isoformat(),
+                        'holding_days': holding_days,
+                        'actual_holding_days': actual_holding_days,
                         'latest_review': latest_review.to_dict() if latest_review else None
                     }
-                    
                     holdings.append(holding)
             
             # 按实际持仓天数倒序排列
@@ -533,6 +566,66 @@ class HoldingService:
             
         except Exception as e:
             raise DatabaseError(f"获取当前持仓失败: {str(e)}")
+
+    @classmethod
+    def _get_current_holding_period(cls, stock_code: str) -> Optional[Dict[str, Any]]:
+        """获取股票当前活跃持仓周期的信息（修复成本价计算）"""
+        
+        # 获取所有交易记录，按时间排序
+        trades = TradeRecord.query.filter(
+            and_(
+                TradeRecord.stock_code == stock_code,
+                TradeRecord.is_corrected == False
+            )
+        ).order_by(TradeRecord.trade_date.asc()).all()
+        
+        if not trades:
+            return None
+        
+        # 分析持仓周期
+        current_period = None
+        running_quantity = 0
+        
+        for trade in trades:
+            if trade.trade_type == 'buy':
+                if current_period is None:
+                    # 开始新的持仓周期
+                    current_period = {
+                        'stock_code': stock_code,
+                        'stock_name': trade.stock_name,
+                        'start_date': trade.trade_date,
+                        'buy_trades': [],
+                        'sell_trades': [],
+                        'total_buy_quantity': 0,
+                        'total_sell_quantity': 0,
+                        'total_cost': 0
+                    }
+                
+                current_period['buy_trades'].append(trade)
+                current_period['total_buy_quantity'] += trade.quantity
+                current_period['total_cost'] += trade.price * trade.quantity
+                running_quantity += trade.quantity
+                
+            elif trade.trade_type == 'sell':
+                if current_period is not None:
+                    current_period['sell_trades'].append(trade)
+                    current_period['total_sell_quantity'] += trade.quantity
+                    running_quantity -= trade.quantity
+                    
+                    # 如果卖完了，结束当前持仓周期
+                    if running_quantity <= 0:
+                        current_period = None
+                        running_quantity = 0
+        
+        # 返回当前活跃的持仓周期
+        if current_period is not None and running_quantity > 0:
+            current_period['current_quantity'] = running_quantity
+            current_period['avg_buy_price'] = current_period['total_cost'] / current_period['total_buy_quantity']
+            return current_period
+        
+        return None
+
+
     
     @classmethod
     def get_holding_by_stock(cls, stock_code: str) -> Optional[Dict[str, Any]]:
